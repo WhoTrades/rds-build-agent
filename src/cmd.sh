@@ -52,7 +52,8 @@ execute() {
 usage() {
   echo "$0  ${GREEN}command${NORMAL} ..."
   echo
-  echo "$0  ${GREEN}appendconf${NORMAL} packagename"
+  echo "$0  ${GREEN}appendconf${NORMAL}   packagename"
+  echo "$0  ${GREEN}rollbackconf${NORMAL} packagename"
 #  echo "$0  ${GREEN}clearcache${NORMAL}"
 }
 
@@ -108,7 +109,24 @@ $comment
 $code
 EOF
   ) | sudo tee -a $conf
+  " || errx "appendconf() failed!"
+}
+
+rollbackconf() {
+  local packagename=$1
+  local conf="/etc/$packagename/config.local.php"
+
+  if isnull $packagename; then
+    echo "$0  ${GREEN}rollbackconf${NORMAL}  packagename"
+    exitf
+  fi
+
+  execute_concurrent $packagename \
   "
+    [ -e ${conf}.bak ] && [ -r ${conf}.bak ] || exit $EXIT_FAILURE
+
+    sudo cp -a ${conf}.bak $conf
+  " || errx "rollbackconf() failed!"
 }
 
 whatwedo=$1; shift;
@@ -123,6 +141,8 @@ case "$whatwedo" in
   clearcache)   clearcache
                 ;;
   appendconf)   appendconf $optarg1
+                ;;
+  rollbackconf) rollbackconf $optarg1
                 ;;
   *)      usage; exitf;
           ;;
