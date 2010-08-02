@@ -54,7 +54,7 @@ usage() {
   echo
   echo "$0  ${GREEN}appendconf${NORMAL}   packagename"
   echo "$0  ${GREEN}rollbackconf${NORMAL} packagename"
-#  echo "$0  ${GREEN}clearcache${NORMAL}"
+  echo "$0  ${GREEN}clearcache${NORMAL}   packagename cachetype"
 }
 
 # Expl.
@@ -64,13 +64,35 @@ usage() {
 # Should be atomic
 #
 clearcache() {
-  local groupname=$1
+  local packagename=$1
   local cachetype=$2
 
-  if isnull $groupname || isnull $cachetype; then
-    echo "$0  ${GREEN}clearcache${NORMAL}  groupname cachetype"
+  if isnull $packagename || isnull $cachetype; then
+    echo "$0  ${GREEN}clearcache${NORMAL}  packagename cachetype"
     exitf
   fi
+
+  local cacheglob=""
+  case $cachetype in 
+    template)  cacheglob="/tmp/mirtesen_*"
+                  ;;
+    shindig)      cacheglob="/var/cache/shindig/*"
+                  ;;
+  esac
+
+  if [ x"$cacheglob" = x ]; then
+    errx cachetype doesn\'t match pattern
+    exitf
+  fi
+
+  execute_concurrent $packagename \
+  "
+    for d in $cacheglob; do
+      tmpdir=\`mktemp -u ${TMPDIR:-/tmp}/cache.XXXXXX\`
+      sudo mv \$d \$tmpdir
+      sudo rm -fr \$tmpdir
+    done
+  " || errx "clearcache() failed!"
 }
 
 # Expl.
@@ -131,6 +153,7 @@ rollbackconf() {
 
 whatwedo=$1; shift;
 optarg1=$1;  shift;
+optarg2=$1; 
 
 if isnull $whatwedo; then
   usage
@@ -138,14 +161,14 @@ if isnull $whatwedo; then
 fi
 
 case "$whatwedo" in
-  clearcache)   clearcache
-                ;;
   appendconf)   appendconf $optarg1
                 ;;
   rollbackconf) rollbackconf $optarg1
                 ;;
-  *)      usage; exitf;
-          ;;
+  clearcache)   clearcache $optarg1 $optarg2
+                ;;
+  *)            usage; exitf;
+                ;;
 esac
 
 # vim: set sw=2 ts=2 et:
