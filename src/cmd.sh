@@ -52,7 +52,8 @@ execute() {
 usage() {
   echo "$0  ${GREEN}command${NORMAL} ..."
   echo
-  echo "$0"
+  echo "$0  ${GREEN}appendconf${NORMAL} packagename"
+#  echo "$0  ${GREEN}clearcache${NORMAL}"
 }
 
 # Expl.
@@ -79,20 +80,20 @@ clearcache() {
 appendconf() {
   local packagename=$1
   local curdate=`date "+%Y-%m-%d"`
-  local user="${SUDO_USER:-$USER}"
+  local curuser="${SUDO_USER:-$USER}"
   local conf="/etc/$packagename/config.local.php"
-  local comment="/* $date $user: auto-append */"
-  local code=`cat`
-
+  local comment="/* $curdate $curuser: appendconf() */"
+  
   if isnull $packagename; then
     echo "$0  ${GREEN}appendconf${NORMAL}  packagename"
     exitf
   fi
 
-  echo Input lines HERE. Please check syntax BEFORE.
-  
+  echo Please input lines HERE and finish your input with Ctrl+D. To interrupt use Ctrl+C.
+  local code=`cat`
+
   if [ x"$code" = x ]; then
-    echo nothing to append
+    echo nothing to append...exiting.
     exitf
   fi
 
@@ -110,7 +111,8 @@ EOF
   "
 }
 
-whatwedo=$1;
+whatwedo=$1; shift;
+optarg1=$1;  shift;
 
 if isnull $whatwedo; then
   usage
@@ -118,7 +120,9 @@ if isnull $whatwedo; then
 fi
 
 case "$whatwedo" in
-  clearcache)  clearcache
+  clearcache)   clearcache
+                ;;
+  appendconf)   appendconf $optarg1
                 ;;
   *)      usage; exitf;
           ;;
