@@ -130,7 +130,7 @@ appendconf() {
 $comment
 $code
 EOF
-  ) | sudo tee -a $conf
+  ) | sudo tee -a $conf > /dev/null
   " || errx "appendconf() failed!"
 }
 
