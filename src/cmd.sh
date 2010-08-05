@@ -88,6 +88,9 @@ clearcache() {
   execute_concurrent $packagename \
   "
     for d in $cacheglob; do
+      if [ ! -d \$d ]; then
+        continue
+      fi
       tmpdir=\`mktemp -u ${TMPDIR:-/tmp}/cache.XXXXXX\`
       sudo mv \$d \$tmpdir
       sudo rm -fr \$tmpdir
