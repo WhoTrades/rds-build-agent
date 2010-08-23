@@ -57,7 +57,8 @@ usage() {
   echo 
   echo "$0  ${GREEN}deploy${NORMAL}  packagename  packageversion" 
   echo "$0  ${GREEN}install${NORMAL} packagename  packageversion"
-  echo "$0  ${GREEN}use${NORMAL}     packagename  packageversion"    
+  echo "$0  ${GREEN}use${NORMAL}     packagename  packageversion"
+  echo "$0  ${GREEN}remove${NORMAL}  packagename"
   echo "$0  ${GREEN}status${NORMAL}  packagename"
 }
 
