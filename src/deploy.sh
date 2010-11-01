@@ -94,6 +94,23 @@ use() {
   " || errx "use() failed!"
 }
 
+# gracefully restart apache if it's running
+httpd_graceful() {
+  local packagename=$1
+  local packageversion=$2
+
+  if isnull $packagename; then
+    echo "$0  ${GREEN}graceful${NORMAL} packagename packageversion"
+    exitf
+  fi
+
+  execute_concurrent $packagename \
+  "
+  sudo /sbin/service httpd status   >/dev/null 2>&1 &&
+  sudo /sbin/service httpd graceful >/dev/null
+  " || errx "\"service httpd graceful\" failed!"
+}
+
 deploy() {
   local packagename=$1
   local packageversion=$2
@@ -103,9 +120,9 @@ deploy() {
     exitf
   fi
 
-
   install $packagename $packageversion
   use $packagename $packageversion
+  httpd_graceful $packagename $packageversion
 }
 
 remove() {
