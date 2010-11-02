@@ -106,8 +106,13 @@ httpd_graceful() {
 
   execute_concurrent $packagename \
   "
-  sudo /sbin/service httpd status   >/dev/null 2>&1 &&
-  sudo /sbin/service httpd graceful >/dev/null
+  sudo /sbin/service httpd status >/dev/null 2>&1;
+  if [ \$? -eq 0 ]; then
+    sudo /sbin/service httpd graceful >/dev/null
+  else
+    # We should exit correctly if httpd is not present or is not running
+    exit 0
+  fi
   " || errx "\"service httpd graceful\" failed!"
 }
 
