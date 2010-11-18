@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id$
+# $Id: cmd.sh 33733 2010-08-05 16:29:17Z release $
 
 PATH="/bin:/sbin:/usr/bin:/usr/sbin:${PATH}"; export PATH
 LC_ALL=C; export LC_ALL
@@ -55,6 +55,7 @@ usage() {
   echo "$0  ${GREEN}appendconf${NORMAL}   packagename"
   echo "$0  ${GREEN}rollbackconf${NORMAL} packagename"
   echo "$0  ${GREEN}clearcache${NORMAL}   packagename cachetype"
+  echo "$0  ${GREEN}shellexecute${NORMAL} packagename command args"
 }
 
 # Expl.
@@ -98,6 +99,17 @@ clearcache() {
   " || errx "clearcache() failed!"
 }
 
+shellexecute() {
+  local packagename=$1; shift
+
+  if isnull $packagename; then
+    echo "$0  ${GREEN}shellexecute${NORMAL}  packagename command args"
+    exitf
+  fi
+
+  execute_concurrent $packagename "$*"
+}
+ 
 # Expl.
 #   appendconf packagename
 #   appendconf comon
@@ -169,6 +181,8 @@ case "$whatwedo" in
   rollbackconf) rollbackconf $optarg1
                 ;;
   clearcache)   clearcache $optarg1 $optarg2
+                ;;
+  shellexecute) shellexecute $optarg1 $*
                 ;;
   *)            usage; exitf;
                 ;;
