@@ -1,7 +1,5 @@
 #!/bin/sh
 
-# $Id$
-
 PATH="/bin:/sbin:/usr/bin:/usr/sbin:${PATH}"; export PATH
 LC_ALL=C; export LC_ALL
 
@@ -13,7 +11,9 @@ RED=`$TPUT setaf 1`
 GREEN=`$TPUT setaf 2`
 YELLOW=`$TPUT setaf 3`
 NORMAL=`$TPUT op`
+
 EXIT_FAILURE="1"
+DSH_CONFDIR=$HOME/.dsh
 
 errx() {
   local message="$*"
@@ -34,11 +34,28 @@ isnull() {
   return $retval
 }
 
+groupname_exists() {
+  local groupname=$1
+  local retval="0"
+
+  if [ -r $DSH_CONFDIR/group/$groupname ]; then
+    retval="1"
+  fi
+
+  return $retval
+}
+  
+
 execute_concurrent() {
   local packagename=$1
   shift
   local command="$*"
   local groupname=$packagename
+
+  if groupname_exists $groupname; then
+    echo "groupname \"$groupname\" doesn't exists"
+    exitf
+  fi
 
   dsh -M -c -g $groupname -- "$command"
 }
@@ -48,6 +65,11 @@ execute() {
   shift
   local command="$*"
   local groupname=$packagename
+
+  if groupname_exists $groupname; then
+    echo "groupname \"$groupname\" doesn't exists"
+    exitf
+  fi
 
   dsh -M -g $groupname -- "$command"
 }

@@ -10,7 +10,9 @@ RED=`$TPUT setaf 1`
 GREEN=`$TPUT setaf 2`
 YELLOW=`$TPUT setaf 3`
 NORMAL=`$TPUT op`
+
 EXIT_FAILURE="1"
+DSH_CONFDIR=$HOME/.dsh
 
 errx() {
   local message="$*"
@@ -31,11 +33,27 @@ isnull() {
   return $retval
 }
 
+groupname_exists() {
+  local groupname=$1
+  local retval="0"
+
+  if [ -r $DSH_CONFDIR/group/$groupname ]; then
+    retval="1"
+  fi
+
+  return $retval
+}
+
 execute_concurrent() {
   local packagename=$1
   shift
   local command="$*"
   local groupname=$packagename
+
+  if groupname_exists $groupname; then
+    echo "groupname \"$groupname\" doesn't exists"
+    exitf
+  fi
 
   dsh -M -c -g $groupname -- "$command"
 }
@@ -45,6 +63,11 @@ execute() {
   shift
   local command="$*"
   local groupname=$packagename
+
+  if groupname_exists $groupname; then
+    echo "dsh groupname \"$groupname\" does not exist"
+    exitf
+  fi
 
   dsh -M -g $groupname -- "$command"
 }
@@ -107,7 +130,7 @@ shellexecute() {
     exitf
   fi
 
-  execute_concurrent $packagename "$*"
+  execute $packagename "$*"
 }
  
 # Expl.
