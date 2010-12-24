@@ -2,83 +2,18 @@
 
 # $Id: cmd.sh 33733 2010-08-05 16:29:17Z release $
 
-PATH="/bin:/sbin:/usr/bin:/usr/sbin:${PATH}"; export PATH
-LC_ALL=C; export LC_ALL
+SCRIPT_PATH=$(dirname $(readlink -f $0))
 
-TPUT=`which tput`
-RED=`$TPUT setaf 1`
-GREEN=`$TPUT setaf 2`
-YELLOW=`$TPUT setaf 3`
-NORMAL=`$TPUT op`
-
-EXIT_FAILURE="1"
-DSH_CONFDIR=$HOME/.dsh
-
-errx() {
-  local message="$*"
-  echo $message${RED}...terminating.${NORMAL}
-  exit 1
-}
-
-exitf() {
-  exit $EXIT_FAILURE
-}
-
-isnull() {
-  local retval="1"
-  local variable="$1"
-
-  if [ x$variable == x ]; then retval="0"; fi
-
-  return $retval
-}
-
-groupname_exists() {
-  local groupname=$1
-  local retval="0"
-
-  if [ -r $DSH_CONFDIR/group/$groupname ]; then
-    retval="1"
-  fi
-
-  return $retval
-}
-
-execute_concurrent() {
-  local packagename=$1
-  shift
-  local command="$*"
-  local groupname=$packagename
-
-  if groupname_exists $groupname; then
-    echo "groupname \"$groupname\" doesn't exists"
-    exitf
-  fi
-
-  dsh -M -c -g $groupname -- "$command"
-}
-
-execute() {
-  local packagename=$1
-  shift
-  local command="$*"
-  local groupname=$packagename
-
-  if groupname_exists $groupname; then
-    echo "dsh groupname \"$groupname\" does not exist"
-    exitf
-  fi
-
-  dsh -M -g $groupname -- "$command"
-}
+. $SCRIPT_PATH/librc
 
 usage() {
   echo "$0  ${GREEN}command${NORMAL} ..."
   echo
-  echo "$0  ${GREEN}appendconf${NORMAL}   packagename"
-  echo "$0  ${GREEN}rollbackconf${NORMAL} packagename"
-  echo "$0  ${GREEN}clearcache${NORMAL}   packagename cachetype"
-  echo "$0  ${GREEN}shellexecute${NORMAL} packagename command args"
+  echo "$0  ${GREEN}appendconf${NORMAL}            packagename"
+  echo "$0  ${GREEN}rollbackconf${NORMAL}          packagename"
+  echo "$0  ${GREEN}clearcache${NORMAL}            packagename cachetype"
+  echo "$0  ${GREEN}shellexecute${NORMAL}          packagename command args"
+  echo "$0  ${GREEN}drop-dictionary-cache${NORMAL} packagename"
 }
 
 # Expl.
@@ -92,7 +27,7 @@ clearcache() {
   local cachetype=$2
 
   if isnull $packagename || isnull $cachetype; then
-    echo "$0  ${GREEN}clearcache${NORMAL}  packagename cachetype"
+    echo "$0  ${GREEN}clearcache${NORMAL}            packagename cachetype"
     exitf
   fi
 
@@ -122,11 +57,27 @@ clearcache() {
   " || errx "clearcache() failed!"
 }
 
+drop_dictionary_cache() {
+  local packagename=$1; shift
+
+  if isnull $packagename; then
+    echo "$0  ${GREEN}drop-dictionary-cache${NORMAL} packagename"
+    exitf
+  fi
+
+  execute_once $packagename \
+  "
+    sudo -u apache -H \
+      php $PKGDIR/$packagename/misc/tools/cache_invalidator.php \
+        --mapper-name Mapper_Dictionary
+  "
+}
+
 shellexecute() {
   local packagename=$1; shift
 
   if isnull $packagename; then
-    echo "$0  ${GREEN}shellexecute${NORMAL}  packagename command args"
+    echo "$0  ${GREEN}shellexecute${NORMAL}          packagename command args"
     exitf
   fi
 
@@ -146,7 +97,7 @@ appendconf() {
   local comment="/* $curdate $curuser: appendconf() */"
   
   if isnull $packagename; then
-    echo "$0  ${GREEN}appendconf${NORMAL}  packagename"
+    echo "$0  ${GREEN}appendconf${NORMAL}            packagename"
     exitf
   fi
 
@@ -177,7 +128,7 @@ rollbackconf() {
   local conf="/etc/$packagename/config.local.php"
 
   if isnull $packagename; then
-    echo "$0  ${GREEN}rollbackconf${NORMAL}  packagename"
+    echo "$0  ${GREEN}rollbackconf${NORMAL}          packagename"
     exitf
   fi
 
@@ -199,16 +150,18 @@ if isnull $whatwedo; then
 fi
 
 case "$whatwedo" in
-  appendconf)   appendconf $optarg1
-                ;;
-  rollbackconf) rollbackconf $optarg1
-                ;;
-  clearcache)   clearcache $optarg1 $optarg2
-                ;;
-  shellexecute) shellexecute $optarg1 $*
-                ;;
-  *)            usage; exitf;
-                ;;
+  appendconf)             appendconf $optarg1
+                          ;;
+  rollbackconf)           rollbackconf $optarg1
+                          ;;
+  clearcache)             clearcache $optarg1 $optarg2
+                          ;;
+  shellexecute)           shellexecute $optarg1 $*
+                          ;;
+  drop-dictionary-cache)  drop_dictionary_cache $optarg1
+                          ;;
+  *)                      usage; exitf;
+                          ;;
 esac
 
 # vim: set sw=2 ts=2 et:
