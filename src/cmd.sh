@@ -81,7 +81,7 @@ shellexecute() {
     exitf
   fi
 
-  execute $packagename "$*"
+  execute_consistent $packagename "$*"
 }
  
 # Expl.
