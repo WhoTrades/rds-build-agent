@@ -15,31 +15,33 @@ usage() {
 }
 
 install() {
-  local packagename=$1
-  local packageversion=$2
+  local groupname=$1
+  local packagename=$2
+  local packageversion=$3
 
-  if isnull $packagename || isnull $packageversion; then
+  if isnull $groupname || isnull $packagename || isnull $packageversion; then
     echo "$0  ${GREEN}install${NORMAL}  packagename packageversion"
     exitf
   fi
 
   rpmpackage="$packagename-$packageversion.el5.local.noarch.rpm"
   
-  execute_concurrent $packagename "sudo rpm -i $REPO/$rpmpackage" || errx "install() failed!"
+  execute_concurrent $groupname "sudo rpm -i $REPO/$rpmpackage" || errx "install() failed!"
 }
 
 use() {
-  local packagename=$1
-  local packageversion=$2
+  local groupname=$1
+  local packagename=$2
+  local packageversion=$3
 
   package=$packagename-$packageversion
 
-  if isnull $packagename || isnull $packageversion; then
+  if isnull $groupname || isnull $packagename || isnull $packageversion; then
     echo "$0  ${GREEN}use${NORMAL}  packagename packageversion"
     exitf
   fi
 
-  execute_concurrent $packagename \
+  execute_concurrent $groupname \
   "
   cd $PKGDIR; 
   [ -d $package ] && sudo ln -nsf $package $packagename
@@ -48,15 +50,16 @@ use() {
 
 # gracefully restart apache if it's running
 httpd_graceful() {
-  local packagename=$1
-  local packageversion=$2
+  local groupname=$1
+  local packagename=$2
+  local packageversion=$3
 
-  if isnull $packagename; then
+  if isnull $groupname || isnull $packagename; then
     echo "$0  ${GREEN}graceful${NORMAL} packagename packageversion"
     exitf
   fi
 
-  execute_concurrent $packagename \
+  execute_concurrent $groupname \
   "
   sudo /sbin/service httpd status >/dev/null 2>&1;
   if [ \$? -eq 0 ]; then
@@ -69,31 +72,33 @@ httpd_graceful() {
 }
 
 deploy() {
-  local packagename=$1
-  local packageversion=$2
+  local groupname=$1
+  local packagename=$2
+  local packageversion=$3
 
-  if isnull $packagename || isnull $packageversion; then
+  if isnull $groupname || isnull $packagename || isnull $packageversion; then
     echo "$0  ${GREEN}deploy${NORMAL}  packagename packageversion"
     exitf
   fi
 
-  install $packagename $packageversion
-  use $packagename $packageversion
-  httpd_graceful $packagename $packageversion
+  install        $groupname $packagename $packageversion
+  use            $groupname $packagename $packageversion
+  httpd_graceful $groupname $packagename $packageversion
 }
 
 remove() {
-  local packagename=$1
-  local packageversion=$2
+  local groupname=$1
+  local packagename=$2
+  local packageversion=$3
 
-  if isnull $packagename || isnull $packageversion; then
+  if isnull $groupname || isnull $packagename || isnull $packageversion; then
     echo "$0  ${GREEN}remove${NORMAL}  packagename packageversion"
     exitf
   fi
 
   rpmpackage="$packagename-$packageversion.el5.local"
 
-  execute_concurrent $packagename \
+  execute_concurrent $groupname \
   "
   cd $PKGDIR;
   [ -e $packagename ] || exit 1
@@ -104,23 +109,38 @@ remove() {
   fi
   sudo rpm -e $rpmpackage
   "
-#  execute_concurrent $packagename `printf 'for package in $(rpm -q %s | sort | head -n 5); do echo $package; done' $packagename`
 }
 
 status() {
-  local packagename=$1
+  local groupname=$1
+  local packagename=$2
 
-  if isnull $packagename; then
+  if isnull $groupname || isnull $packagename; then
     echo "$0  ${GREEN}status${NORMAL}  packagename"
     exitf
   fi
 
-  execute_concurrent $packagename \
+  execute_concurrent $groupname \
   "
   cd $PKGDIR;
   [ -e $packagename ] && ls -ld $packagename | awk '{ print \$NF }'
   " || errx "status() failed!"
 }
+
+groupname=
+DRYRUN=
+while getopts g:n opt
+do
+  case "$opt" in
+    g)
+      groupname="$OPTARG"
+      ;;
+    n)
+      DRYRUN="t"
+      ;;
+  esac
+done
+shift `expr $OPTIND - 1`
 
 whatwedo=$1;        shift
 packagename=$1;     shift
@@ -131,19 +151,23 @@ if isnull $whatwedo; then
   exitf
 fi
 
+if isnull $groupname; then
+  groupname=$packagename
+fi
+
 case "$whatwedo" in
-  deploy) deploy $packagename $packageversion
-          ;;
-  install) install $packagename $packageversion
-          ;;
-  use)    use $packagename $packageversion
-          ;;
-  status) status $packagename
-          ;;  
-  remove) remove $packagename $packageversion
-          ;;
-  *)      usage; exitf;
-          ;;
+  deploy)  deploy  $groupname $packagename $packageversion
+           ;;
+  install) install $groupname $packagename $packageversion
+           ;;
+  use)     use     $groupname $packagename $packageversion
+           ;;
+  status)  status  $groupname $packagename
+           ;;
+  remove)  remove  $groupname $packagename $packageversion
+           ;;
+  *)       usage; exitf;
+           ;;
 esac
 
 # vim: set sw=2 ts=2 et:

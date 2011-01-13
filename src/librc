@@ -46,38 +46,45 @@ groupname_exists() {
 }
 
 execute_concurrent() {
-  local packagename=$1
+  local groupname=$1
   shift
   local command="$*"
-  local groupname=$packagename
 
   if groupname_exists $groupname; then
     echo "groupname \"$groupname\" doesn't exists"
     exitf
   fi
 
-  dsh -M -c -g $groupname -- "$command"
+  pre=
+  if [ x"$DRYRUN" != x ]; then
+    pre="echo "
+  fi
+
+  $pre dsh -M -c -g $groupname -- "$command"
 }
 
-execute() {
-  local packagename=$1
+execute_consistent() {
+  local groupname=$1
   shift
   local command="$*"
-  local groupname=$packagename
 
   if groupname_exists $groupname; then
     echo "groupname \"$groupname\" does not exist"
     exitf
   fi
 
-  dsh -M -g $groupname -- "$command"
+  pre=
+  if [ x"$DRYRUN" != x ]; then
+    pre="echo "
+  fi
+
+  $pre dsh -M -g $groupname -- "$command"
 }
 
 execute_once() {
-  local packagename=$1
+  local groupname=$1
   shift
   local command="$*"
-  local groupname=$packagename
 
   if groupname_exists $groupname; then
     echo "groupname \"$groupname\" does not exist"
@@ -86,7 +93,12 @@ execute_once() {
 
   machine=`head -1 $DSH_CONFDIR/group/$groupname`
 
-  dsh -M -m $machine -- "$command"
+  pre=
+  if [ x"$DRYRUN" != x ]; then
+    pre="echo "
+  fi
+
+  $pre dsh -M -m $machine -- "$command"
 }
 
 # vim:set sw=2 ts=2 et syntax=sh:
