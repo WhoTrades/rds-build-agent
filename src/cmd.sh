@@ -14,6 +14,8 @@ usage() {
   echo "$0  ${GREEN}clearcache${NORMAL}            packagename cachetype"
   echo "$0  ${GREEN}shellexecute${NORMAL}          packagename command args"
   echo "$0  ${GREEN}drop-dictionary-cache${NORMAL} packagename"
+  echo "$0  ${GREEN}acquire-global-lock${NORMAL}   packagename"
+  echo "$0  ${GREEN}release-global-lock${NORMAL}   packagename"
 }
 
 # Expl.
@@ -70,6 +72,36 @@ drop_dictionary_cache() {
     sudo -u apache -H \
       php $PKGDIR/$packagename/misc/tools/cache_invalidator.php \
         --mapper-name Mapper_Dictionary
+  "
+}
+
+acquire_global_lock() {
+  local packagename=$1; shift
+
+  if isnull $packagename; then
+    echo "$0  ${GREEN}acquire-global-lock${NORMAL}   packagename"
+    exitf
+  fi
+
+  execute_once $packagename \
+  "
+    sudo -u apache -H \
+      php $PKGDIR/$packagename/misc/tools/release/acquire_global_lock.php
+  "
+}
+
+release_global_lock() {
+  local packagename=$1; shift
+
+  if isnull $packagename; then
+    echo "$0  ${GREEN}release-global-lock${NORMAL}   packagename"
+    exitf
+  fi
+
+  execute_once $packagename \
+  "
+    sudo -u apache -H \
+      php $PKGDIR/$packagename/misc/tools/release/release_global_lock.php
   "
 }
 
@@ -159,6 +191,10 @@ case "$whatwedo" in
   shellexecute)           shellexecute $optarg1 $*
                           ;;
   drop-dictionary-cache)  drop_dictionary_cache $optarg1
+                          ;;
+  acquire-global-lock)    acquire_global_lock $optarg1
+                          ;;
+  release-global-lock)    release_global_lock $optarg1
                           ;;
   *)                      usage; exitf;
                           ;;
