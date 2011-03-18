@@ -141,6 +141,8 @@ appendconf() {
     exitf
   fi
 
+  echo -e "<?php $code ?>" | php -l > /dev/null || errx
+
   execute_concurrent $packagename \
   "
   [ -e $conf ] && [ -r $conf ] || exit $EXIT_FAILURE
