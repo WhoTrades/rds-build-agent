@@ -12,6 +12,7 @@ unset GIT_WORK_DIR
 : ${TMPDIR="/var/tmp"}
 
 : ${VERSION="`date "+%Y.%m.%d.%H.%M"`"}
+: ${RELEASE="1"}
 
 NAME=`basename $NAME`
 
@@ -43,7 +44,7 @@ $rpmbuild -ba $specfile
 retval=$?
 
 if [ $retval -eq 0 ]; then
-  echo ${GREEN}$NAME $VERSION${NORMAL}
+  echo ${GREEN}$NAME $VERSION-$RELEASE${NORMAL}
 fi
 
 exit $retval
