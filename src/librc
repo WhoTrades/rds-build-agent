@@ -12,7 +12,6 @@ NORMAL=`$TPUT op`
 EXIT_FAILURE="1"
 DSH_CONFDIR=$HOME/.dsh
 
-DEPLOY_SYSTEM="yes"
 REPO="http://build.local/RPMS/noarch"
 PKGDIR="/var/pkg"
 
@@ -100,6 +99,25 @@ execute_once() {
   fi
 
   $pre dsh -M -m $machine -- "$command"
+}
+
+verbose() {
+  local retval
+
+  case "$VERBOSE" in
+    0|[nN][oO]) retval=1;;
+    *)          retval=0;;
+  esac
+
+  return $retval
+}
+
+logging() {
+  if verbose; then
+    cat -
+  else
+    cat - > /dev/null
+  fi
 }
 
 # vim:set sw=2 ts=2 et syntax=sh:

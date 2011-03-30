@@ -23,31 +23,17 @@ fi
 srcdir=`printf %s/../%s $SCRIPT_PATH $NAME`
 specfile=`printf %s/%s.spec $TMPDIR $NAME`
 
-beverbose() {
-  local retval
-
-  case "$VERBOSE" in
-    0|[nN][oO]) retval=1;;
-    *)          retval=0;;
-  esac
-
-  return $retval
-}
-
-logging() {
-  if beverbose; then
-    cat -
-  else
-    cat - > /dev/null
-  fi
-}
+if [ ! -f $srcdir/misc/tools/build/specfile.sh ]; then
+  echo "${RED}package \"$NAME\" does not support deploy/build-package.sh system${NORMAL}"
+  exitf
+fi
 
 . $srcdir/misc/tools/build/specfile.sh
 
 trap "{ rm -f $specfile; }" EXIT
 
 rpmbuild="rpmbuild -ba $specfile"
-if beverbose; then
+if verbose; then
   rpmbuild="rpmbuild"
 else
   rpmbuild="rpmbuild --quiet"
