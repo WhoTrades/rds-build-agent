@@ -24,12 +24,51 @@ fi
 srcdir=`printf %s/../%s $SCRIPT_PATH $NAME`
 specfile=`printf %s/%s.spec $TMPDIR $NAME`
 
-if [ ! -f $srcdir/misc/tools/build/specfile.sh ]; then
-  echo "${RED}package \"$NAME\" does not support deploy/build-package.sh system${NORMAL}"
-  exitf
-fi
+cat <<EOF > $specfile || exit 1
+%define __os_install_post %{nil}
 
-. $srcdir/misc/tools/build/specfile.sh
+Name:           $NAME
+Version:        $VERSION
+Release:        $RELEASE%{?dist}
+Summary:        MirTesen.RU $NAME sources
+
+Group:          Applications/WWW
+License:        Proprietary
+URL:            http://mirtesen.ru
+BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+BuildArch:      noarch
+
+BuildRequires:  rsync
+
+%description
+MirTesen.RU: $NAME sources.
+
+%prep
+
+
+%build
+
+%install
+rm -rf %{buildroot}
+mkdir -p %{buildroot}%{_localstatedir}/pkg/$NAME-$VERSION-$RELEASE
+phing -Dname=$NAME -Ddestdir=%{buildroot}%{_localstatedir}/pkg/$NAME-$VERSION-$RELEASE -f $srcdir/build.xml
+
+
+%clean
+rm -rf %{buildroot}
+
+
+%files
+%defattr(-,release,release,-)
+%verify(not md5 mtime size) %{_localstatedir}/pkg/$NAME-$VERSION-$RELEASE
+
+
+%changelog
+* `date "+%a %b %d %Y"` Package Builder <mail-root@nasvete.ru> - $VERSION-$RELEASE
+- RPM Package.
+EOF
+
+
 
 trap "{ rm -f $specfile; }" EXIT
 
