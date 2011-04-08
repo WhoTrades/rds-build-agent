@@ -38,7 +38,7 @@ URL:            http://mirtesen.ru
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildArch:      noarch
 
-BuildRequires:  rsync
+BuildRequires:  php-pear-phing
 
 %description
 MirTesen.RU: $NAME sources.
