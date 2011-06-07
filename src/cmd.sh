@@ -70,8 +70,8 @@ drop_dictionary_cache() {
   execute_once $packagename \
   "
     sudo -u apache -H \
-      php $PKGDIR/$packagename/misc/tools/cache_invalidator.php \
-        --mapper-name Mapper_Dictionary
+      php $PKGDIR/$packagename/misc/tools/runner.php \
+        --tool=CacheInvalidator --mapper-name=Mapper_Dictionary
   "
 }
 
@@ -86,7 +86,8 @@ acquire_global_lock() {
   execute_once $packagename \
   "
     sudo -u apache -H \
-      php $PKGDIR/$packagename/misc/tools/release/acquire_global_lock.php
+      php $PKGDIR/$packagename/misc/tools/runner.php \
+        --tool=GlobalLock --acquire
   "
 }
 
@@ -101,7 +102,8 @@ release_global_lock() {
   execute_once $packagename \
   "
     sudo -u apache -H \
-      php $PKGDIR/$packagename/misc/tools/release/release_global_lock.php
+      php $PKGDIR/$packagename/misc/tools/runner.php \
+        --tool=GlobalLock --release
   "
 }
 
