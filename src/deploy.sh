@@ -129,7 +129,7 @@ status() {
 
 groupname=
 DRYRUN=
-while getopts g:n opt
+while getopts hg:n opt
 do
   case "$opt" in
     g)
@@ -137,6 +137,10 @@ do
       ;;
     n)
       DRYRUN="t"
+      ;;
+    h)
+      usage
+      exitf
       ;;
   esac
 done
