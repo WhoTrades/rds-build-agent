@@ -12,7 +12,7 @@ NORMAL=`$TPUT op`
 EXIT_FAILURE="1"
 DSH_CONFDIR=$HOME/.dsh
 
-REPO="http://build.mtml.ru/RPMS/noarch"
+REPO="http://releng.mtml.ru/RPMS/noarch"
 PKGDIR="/var/pkg"
 
 errx() {
