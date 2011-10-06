@@ -11,8 +11,9 @@ usage() {
   echo
   echo "$0  ${GREEN}appendconf${NORMAL}            packagename"
   echo "$0  ${GREEN}rollbackconf${NORMAL}          packagename"
+  echo "$0  ${GREEN}sync-conf${NORMAL}             packagename"
   echo "$0  ${GREEN}clearcache${NORMAL}            packagename cachetype"
-  echo "$0  ${GREEN}shellexecute${NORMAL}          packagename command args"
+  echo "$0  ${GREEN}shell-execute${NORMAL}         packagename command args"
   echo "$0  ${GREEN}drop-dictionary-cache${NORMAL} packagename"
   echo "$0  ${GREEN}acquire-global-lock${NORMAL}   packagename"
   echo "$0  ${GREEN}release-global-lock${NORMAL}   packagename"
@@ -111,7 +112,7 @@ shellexecute() {
   local packagename=$1; shift
 
   if isnull $packagename; then
-    echo "$0  ${GREEN}shellexecute${NORMAL}          packagename command args"
+    echo "$0  ${GREEN}shell-execute${NORMAL}         packagename command args"
     exitf
   fi
 
@@ -147,7 +148,7 @@ appendconf() {
 
   execute_concurrent $packagename \
   "
-  [ -e $conf ] && [ -r $conf ] || exit $EXIT_FAILURE
+  [ -r $conf ] || exit $EXIT_FAILURE
   sudo cp -a $conf ${conf}.bak
 
   (
@@ -157,6 +158,35 @@ $code
 EOF
   ) | sudo tee -a $conf > /dev/null
   " || errx "appendconf() failed!"
+}
+
+syncconf() {
+  local packagename=$1
+  local conf="/etc/$packagename/config.local.php"
+
+  if isnull $packagename; then
+    echo "$0  ${GREEN}sync-conf${NORMAL}             packagename"
+    exitf
+  fi
+
+  if [ ! -r $conf ]; then
+    errx "Source file \"$conf\" does not exists"
+  fi
+
+  confbody=`cat $conf`
+
+  execute_concurrent $packagename \
+  "
+  [ -r $conf ] || exit $EXIT_FAILURE
+  sudo cp -a $conf ${conf}.bak
+
+  cat<<'EOF' | sudo tee ${conf}.sync-conf.new > /dev/null
+$confbody
+EOF
+  [ \$? -eq 0 ] || exit $EXIT_FAILURE
+
+  sudo mv ${conf}.sync-conf.new ${conf}
+  " || errx "sync-conf() failed!"
 }
 
 rollbackconf() {
@@ -190,9 +220,11 @@ case "$whatwedo" in
                           ;;
   rollbackconf)           rollbackconf $optarg1
                           ;;
+  sync-conf)              syncconf $optarg1
+                          ;;
   clearcache)             clearcache $optarg1 $optarg2
                           ;;
-  shellexecute)           shellexecute $optarg1 $*
+  shell-execute)          shellexecute $optarg1 $*
                           ;;
   drop-dictionary-cache)  drop_dictionary_cache $optarg1
                           ;;
