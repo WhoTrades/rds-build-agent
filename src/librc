@@ -15,6 +15,10 @@ DSH_CONFDIR=$HOME/.dsh
 REPO="http://releng.mtml.ru/RPMS/noarch"
 PKGDIR="/var/pkg"
 
+if [ -r $HOME/.deployrc ]; then
+  . $HOME/.deployrc
+fi
+
 errx() {
   local message="$*"
   echo $message${RED}...terminating.${NORMAL}
