@@ -9,8 +9,8 @@ SCRIPT_PATH=$(dirname $(readlink -f $0))
 usage() {
   echo "$0  ${GREEN}command${NORMAL} ..."
   echo
-  echo "$0  ${GREEN}appendconf${NORMAL}            packagename"
-  echo "$0  ${GREEN}rollbackconf${NORMAL}          packagename"
+  echo "$0  ${GREEN}append-conf${NORMAL}           packagename"
+  echo "$0  ${GREEN}rollback-conf${NORMAL}         packagename"
   echo "$0  ${GREEN}sync-conf${NORMAL}             packagename"
   echo "$0  ${GREEN}clearcache${NORMAL}            packagename cachetype"
   echo "$0  ${GREEN}shell-execute${NORMAL}         packagename command args"
@@ -129,10 +129,10 @@ appendconf() {
   local curdate=`date "+%Y-%m-%d"`
   local curuser="${SUDO_USER:-$USER}"
   local conf="/etc/$packagename/config.local.php"
-  local comment="/* $curdate $curuser: appendconf() */"
+  local comment="/* $curdate $curuser: append-conf() */"
   
   if isnull $packagename; then
-    echo "$0  ${GREEN}appendconf${NORMAL}            packagename"
+    echo "$0  ${GREEN}append-conf${NORMAL}           packagename"
     exitf
   fi
 
@@ -151,13 +151,19 @@ appendconf() {
   [ -r $conf ] || exit $EXIT_FAILURE
   sudo cp -a $conf ${conf}.bak
 
+  sudo cp -a $conf ${conf}.append-conf.new
+  [ \$? -eq 0 ] || exit $EXIT_FAILURE
+
   (
     echo; cat<<'EOF'
 $comment
 $code
 EOF
-  ) | sudo tee -a $conf > /dev/null
-  " || errx "appendconf() failed!"
+  ) | sudo tee -a ${conf}.append-conf.new > /dev/null
+  [ \$? -eq 0 ] || exit $EXIT_FAILURE
+
+  sudo mv ${conf}.append-conf.new ${conf}
+  " || errx "append-conf() failed!"
 }
 
 syncconf() {
@@ -194,16 +200,16 @@ rollbackconf() {
   local conf="/etc/$packagename/config.local.php"
 
   if isnull $packagename; then
-    echo "$0  ${GREEN}rollbackconf${NORMAL}          packagename"
+    echo "$0  ${GREEN}rollback-conf${NORMAL}         packagename"
     exitf
   fi
 
   execute_concurrent $packagename \
   "
-    [ -e ${conf}.bak ] && [ -r ${conf}.bak ] || exit $EXIT_FAILURE
+    [ -s ${conf}.bak ] || exit $EXIT_FAILURE
 
-    sudo cp -a ${conf}.bak $conf
-  " || errx "rollbackconf() failed!"
+    sudo mv ${conf}.bak $conf
+  " || errx "rollback-conf() failed!"
 }
 
 whatwedo=$1; shift;
@@ -216,9 +222,9 @@ if isnull $whatwedo; then
 fi
 
 case "$whatwedo" in
-  appendconf)             appendconf $optarg1
+  append-conf)            appendconf $optarg1
                           ;;
-  rollbackconf)           rollbackconf $optarg1
+  rollback-conf)          rollbackconf $optarg1
                           ;;
   sync-conf)              syncconf $optarg1
                           ;;
