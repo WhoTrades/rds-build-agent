@@ -9,6 +9,7 @@ SCRIPT_PATH=$(dirname $(readlink -f $0))
 usage() {
   echo "$0  ${GREEN}command${NORMAL} ..."
   echo
+  echo "$0  ${GREEN}duplicate-conf${NORMAL}        packagename"
   echo "$0  ${GREEN}append-conf${NORMAL}           packagename"
   echo "$0  ${GREEN}rollback-conf${NORMAL}         packagename"
   echo "$0  ${GREEN}sync-conf${NORMAL}             packagename"
@@ -119,19 +120,37 @@ shellexecute() {
   execute_consistent $packagename "$*"
 }
  
+duplicateconf() {
+  local groupname=$1
+  local packagename=$2
+  local conf="/etc/$packagename/config.local.php"
+
+  if isnull $groupname || isnull $packagename; then
+    echo "$0  ${GREEN}duplicate-conf${NORMAL}        packagename"
+    exitf
+  fi
+
+  execute_concurrent $groupname \
+  "
+  [ -r $conf ] || exit $EXIT_FAILURE
+  sudo cp -a ${conf} ${conf}.bak
+  " || errx "duplicate-conf() failed!"
+}
+
 # Expl.
 #   appendconf packagename
 #   appendconf comon
 #   appendconf ftender
 #
 appendconf() {
-  local packagename=$1
+  local groupname=$1
+  local packagename=$2
   local curdate=`date "+%Y-%m-%d"`
   local curuser="${SUDO_USER:-$USER}"
   local conf="/etc/$packagename/config.local.php"
   local comment="/* $curdate $curuser: append-conf() */"
   
-  if isnull $packagename; then
+  if isnull $groupname || isnull $packagename; then
     echo "$0  ${GREEN}append-conf${NORMAL}           packagename"
     exitf
   fi
@@ -146,11 +165,10 @@ appendconf() {
 
   echo -e "<?php $code ?>" | php -l > /dev/null || errx
 
-  execute_concurrent $packagename \
-  "
-  [ -r $conf ] || exit $EXIT_FAILURE
-  sudo cp -a $conf ${conf}.bak
+  duplicateconf $groupname $packagename
 
+  execute_concurrent $groupname \
+  "
   sudo cp -a $conf ${conf}.append-conf.new
   [ \$? -eq 0 ] || exit $EXIT_FAILURE
 
@@ -167,10 +185,11 @@ EOF
 }
 
 syncconf() {
-  local packagename=$1
+  local groupname=$1
+  local packagename=$2
   local conf="/etc/$packagename/config.local.php"
 
-  if isnull $packagename; then
+  if isnull $groupname || isnull $packagename; then
     echo "$0  ${GREEN}sync-conf${NORMAL}             packagename"
     exitf
   fi
@@ -179,13 +198,14 @@ syncconf() {
     errx "Source file \"$conf\" does not exists"
   fi
 
+  php -l $conf > /dev/null || errx 
+
   confbody=`cat $conf`
 
-  execute_concurrent $packagename \
-  "
-  [ -r $conf ] || exit $EXIT_FAILURE
-  sudo cp -a $conf ${conf}.bak
+  duplicateconf $groupname $packagename
 
+  execute_concurrent $groupname \
+  "
   cat<<'EOF' | sudo tee ${conf}.sync-conf.new > /dev/null
 $confbody
 EOF
@@ -196,15 +216,16 @@ EOF
 }
 
 rollbackconf() {
-  local packagename=$1
+  local groupname=$1
+  local packagename=$2
   local conf="/etc/$packagename/config.local.php"
 
-  if isnull $packagename; then
+  if isnull $groupname || isnull $packagename; then
     echo "$0  ${GREEN}rollback-conf${NORMAL}         packagename"
     exitf
   fi
 
-  execute_concurrent $packagename \
+  execute_concurrent $groupname \
   "
     [ -s ${conf}.bak ] || exit $EXIT_FAILURE
 
@@ -212,21 +233,46 @@ rollbackconf() {
   " || errx "rollback-conf() failed!"
 }
 
+groupname=
+while getopts hg:n opt
+do
+  case "$opt" in
+    g)
+      groupname="$OPTARG"
+      ;;
+    n)
+      DRYRUN="t"
+      ;;
+    h)
+      usage
+      exitf
+      ;;
+  esac
+done
+shift `expr $OPTIND - 1`
+
 whatwedo=$1; shift;
 optarg1=$1;  shift;
-optarg2=$1; 
+optarg2=$1;  shift;
 
 if isnull $whatwedo; then
   usage
   exitf
 fi
 
+packagename=$optarg1
+if isnull $groupname; then
+  groupname=$packagename
+fi
+
 case "$whatwedo" in
-  append-conf)            appendconf $optarg1
+  append-conf)            appendconf $groupname $packagename
                           ;;
-  rollback-conf)          rollbackconf $optarg1
+  duplicate-conf)         duplicateconf $groupname $packagename
                           ;;
-  sync-conf)              syncconf $optarg1
+  rollback-conf)          rollbackconf $groupname $packagename
+                          ;;
+  sync-conf)              syncconf $groupname $packagename
                           ;;
   clearcache)             clearcache $optarg1 $optarg2
                           ;;
