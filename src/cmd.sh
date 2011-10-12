@@ -110,6 +110,7 @@ release_global_lock() {
 }
 
 shellexecute() {
+  local groupname=$1;   shift
   local packagename=$1; shift
 
   if isnull $packagename; then
@@ -253,7 +254,7 @@ shift `expr $OPTIND - 1`
 
 whatwedo=$1; shift;
 optarg1=$1;  shift;
-optarg2=$1;  shift;
+optarg2=$1;  # do not shift here!
 
 if isnull $whatwedo; then
   usage
@@ -276,7 +277,7 @@ case "$whatwedo" in
                           ;;
   clearcache)             clearcache $optarg1 $optarg2
                           ;;
-  shell-execute)          shellexecute $optarg1 $*
+  shell-execute)          shellexecute $groupname $packagename $*
                           ;;
   drop-dictionary-cache)  drop_dictionary_cache $optarg1
                           ;;
