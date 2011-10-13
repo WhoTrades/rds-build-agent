@@ -27,10 +27,11 @@ usage() {
 # Should be atomic
 #
 clearcache() {
-  local packagename=$1
-  local cachetype=$2
+  local groupname=$1
+  local packagename=$2
+  local cachetype=$3
 
-  if isnull $packagename || isnull $cachetype; then
+  if isnull $groupname || isnull $packagename || isnull $cachetype; then
     echo "$0  ${GREEN}clearcache${NORMAL}            packagename cachetype"
     exitf
   fi
@@ -39,7 +40,7 @@ clearcache() {
   case $cachetype in 
     template)  cacheglob="/tmp/mirtesen_*"
                   ;;
-    shindig)      cacheglob="/var/cache/shindig/*"
+    shindig)   cacheglob="/var/cache/shindig/*"
                   ;;
   esac
 
@@ -48,7 +49,7 @@ clearcache() {
     exitf
   fi
 
-  execute_concurrent $packagename \
+  execute_concurrent $groupname \
   "
     for d in $cacheglob; do
       if [ ! -d \$d ]; then
@@ -62,14 +63,15 @@ clearcache() {
 }
 
 drop_dictionary_cache() {
-  local packagename=$1; shift
+  local groupname=$1
+  local packagename=$2
 
-  if isnull $packagename; then
+  if isnull $groupname || isnull $packagename; then
     echo "$0  ${GREEN}drop-dictionary-cache${NORMAL} packagename"
     exitf
   fi
 
-  execute_once $packagename \
+  execute_once $groupname \
   "
     sudo -u apache -H \
       php $PKGDIR/$packagename/misc/tools/runner.php \
@@ -78,14 +80,15 @@ drop_dictionary_cache() {
 }
 
 acquire_global_lock() {
-  local packagename=$1; shift
+  local groupname=$1
+  local packagename=$2
 
-  if isnull $packagename; then
+  if isnull $groupname || isnull $packagename; then
     echo "$0  ${GREEN}acquire-global-lock${NORMAL}   packagename"
     exitf
   fi
 
-  execute_once $packagename \
+  execute_once $groupname \
   "
     sudo -u apache -H \
       php $PKGDIR/$packagename/misc/tools/runner.php \
@@ -94,14 +97,15 @@ acquire_global_lock() {
 }
 
 release_global_lock() {
-  local packagename=$1; shift
+  local groupname=$1
+  local packagename=$2
 
-  if isnull $packagename; then
+  if isnull $groupname || isnull $packagename; then
     echo "$0  ${GREEN}release-global-lock${NORMAL}   packagename"
     exitf
   fi
 
-  execute_once $packagename \
+  execute_once $groupname \
   "
     sudo -u apache -H \
       php $PKGDIR/$packagename/misc/tools/runner.php \
@@ -113,12 +117,12 @@ shellexecute() {
   local groupname=$1;   shift
   local packagename=$1; shift
 
-  if isnull $packagename; then
+  if isnull $groupname || isnull $packagename; then
     echo "$0  ${GREEN}shell-execute${NORMAL}         packagename command args"
     exitf
   fi
 
-  execute_consistent $packagename "$*"
+  execute_consistent $groupname "$*"
 }
  
 duplicateconf() {
@@ -275,15 +279,15 @@ case "$whatwedo" in
                           ;;
   sync-conf)              syncconf $groupname $packagename
                           ;;
-  clearcache)             clearcache $optarg1 $optarg2
+  clearcache)             clearcache $groupname $packagename $optarg2
                           ;;
   shell-execute)          shellexecute $groupname $packagename $*
                           ;;
-  drop-dictionary-cache)  drop_dictionary_cache $optarg1
+  drop-dictionary-cache)  drop_dictionary_cache $groupname $packagename
                           ;;
-  acquire-global-lock)    acquire_global_lock $optarg1
+  acquire-global-lock)    acquire_global_lock $groupname $packagename
                           ;;
-  release-global-lock)    release_global_lock $optarg1
+  release-global-lock)    release_global_lock $groupname $packagename
                           ;;
   *)                      usage; exitf;
                           ;;
