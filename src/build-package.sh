@@ -30,11 +30,11 @@ cat <<EOF > $specfile || exit 1
 Name:           $NAME
 Version:        $VERSION
 Release:        $RELEASE%{?dist}
-Summary:        MirTesen.RU $NAME sources
+Summary:        WhoTrades.com $NAME sources
 
 Group:          Applications/WWW
 License:        Proprietary
-URL:            http://mirtesen.ru
+URL:            http://whotrades.com
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildArch:      noarch
 
@@ -64,7 +64,7 @@ rm -rf %{buildroot}
 
 
 %changelog
-* `date "+%a %b %d %Y"` Package Builder <mail-root@nasvete.ru> - $VERSION-$RELEASE
+* `date "+%a %b %d %Y"` Package Builder <vdm+release@whotrades.net> - $VERSION-$RELEASE
 - RPM Package.
 EOF
 
