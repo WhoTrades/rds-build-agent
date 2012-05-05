@@ -9,6 +9,7 @@ SCRIPT_PATH=$(dirname $(readlink -f $0))
 usage() {
   echo "$0  ${GREEN}command${NORMAL} ..."
   echo
+  echo "$0  ${GREEN}create-conf${NORMAL}           packagename"
   echo "$0  ${GREEN}duplicate-conf${NORMAL}        packagename"
   echo "$0  ${GREEN}append-conf${NORMAL}           packagename"
   echo "$0  ${GREEN}rollback-conf${NORMAL}         packagename"
@@ -142,6 +143,23 @@ duplicateconf() {
   " || errx "duplicate-conf() failed!"
 }
 
+createconf() {
+  local groupname=$1
+  local packagename=$2
+  local confpath="/etc/$packagename/"
+
+  if isnull $groupname || isnull $packagename; then
+    echo "$0  ${GREEN}duplicate-conf${NORMAL}        packagename"
+    exitf
+  fi
+
+  execute_concurrent $groupname \
+  "
+  [ -r $confpath ] || exit $EXIT_FAILURE
+  sudo mkdir ${confpath}
+  " || errx "create-conf() failed!"
+}
+
 # Expl.
 #   appendconf packagename
 #   appendconf comon
@@ -272,6 +290,8 @@ fi
 
 case "$whatwedo" in
   append-conf)            appendconf $groupname $packagename
+                          ;;
+  create-conf)            createconf $groupname $packagename
                           ;;
   duplicate-conf)         duplicateconf $groupname $packagename
                           ;;
