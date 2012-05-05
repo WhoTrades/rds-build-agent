@@ -147,6 +147,7 @@ createconf() {
   local groupname=$1
   local packagename=$2
   local confpath="/etc/$packagename/"
+  local conf="/etc/$packagename/config.local.php"
 
   if isnull $groupname || isnull $packagename; then
     echo "$0  ${GREEN}duplicate-conf${NORMAL}        packagename"
@@ -155,8 +156,9 @@ createconf() {
 
   execute_concurrent $groupname \
   "
-  [ -r $confpath ] || exit $EXIT_FAILURE
   sudo mkdir ${confpath}
+  
+  sudo touch ${conf}
   " || errx "create-conf() failed!"
 }
 
