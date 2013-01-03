@@ -41,7 +41,7 @@ BuildArch:      noarch
 BuildRequires:  php-pear-phing
 
 %description
-MirTesen.RU: $NAME sources.
+WhoTrades.Com: $NAME sources.
 
 %prep
 
