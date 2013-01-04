@@ -32,7 +32,7 @@ git reset --hard origin/master
 git clean -f -d
 cd $SCRIPT_PATH
 
-cp $srcdir/phing-task/build/$NAME/build.xml $srcdir/build.xml
+ln -s  phing-task/build/$NAME/build.xml $srcdir/build.xml
 
 
 cat <<EOF > $specfile || exit 1
