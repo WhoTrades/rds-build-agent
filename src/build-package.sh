@@ -21,8 +21,19 @@ if isnull $NAME; then
   exitf
 fi
 
-srcdir=`printf %s/../%s $SCRIPT_PATH $NAME`
+srcdir=`printf %s/../build/%s $SCRIPT_PATH $NAME`
 specfile=`printf %s/%s.spec $TMPDIR $NAME`
+
+
+git clone ssh://git.whotrades.net/srv/git/phing-task $srcdir/phing-task
+cd $srcdir/phing-task
+git checkout master
+git reset --hard origin/master
+git clean -f -d
+cd $SCRIPT_PATH
+
+cp $srcdir/phing-task/build/$NAME/build.xml $srcdir/build.xml
+
 
 cat <<EOF > $specfile || exit 1
 %define __os_install_post %{nil}
@@ -51,7 +62,7 @@ WhoTrades.Com: $NAME sources.
 %install
 rm -rf %{buildroot}
 mkdir -p %{buildroot}%{_localstatedir}/pkg/$NAME-$VERSION-$RELEASE
-phing -Dname=$NAME -Ddestdir=%{buildroot}%{_localstatedir}/pkg/$NAME-$VERSION-$RELEASE -f $srcdir/build.xml
+phing -Dname=$NAME -Ddestdir=%{buildroot}%{_localstatedir}/pkg/$NAME-$VERSION-$RELEASE -f $srcdir/build.xml build
 
 
 %clean
