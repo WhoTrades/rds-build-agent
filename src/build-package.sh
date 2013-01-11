@@ -13,13 +13,20 @@ unset GIT_WORK_DIR
 
 : ${VERSION="`date "+%Y.%m.%d.%H.%M"`"}
 : ${RELEASE="1"}
+: ${COMMAND=$2}
 
 NAME=`basename $NAME`
 
 if isnull $NAME; then
-  echo "$0 packagename"
+  echo "$0 packagename COMMAND"
   exitf
 fi
+
+if isnull $COMMAND; then
+  echo "$0 packagename COMMAND"
+  exitf
+fi
+
 
 srcdir=`printf %s/../build/%s $SCRIPT_PATH $NAME`
 specfile=`printf %s/%s.spec $TMPDIR $NAME`
@@ -62,7 +69,7 @@ WhoTrades.Com: $NAME sources.
 %install
 rm -rf %{buildroot}
 mkdir -p %{buildroot}%{_localstatedir}/pkg/$NAME-$VERSION-$RELEASE
-phing -Dname=$NAME -Ddestdir=%{buildroot}%{_localstatedir}/pkg/$NAME-$VERSION-$RELEASE -f $srcdir/build.xml build
+phing -Dname=$NAME -Ddestdir=%{buildroot}%{_localstatedir}/pkg/$NAME-$VERSION-$RELEASE -f $srcdir/build.xml $COMMAND
 
 
 %clean
