@@ -34,6 +34,7 @@ specfile=`printf %s/%s.spec $TMPDIR $NAME`
 
 git clone ssh://git.whotrades.net/srv/git/phing-task $srcdir/phing-task
 cd $srcdir/phing-task
+git remote update
 git checkout master
 git reset --hard origin/master
 git clean -f -d
