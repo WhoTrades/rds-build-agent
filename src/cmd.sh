@@ -82,9 +82,14 @@ drop_dictionary_cache() {
 }
 
 dictionary_update() {
+  if isnull $groupname || isnull $packagename; then
+    echo "$0  ${GREEN}dictionary-update${NORMAL}             packagename"
+    exitf
+  fi
+
   sh update-data-static.sh
-  drop_dictionary_cache $1
-  clearcache $1 template
+  drop_dictionary_cache $1 $2
+  clearcache $1 $2 template
 }
 
 acquire_global_lock() {
@@ -318,7 +323,7 @@ case "$whatwedo" in
                           ;;
   release-global-lock)    release_global_lock $groupname $packagename
                           ;;
-  dictionary-update)      dictionary_update $groupname
+  dictionary-update)      dictionary_update $groupname $packagename
                           ;;
   *)                      usage; exitf;
                           ;;
