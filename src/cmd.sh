@@ -19,6 +19,7 @@ usage() {
   echo "$0  ${GREEN}drop-dictionary-cache${NORMAL} packagename"
   echo "$0  ${GREEN}acquire-global-lock${NORMAL}   packagename"
   echo "$0  ${GREEN}release-global-lock${NORMAL}   packagename"
+  echo "$0  ${GREEN}dictionary-update${NORMAL}"
 }
 
 # Expl.
@@ -78,6 +79,12 @@ drop_dictionary_cache() {
       php $PKGDIR/$packagename/misc/tools/runner.php \
         --tool=CacheInvalidator --mapper-name=Mapper_Dictionary
   "
+}
+
+dictionary_update() {
+  sh update-data-static.sh
+  drop_dictionary_cache $1 comon
+  clearcache $1 template
 }
 
 acquire_global_lock() {
@@ -310,6 +317,8 @@ case "$whatwedo" in
   acquire-global-lock)    acquire_global_lock $groupname $packagename
                           ;;
   release-global-lock)    release_global_lock $groupname $packagename
+                          ;;
+  dictionary-update)      dictionary_update $groupname $packagename
                           ;;
   *)                      usage; exitf;
                           ;;
