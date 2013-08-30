@@ -59,8 +59,8 @@ fi;
 echo "  Files: "
 ls -1 $prefix*
 echo ""
-echo "  clean? (press Enter for clean or Ctrl-C for break)"
 if [ "$YES" != "--yes" ]; then
+    echo "  clean? (press Enter for clean or Ctrl-C for break)"
     read
 else
     echo ""
@@ -71,4 +71,5 @@ set -e
 rm -f `echo $files | tr "\n" " "`
 
 echo "Cleaned"
+echo ""
 exit 0

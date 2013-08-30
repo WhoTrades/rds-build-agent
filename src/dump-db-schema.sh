@@ -72,8 +72,8 @@ case "$RENV" in
 esac
 
 echo "Using $envname !";
-echo -n "ok? (press Enter to run dump, or Ctrl-C to cancel): "
 if [ "$3" != "--yes" ]; then
+    echo -n "ok? (press Enter to run dump, or Ctrl-C to cancel): "
     read
 else
     echo ""
@@ -100,3 +100,4 @@ done
 
 echo "dump files is:"
 ls -1 $prefix.*
+echo ""
