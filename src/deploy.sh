@@ -1,13 +1,14 @@
 #!/bin/sh
 
+
 SCRIPT_PATH=$(dirname $(readlink -f $0))
 
 . $SCRIPT_PATH/librc
 
 usage() {
   echo "$0  ${GREEN}command${NORMAL} ..."
-  echo 
-  echo "$0  ${GREEN}deploy${NORMAL}  packagename  packageversion" 
+  echo
+  echo "$0  ${GREEN}deploy${NORMAL}  packagename  packageversion"
   echo "$0  ${GREEN}install${NORMAL} packagename  packageversion"
   echo "$0  ${GREEN}use${NORMAL}     packagename  packageversion"
   echo "$0  ${GREEN}remove${NORMAL}  packagename  packageversion"
@@ -18,17 +19,31 @@ install() {
   local groupname=$1
   local packagename=$2
   local packageversion=$3
+  local force=$4
 
   if isnull $groupname || isnull $packagename || isnull $packageversion; then
     echo "$0  ${GREEN}install${NORMAL}  packagename packageversion"
     exitf
   fi
 
+  php deploy/releaseCheckRules.php $packagename $packageversion "install-inprogress"
+  check=$?
+
+  if [ $check = 2 ]; then
+  	if [ "$4" = "--force" ]; then
+  		echo "skip warning by --force"
+  	else
+  		echo "Can't release, exiting..."
+  		exitf
+  	fi
+  fi
+  exitf
+
   php deploy/releaseLogger.php $packagename $packageversion "install-inprogress"
 
-  rpmpackage="$packagename-$packageversion.el5.local.noarch.rpm"
-  
-  execute_concurrent $groupname "sudo rpm -i $REPO/$rpmpackage" || errx "install() failed!"
+#  rpmpackage="$packagename-$packageversion.el5.local.noarch.rpm"
+
+#  execute_concurrent $groupname "sudo rpm -i $REPO/$rpmpackage" || errx "install() failed!"
 
   php deploy/releaseLogger.php $packagename $packageversion "installed"
 }
@@ -155,6 +170,7 @@ shift `expr $OPTIND - 1`
 whatwedo=$1;        shift
 packagename=$1;     shift
 packageversion=$1;  shift
+force=$1;  			shift
 
 if isnull $whatwedo; then
   usage
@@ -168,7 +184,7 @@ fi
 case "$whatwedo" in
   deploy)  deploy  $groupname $packagename $packageversion
            ;;
-  install) install $groupname $packagename $packageversion
+  install) install $groupname $packagename $packageversion $force
            ;;
   use)     use     $groupname $packagename $packageversion
            ;;

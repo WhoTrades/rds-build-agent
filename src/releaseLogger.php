@@ -1,12 +1,9 @@
 <?php
-$app = $argv[1];
-$version = $argv[2];
-$action = $argv[3];
+list(, $app, $version, $action) = $argv;
 
 $url = 'http://phplogs.whotrades.net/releases/json/?app='.$app.'&action='.$action.'&version='.$version;
-$ch = curl_init();
+$ch = curl_init($url);
 
-curl_setopt($ch, CURLOPT_URL,            $url );
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1 );
 curl_setopt($ch, CURLOPT_HTTPHEADER,     array('Content-Type: text/plain'));
 
