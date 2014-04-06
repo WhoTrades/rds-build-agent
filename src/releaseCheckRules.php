@@ -1,7 +1,9 @@
 <?php
+require('config.php');
+
 list(, $app, $version, $action) = $argv;
 
-$url = 'http://phplogs.an.whotrades.net/releaseReject/json/?app='.$app.'&action='.$action.'&version='.$version;
+$url = "http://$phplogsDomain/releaseReject/json/?app=".$app.'&action='.$action.'&version='.$version;
 $ch = curl_init($url);
 
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1 );

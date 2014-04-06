@@ -37,13 +37,12 @@ install() {
   		exitf
   	fi
   fi
-  exitf
 
   php deploy/releaseLogger.php $packagename $packageversion "install-inprogress"
 
-#  rpmpackage="$packagename-$packageversion.el5.local.noarch.rpm"
+  rpmpackage="$packagename-$packageversion.el5.local.noarch.rpm"
 
-#  execute_concurrent $groupname "sudo rpm -i $REPO/$rpmpackage" || errx "install() failed!"
+  execute_concurrent $groupname "sudo rpm -i $REPO/$rpmpackage" || errx "install() failed!"
 
   php deploy/releaseLogger.php $packagename $packageversion "installed"
 }
