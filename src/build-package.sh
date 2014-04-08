@@ -28,6 +28,19 @@ if isnull $COMMAND; then
 fi
 
 
+php deploy/releaseCheckRules.php $NAME
+check=$?
+
+if [ $check = 2 ]; then
+  if [ "$3" = "--force" ]; then
+	echo "skip warning by --force"
+  else
+	echo "Can't release, exiting..."
+	exitf
+  fi
+fi
+echo "It's OK, building..."
+
 srcdir=`printf %s/../build/%s $SCRIPT_PATH $NAME`
 specfile=`printf %s/%s.spec $TMPDIR $NAME`
 

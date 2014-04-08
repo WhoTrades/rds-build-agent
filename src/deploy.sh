@@ -26,18 +26,6 @@ install() {
     exitf
   fi
 
-  php deploy/releaseCheckRules.php $packagename $packageversion "install-inprogress"
-  check=$?
-
-  if [ $check = 2 ]; then
-  	if [ "$4" = "--force" ]; then
-  		echo "skip warning by --force"
-  	else
-  		echo "Can't release, exiting..."
-  		exitf
-  	fi
-  fi
-
   php deploy/releaseLogger.php $packagename $packageversion "install-inprogress"
 
   rpmpackage="$packagename-$packageversion.el5.local.noarch.rpm"
