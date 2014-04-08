@@ -1,5 +1,7 @@
 #!/bin/sh
 
+deleteTo=`date +"%s"`
+
 SCRIPT_PATH=$(dirname $(readlink -f $0))
 
 . $SCRIPT_PATH/librc
@@ -25,7 +27,7 @@ php deploy/releaseCheckRules.php $NAME
 check=$?
 
 if [ $check = 2 ]; then
-  if [ "$3" = "--force" ]; then
+  if [ "$2" = "--force" ]; then
 	echo "skip warning by --force"
   else
 	echo "Can't release, exiting..."
@@ -110,6 +112,8 @@ retval=$?
 
 if [ $retval -eq 0 ]; then
   echo ${GREEN}$NAME $VERSION-$RELEASE${NORMAL}
+  php deploy/releaseRequestRemover.php $NAME $deleteTo
+  php deploy/releaseLogger.php $NAME $VERSION "built"
 fi
 
 exit $retval
