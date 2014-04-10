@@ -1,4 +1,11 @@
 <?php
+$f = fopen("deploy.php.lock", "w");
+$wouldblock = 0;
+$t = flock($f, LOCK_EX | LOCK_NB, $wouldblock);
+if(!$t && $wouldblock) {
+	die("Script already working\n");
+}
+
 require('config.php');
 $url = "http://$phplogsDomain/releaseReject/json/?app=comon";
 
