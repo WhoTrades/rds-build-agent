@@ -16,5 +16,5 @@ if (!$data['ok']) {
         $time = date('Y-m-d H:i:s', strtotime($reject['created']));
         echo "WARNING: {$reject['user']} ($time): {$reject['comment']}\n";
     }
-    exit(2);
+    exit(66);
 }
