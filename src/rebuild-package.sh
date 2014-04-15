@@ -1,5 +1,6 @@
 #!/bin/sh
 
+dir = `pwd`
 deleteTo=`date +"%s"`
 
 SCRIPT_PATH=$(dirname $(readlink -f $0))
@@ -111,6 +112,8 @@ fi
 
 $rpmbuild -ba $specfile
 retval=$?
+
+cd $dir
 
 if [ $retval -eq 0 ]; then
   echo ${GREEN}$NAME $VERSION-$RELEASE${NORMAL}
