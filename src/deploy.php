@@ -70,6 +70,9 @@ foreach ($projectsToBuild as $project) {
         $version = $ans[1];
         if ($returnVar == 0) {
             notify("build_success", "Installed $project $version", $version, $text, $phplogsDomain);
+            $command = "php deploy/releaseRequestRemover.php $project $time 'built'";
+            echo "Executing `$command`\n";
+            exec($command, $output, $result);
         } else {
             $ok = false;
             $title = "Failed to install $project $version";
@@ -85,7 +88,7 @@ foreach ($projectsToBuild as $project) {
             echo "Release rejected\n";
         } else {
             echo "\n=======================\n";
-            echo "Install failed.!!!!!!!!!\n";
+            echo "$title\n";
             echo $text = implode("\n", $output);
             notify("build_failed", $title, $version, $text, $phplogsDomain);
             $command = "php deploy/releaseRequestRemover.php $project $time 'failed'";

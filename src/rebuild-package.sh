@@ -117,7 +117,6 @@ cd $dir
 
 if [ $retval -eq 0 ]; then
   echo ${GREEN}$NAME $VERSION-$RELEASE${NORMAL}
-  php deploy/releaseRequestRemover.php $NAME $deleteTo "build"
   php deploy/releaseLogger.php $NAME $VERSION "built"
 fi
 

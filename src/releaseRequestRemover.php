@@ -10,4 +10,3 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1 );
 curl_setopt($ch, CURLOPT_HTTPHEADER,     array('Content-Type: text/plain'));
 
 $result=curl_exec ($ch);
-echo $result;
