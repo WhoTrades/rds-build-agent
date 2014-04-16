@@ -52,6 +52,9 @@ foreach ($data['requests'] as $request) {
 $projectsToBuild = array_unique($projectsToBuild);
 
 foreach ($projectsToBuild as $project) {
+    $command = "php deploy/releaseRequestRemover.php $project $time 'building'";
+    echo "Executing `$command`\n";
+    echo exec($command, $output, $returnVar);
     $command = "bash deploy/rebuild-package.sh $project 2>&1";
     echo "Executing `$command`\n";
     echo exec($command, $output, $returnVar);
@@ -63,12 +66,12 @@ foreach ($projectsToBuild as $project) {
             die("Can't find version");
         }
         $version = $ans[1];
-        $command = "bash deploy/deploy.sh install $project $version 2>&1";
+        $command = "\nbash deploy/deploy.sh install $project $version 2>&1";
         echo "Executing `$command`\n";
         echo exec($command, $output, $returnVar);
         if ($returnVar == 0) {
             notify("build_success", "Installed $project $version", $version, $text, $phplogsDomain);
-            $command = "php deploy/releaseRequestRemover.php $project $time 'built'";
+            $command = "php deploy/releaseRequestRemover.php $project $time 'built-$version'";
             echo "Executing `$command`\n";
             exec($command, $output, $result);
         } else {
@@ -77,10 +80,11 @@ foreach ($projectsToBuild as $project) {
         }
     } else {
         $ok = false;
-        $title = "Failed to rebuild $project $version";
+        $title = "Failed to rebuild $project";
     }
 
     if (!$ok) {
+        sleep(10);
         if ($returnVar == 66) {
             //an: Это генерит скрипт releaseCheckRules.php
             echo "Release rejected\n";
