@@ -40,7 +40,6 @@ curl_setopt($ch, CURLOPT_HTTPHEADER,     array('Content-Type: text/plain'));
 $text=curl_exec($ch);
 $data = json_decode($text, true);
 $commands = array();
-$version = date('Y.m.d.H.i');
 $projectsToBuild = array();
 foreach ($data['requests'] as $request) {
 	foreach ($request['projects'] as $project => $status) {
@@ -63,10 +62,10 @@ foreach ($projectsToBuild as $project) {
         if (!preg_match("~Version: '([^']+)'~", $text, $ans)) {
             die("Can't find version");
         }
+        $version = $ans[1];
         $command = "bash deploy/deploy.sh install $project $version 2>&1";
         echo "Executing `$command`\n";
         echo exec($command, $output, $returnVar);
-        $version = $ans[1];
         if ($returnVar == 0) {
             notify("build_success", "Installed $project $version", $version, $text, $phplogsDomain);
             $command = "php deploy/releaseRequestRemover.php $project $time 'built'";
