@@ -84,7 +84,6 @@ foreach ($projectsToBuild as $project) {
     }
 
     if (!$ok) {
-        sleep(10);
         if ($returnVar == 66) {
             //an: Это генерит скрипт releaseCheckRules.php
             echo "Release rejected\n";
