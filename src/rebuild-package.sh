@@ -1,6 +1,6 @@
 #!/bin/sh
 
-dir = `pwd`
+dir=`pwd`
 deleteTo=`date +"%s"`
 
 SCRIPT_PATH=$(dirname $(readlink -f $0))
