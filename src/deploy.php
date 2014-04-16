@@ -21,7 +21,6 @@ function notify($type, $title, $version, $text, $phplogsDomain)
 
 
     $text=curl_exec ($ch);
-    echo $text;
 }
 
 $f = fopen("deploy.php.lock", "w");

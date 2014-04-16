@@ -24,7 +24,7 @@ if isnull $NAME; then
   exitf
 fi
 
-echo "Version: '$VERSION'"
+echo "Version: '$VERSION-$RELEASE'"
 
 php deploy/releaseCheckRules.php $NAME
 check=$?
