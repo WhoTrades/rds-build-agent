@@ -60,13 +60,13 @@ foreach ($projectsToBuild as $project) {
     $ok = true;
     $title = null;
     if ($returnVar == 0) {
-        $command = "bash deploy/deploy.sh install $project 2>&1";
-        echo "Executing `$command`\n";
-        echo exec($command, $output, $returnVar);
-        $text = implode("\n", $output);
-        if (!preg_match("~Version: '[^']+'~", $text, $ans)) {
+		$text = implode("\n", $output);
+        if (!preg_match("~Version: '([^']+)'~", $text, $ans)) {
             die("Can't find version");
         }
+        $command = "bash deploy/deploy.sh install $project $version 2>&1";
+        echo "Executing `$command`\n";
+        echo exec($command, $output, $returnVar);
         $version = $ans[1];
         if ($returnVar == 0) {
             notify("build_success", "Installed $project $version", $version, $text, $phplogsDomain);
