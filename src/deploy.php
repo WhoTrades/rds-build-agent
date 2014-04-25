@@ -57,7 +57,7 @@ foreach ($projectsToBuild as $project) {
     $command = "php deploy/releaseRequestRemover.php $project $time 'building'";
     echo "Executing `$command`\n";
     echo exec($command, $output, $returnVar);
-    $command = "bash deploy/rebuild-package.sh $project 2>&1";
+    $command = "env VERBOSE=y bash deploy/rebuild-package.sh $project 2>&1";
     echo "Executing `$command`\n";
     echo exec($command, $output, $returnVar);
     $ok = true;
