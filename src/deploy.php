@@ -7,6 +7,8 @@ function notify($type, $title, $version, $text, $phplogsDomain)
 {
     $url = "http://$phplogsDomain/releaseReject/json/?action=notify";
 
+    $text = "<pre>".nl2br(cliColorsToHtml($text));
+
     $query = array(
         'type' => $type,
         'title' => $title,
@@ -103,3 +105,66 @@ foreach ($projectsToBuild as $project) {
     exit($returnVar);
 }
 
+
+
+function cliColorsToHtml($text)
+{
+    $foregroundColors['black'] = '0;30';
+    $foregroundColors['darkgray'] = '1;30';
+    $foregroundColors['blue'] = '0;34';
+    $foregroundColors['lightblue'] = '1;34';
+    $foregroundColors['green'] = '0;32';
+    $foregroundColors['lightgreen'] = '1;32';
+    $foregroundColors['cyan'] = '0;36';
+    $foregroundColors['lightcyan'] = '1;36';
+    $foregroundColors['red'] = '0;31';
+    $foregroundColors['lightred'] = '1;31';
+    $foregroundColors['purple'] = '0;35';
+    $foregroundColors['lightpurple'] = '1;35';
+    $foregroundColors['brown'] = '0;33';
+    $foregroundColors['yellow'] = '1;33';
+    $foregroundColors['lightgray'] = '0;37';
+    $foregroundColors['white'] = '1;37';
+
+    $backgroundColors['black'] = '40';
+    $backgroundColors['red'] = '41';
+    $backgroundColors['green'] = '42';
+    $backgroundColors['yellow'] = '43';
+    $backgroundColors['blue'] = '44';
+    $backgroundColors['magenta'] = '45';
+    $backgroundColors['cyan'] = '46';
+    $backgroundColors['lightgray'] = '47';
+    return preg_replace_callback("~\e\[([\d;]+)m~",
+        function ($mathes) use ($foregroundColors, $backgroundColors)  {
+        $defaultBackgroundColor = "transparent";
+        $defaultTextColor = "inherit";
+        if (isset($foregroundColors[$mathes[1]])) {
+            $color = $foregroundColors[$mathes[1]];
+            return "</font><font style='color: $color'>";
+        }
+
+        if (false === strpos($mathes[1], ";")) {
+            return "</font><font style='color: $defaultTextColor; background-color: $defaultBackgroundColor'>";
+        }
+
+        list($background, $foreground) = explode(";", $mathes[1]);
+
+        $textColor = $defaultTextColor;
+        foreach ($foregroundColors as $code => $color) {
+            $list = explode(";",$color);
+            if ($list[0] == $foreground) {
+                $textColor = $code;
+                break;
+            }
+        }
+
+        $backgroundColor = array_search($background, $backgroundColors) ;
+        $backgroundColor = $backgroundColor === false ? $defaultBackgroundColor : $backgroundColor;
+
+        if ($backgroundColor == $defaultBackgroundColor && $textColor == $defaultTextColor) {
+            echo $mathes[1]."\n";
+            return "</font><font style='color: $defaultTextColor; background-color: $defaultBackgroundColor'>";
+        }
+        return "</font><font style='color: $textColor; background-color: $backgroundColor'>";
+    }, $text);
+}
