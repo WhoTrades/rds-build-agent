@@ -1,178 +1,96 @@
 <?php
+declare(ticks = 1);
+
 require('config.php');
+require('functions.php');
 
-$time = time();
-
-function notify($type, $title, $version, $text, $phplogsDomain)
-{
-    $url = "http://$phplogsDomain/releaseReject/json/?action=notify";
-
-    $text = "<pre style='background: black; color: lightgrey'>".nl2br(cliColorsToHtml($text));
-
-    $query = array(
-        'type' => $type,
-        'title' => $title,
-        'version' => $version,
-        'text' => $text,
-    );
-
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1 );
-    curl_setopt($ch, CURLOPT_POST,    1);
-    curl_setopt($ch, CURLOPT_POSTFIELDS,    $query);
-
-
-    $text=curl_exec ($ch);
-}
-
-$f = fopen("deploy.php.lock", "w");
+echo "Starting work ".date("Y-m-d H:i:s")."\n";
+$f = fopen(__DIR__."/".Config::$workerName."_deploy.php.lock", "w+");
 $wouldblock = 0;
 $t = flock($f, LOCK_EX | LOCK_NB, $wouldblock);
 if(!$t && $wouldblock) {
 	die("Script already working\n");
 }
+file_put_contents(__DIR__."/".Config::$workerName."_deploy.php.pid", posix_getpid());
+file_put_contents(__DIR__."/".Config::$workerName."_deploy.php.pgid", posix_getpgid(posix_getpid()));
 
-$url = "http://$phplogsDomain/releaseReject/json/?app=comon";
+$data = RemoteModel::getInstance()->getNextTask(\Config::$workerName);
 
-$ch = curl_init($url);
-
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1 );
-curl_setopt($ch, CURLOPT_HTTPHEADER,     array('Content-Type: text/plain'));
-
-$text=curl_exec($ch);
-$data = json_decode($text, true);
-$commands = array();
-$projectsToBuild = array();
-foreach ($data['requests'] as $request) {
-	foreach ($request['projects'] as $project => $status) {
-		if ($status == '1') {
-            $projectsToBuild[] = $project;
-		}
-	}
+if ($data) {
+    $project = $data['project'];
+    $taskId = $data['id'];
+    $version = $data['version'];
+	$release = $data['release'];
+} else {
+    die("No work\n");
 }
 
-$projectsToBuild = array_unique($projectsToBuild);
+pcntl_signal(SIGTERM, function($signal) use ($taskId, $version){
+    echo "Cancelling...\n";
+    RemoteModel::getInstance()->sendStatus($taskId, 'cancelled', $version);
+    echo "Cancelled...\n";
+    exit($signal);
+});
 
-foreach ($projectsToBuild as $project) {
-    $command = "php deploy/releaseRequestRemover.php $project $time 'building'";
-    echo "Executing `$command`\n";
-    echo exec($command, $output, $returnVar);
-    $command = "env VERBOSE=y bash deploy/rebuild-package.sh $project 2>&1";
-    echo "Executing `$command`\n";
-    echo exec($command, $output, $returnVar);
-    $ok = true;
-    $title = null;
-    if ($returnVar == 0) {
-		$text = implode("\n", $output);
-        if (!preg_match("~Version: '([^']+)'~", $text, $ans)) {
-            die("Can't find version");
-        }
-        $version = $ans[1];
-        $command = "\nbash deploy/deploy.sh install $project $version 2>&1";
-        echo "Executing `$command`\n";
-        echo exec($command, $output, $returnVar);
-        if ($returnVar == 0) {
-            notify("build_success", "Installed $project $version", $version, $text, $phplogsDomain);
-            $command = "php deploy/releaseRequestRemover.php $project $time 'built-$version'";
-            echo "Executing `$command`\n";
-            exec($command, $output, $result);
-        } else {
-            $ok = false;
-            $title = "Failed to install $project $version";
-        }
+
+$text = '';
+$currentOperation = "none";
+try {
+    //an: Сигнализируем о начале работы
+    $currentOperation = "send status 'building'";
+    RemoteModel::getInstance()->sendStatus($taskId, 'building');
+
+    //an: Собираем проект
+    $command = "env VERBOSE=y bash deploy/rebuild-package.sh $project $version $release 2>&1";
+
+    if (Config::$debug) {
+        $command = "php deploy/fakeRebuild.php $project $version";
+    }
+
+    $currentOperation = "building";
+    $text = executeCommand($command);
+
+    //an: Сигнализируем все что собрали и начинаем раскладывать по серверам
+    RemoteModel::getInstance()->sendStatus($taskId, 'built', $version);
+
+    //an: Должно быть такое же, как в rebuild-package.sh
+    $filename = "/home/release/buildroot/$project-$version/var/pkg/$project-$version/misc/tools/migration.php";
+    if (file_exists($filename)) {
+        //an: Проект с миграциями
+        $command = "php $filename migration --type=pre --project=$project count --interactive=0|tail -n 1";
+        $count = executeCommand($command);
     } else {
-        $ok = false;
-        $title = "Failed to rebuild $project";
+        //an: Проект без миграций
+        $count = 0;
     }
 
-    if (!$ok) {
-        if ($returnVar == 66) {
-            //an: Это генерит скрипт releaseCheckRules.php
-            echo "Release rejected\n";
-            $command = "php deploy/releaseRequestRemover.php $project $time 'failed'";
-            echo "Executing `$command`\n";
-            exec($command, $output, $result);
-        } else {
-            echo "\n=======================\n";
-            echo "$title\n";
-            echo $text = implode("\n", $output);
-            notify("build_failed", $title, $version, $text, $phplogsDomain);
-            $command = "php deploy/releaseRequestRemover.php $project $time 'failed'";
-            echo "Executing `$command`\n";
-            exec($command, $output, $result);
-        }
+    RemoteModel::getInstance()->sendMigrationCount($taskId, $count);
+
+    $currentOperation = "installing";
+    //an: Раскладываем собранный проект по серверам
+    $command = "bash deploy/deploy.sh install $project $version 2>&1";
+
+    if (Config::$debug) {
+        $command = "php deploy/fakeRebuild.php $project $version";
     }
-    exit($returnVar);
-}
+    $text = executeCommand($command);
 
-
-
-function cliColorsToHtml($text)
-{
-    $foregroundColors['black'] = '0;30';
-    $foregroundColors['darkgray'] = '1;30';
-    $foregroundColors['blue'] = '0;34';
-    $foregroundColors['lightblue'] = '1;34';
-    $foregroundColors['green'] = '0;32';
-    $foregroundColors['green  '] = '32';
-    $foregroundColors['lightgreen'] = '1;32';
-    $foregroundColors['cyan'] = '0;36';
-    $foregroundColors['lightcyan'] = '1;36';
-    $foregroundColors['red'] = '0;31';
-    $foregroundColors['lightred'] = '1;31';
-    $foregroundColors['red    '] = '31;1';
-    $foregroundColors['purple'] = '0;35';
-    $foregroundColors['lightpurple'] = '1;35';
-    $foregroundColors['brown'] = '0;33';
-    $foregroundColors['yellow'] = '1;33';
-    $foregroundColors['lightgray'] = '0;37';
-    $foregroundColors['white'] = '1;37';
-
-    $backgroundColors['black'] = '40';
-    $backgroundColors['red'] = '41';
-    $backgroundColors['green'] = '42';
-    $backgroundColors['yellow'] = '43';
-    $backgroundColors['blue'] = '44';
-    $backgroundColors['magenta'] = '45';
-    $backgroundColors['cyan'] = '46';
-    $backgroundColors['lightgray'] = '47';
-	$temp = $foregroundColors;
-	foreach ($temp as $key => $val) {
-		$foregroundColors[$key." "] = "0$val";
-	}
-    $text = preg_replace_callback("~\e\[([\d;]+)m~",
-        function ($mathes) use ($foregroundColors, $backgroundColors)  {
-        $defaultBackgroundColor = "transparent";
-        $defaultTextColor = "inherit";
-        if (false !== $color = array_search($mathes[1], $foregroundColors)) {
-            return "</font><font style='color: $color'>";
-		}
-
-        if (false === strpos($mathes[1], ";")) {
-            return "</font><font style='color: $defaultTextColor; background-color: $defaultBackgroundColor'>";
-        }
-
-        list($background, $foreground) = explode(";", $mathes[1]);
-
-        $textColor = $defaultTextColor;
-        foreach ($foregroundColors as $code => $color) {
-            $list = explode(";",$color);
-            if ($list[0] == $foreground) {
-                $textColor = $code;
-                break;
-            }
-        }
-
-        $backgroundColor = array_search($background, $backgroundColors) ;
-        $backgroundColor = $backgroundColor === false ? $defaultBackgroundColor : $backgroundColor;
-
-        if ($backgroundColor == $defaultBackgroundColor && $textColor == $defaultTextColor) {
-            return "</font><font style='color: $defaultTextColor; background-color: $defaultBackgroundColor'>";
-        }
-        return "</font><font style='color: $textColor; background-color: $backgroundColor'>";
-    }, $text);
-	
-	$text = str_replace("\e[m", "</font>", $text);
-	
-	return $text;
+    //an: Сигнализируем все что сделали
+    RemoteModel::getInstance()->sendStatus($taskId, 'installed', $version, $text);
+    $currentOperation = "send status 'installed'";
+} catch (CommandException $e) {
+    if ($e->getCode() == 66) {
+        //an: Это генерит скрипт releaseCheckRules.php
+        echo "Release rejected\n";
+        RemoteModel::getInstance()->sendStatus($taskId, 'failed');
+    } else {
+        $text = $e->output;
+        echo "\n=======================\n";
+        $title = "Failed to execute '$currentOperation'";
+        echo "$title\n";
+        RemoteModel::getInstance()->sendStatus($taskId, 'failed', $version, $text);
+    }
+    exit($e->getCode());
+} catch (Exception $e) {
+    RemoteModel::getInstance()->sendStatus($taskId, 'failed', $version, $e->getMessage());
 }

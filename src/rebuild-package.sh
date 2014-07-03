@@ -1,7 +1,4 @@
-#!/bin/sh
-
-dir=`pwd`
-deleteTo=`date +"%s"`
+#!/bin/bash
 
 SCRIPT_PATH=$(dirname $(readlink -f $0))
 
@@ -11,20 +8,18 @@ unset GIT_DIR
 unset GIT_WORK_DIR
 
 : ${NAME=$1}
-: ${VERBOSE="no"}
+: ${VERBOSE="yes"}
 : ${TMPDIR="/var/tmp"}
 
-: ${VERSION="`date "+%Y.%m.%d.%H.%M"`"}
-: ${RELEASE="1"}
+: ${VERSION=$2}
+: ${release=$3}
 
 NAME=`basename $NAME`
 
 if isnull $NAME; then
-  echo "$0 packagename"
+  echo "$0 packagename version"
   exitf
 fi
-
-echo "Version: '$VERSION-$RELEASE'"
 
 php deploy/releaseCheckRules.php $NAME
 check=$?
@@ -39,85 +34,62 @@ if [ $check = 66 ]; then
 fi
 echo "It's OK, building..."
 
+BUILD="/home/release/build"
+#rm -rf $BUILD/*
 
-srcdir=`printf %s/../build/%s $SCRIPT_PATH $NAME`
-specfile=`printf %s/%s.spec $TMPDIR $NAME`
+BUILDTMP="/home/release/buildtmp"
+rm -rf $BUILDTMP/*
 
+BUILDROOT="/home/release/buildroot/${NAME}-${VERSION}"
+rm -rf $BUILDROOT/*
 
-git clone ssh://git.whotrades.net/srv/git/phing-task $srcdir/phing-task
-cd $srcdir/phing-task
+SRCDIR=`printf %s/../build/%s $SCRIPT_PATH $NAME`
+rm -rf $SRCDIR
+
+git clone ssh://git.whotrades.net/srv/git/phing-task $SRCDIR/phing-task
+cd $SRCDIR/phing-task
 git remote update
 git checkout master
 git reset --hard origin/master
 git clean -f -d
 cd $SCRIPT_PATH
 
-ln -s  phing-task/build/$NAME/build.xml $srcdir/build.xml
+ln -sf phing-task/build/$NAME/build.xml $SRCDIR/build.xml
 
+mkdir -p $BUILDROOT/var/pkg/${NAME}-${VERSION}
+phing -Dname=$NAME -Ddestdir=$BUILDROOT/var/pkg/${NAME}-${VERSION} -Drepository.createtag=1 -Dversion=${VERSION} -Dproject=${NAME} -Ddictionary.sqlite.update=true -Drelease=$release  -Drepositories.update=true -f $SRCDIR/build.xml build
+code=$?
+[ $code != "0" ] && exit $code
 
-cat <<EOF > $specfile || exit 1
-%define __os_install_post %{nil}
+# Create deb-package
+echo "2.0" > $BUILDTMP/debian-binary
 
-Name:           $NAME
-Version:        $VERSION
-Release:        $RELEASE%{?dist}
-Summary:        WhoTrades.com $NAME sources
+echo "TAR directory $BUILDROOT"
+cd $BUILDROOT
+tar -cf - * | gzip > $BUILDTMP/data.tar.gz
 
-Group:          Applications/WWW
-License:        Proprietary
-URL:            http://whotrades.com
-BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-BuildArch:      noarch
+cd $BUILDTMP
+echo "Package: ${NAME}-${VERSION}" > ./control
+echo "Architecture: all" >> ./control
+echo "Version: ${VERSION}" >> ./control
+echo "Maintainer: Package Builder <vdm+release@whotrades.net>" >> ./control
+echo "Priority: optional" >> ./control
+echo "Description: WhoTrades.com ${NAME} sources" >> ./control
+echo " WhoTrades.com ${NAME} sources" >> ./control
+tar -cf - ./control | gzip > ./control.tar.gz
 
-BuildRequires:  php-pear-phing
+ar -qS "${NAME}-${VERSION}_all.deb" debian-binary control.tar.gz data.tar.gz
 
-%description
-WhoTrades.Com: $NAME sources.
+cd /var/www/whotrades_repo
+reprepro export
+reprepro createsymlinks
+reprepro -S admin -C non-free -P extra includedeb wheezy $BUILDTMP/${NAME}-${VERSION}_all.deb
+RETVAL=$?
 
-%prep
-
-
-%build
-
-%install
-rm -rf %{buildroot}
-mkdir -p %{buildroot}%{_localstatedir}/pkg/$NAME-$VERSION-$RELEASE
-phing -Dname=$NAME -Ddestdir=%{buildroot}%{_localstatedir}/pkg/$NAME-$VERSION-$RELEASE -Ddictionary.sqlite.update=true -Drepositories.update=true -f $srcdir/build.xml build
-
-
-%clean
-rm -rf %{buildroot}
-
-
-%files
-%defattr(-,release,release,-)
-%verify(not md5 mtime size) %{_localstatedir}/pkg/$NAME-$VERSION-$RELEASE
-
-
-%changelog
-* `date "+%a %b %d %Y"` Package Builder <vdm+release@whotrades.net> - $VERSION-$RELEASE
-- RPM Package.
-EOF
-
-
-
-trap "{ rm -f $specfile; }" EXIT
-
-rpmbuild="rpmbuild -ba $specfile"
-if verbose; then
-  rpmbuild="rpmbuild"
-else
-  rpmbuild="rpmbuild --quiet"
-fi
-
-$rpmbuild -ba $specfile
-retval=$?
-
-cd $dir
-
-if [ $retval -eq 0 ]; then
-  echo ${GREEN}$NAME $VERSION-$RELEASE${NORMAL}
+if [ $RETVAL -eq 0 ]; then
+  echo ${GREEN}$NAME-$VERSION${NORMAL}
   php deploy/releaseLogger.php $NAME $VERSION "built"
 fi
 
-exit $retval
+cd $SCRIPT_PATH
+exit $RETVAL

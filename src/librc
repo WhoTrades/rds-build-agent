@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 PATH="/bin:/sbin:/usr/bin:/usr/sbin:${PATH}"; export PATH
 LC_ALL="en_US.UTF-8"; export LC_ALL
@@ -12,7 +12,6 @@ NORMAL=`$TPUT op`
 EXIT_FAILURE="1"
 DSH_CONFDIR=$HOME/.dsh
 
-REPO="http://releng.mtml.ru/RPMS/noarch"
 PKGDIR="/var/pkg"
 
 if [ -r $HOME/.deployrc ]; then
@@ -33,7 +32,7 @@ isnull() {
   local retval="1"
   local variable="$1"
 
-  if [ x$variable == x ]; then retval="0"; fi
+  if [ "$variable" = "" ]; then retval="0"; fi
 
   return $retval
 }
@@ -123,5 +122,3 @@ logging() {
     cat - > /dev/null
   fi
 }
-
-# vim:set sw=2 ts=2 et syntax=sh:

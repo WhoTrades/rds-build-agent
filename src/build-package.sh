@@ -1,5 +1,4 @@
-#!/bin/sh
-dir = `pwd`
+#!/bin/bash
 
 SCRIPT_PATH=$(dirname $(readlink -f $0))
 
@@ -9,116 +8,73 @@ unset GIT_DIR
 unset GIT_WORK_DIR
 
 : ${NAME=$1}
-: ${VERBOSE="no"}
+: ${VERBOSE="yes"}
 : ${TMPDIR="/var/tmp"}
 
 : ${VERSION="`date "+%Y.%m.%d.%H.%M"`"}
 : ${RELEASE="1"}
-: ${COMMAND=$2}
 
 NAME=`basename $NAME`
 
 if isnull $NAME; then
-  echo "$0 packagename COMMAND"
+  echo "$0 packagename"
   exitf
 fi
 
-if isnull $COMMAND; then
-  echo "$0 packagename COMMAND"
-  exitf
-fi
+BUILD="/home/release/build"
+#rm -rf $BUILD/*
 
+BUILDTMP="/home/release/buildtmp"
+rm -rf $BUILDTMP/*
 
-php deploy/releaseCheckRules.php $NAME
-check=$?
+BUILDROOT="/home/release/buildroot"
+rm -rf $BUILDROOT/*
 
-if [ $check = 2 ]; then
-  if [ "$3" = "--force" ]; then
-	echo "skip warning by --force"
-  else
-	echo "Can't release, exiting..."
-	exitf
-  fi
-fi
-echo "It's OK, building..."
+SRCDIR=`printf %s/../build/%s $SCRIPT_PATH $NAME`
+#rm -rf $SRCDIR
 
-srcdir=`printf %s/../build/%s $SCRIPT_PATH $NAME`
-specfile=`printf %s/%s.spec $TMPDIR $NAME`
-
-
-git clone ssh://git.whotrades.net/srv/git/phing-task $srcdir/phing-task
-cd $srcdir/phing-task
+git clone ssh://git.whotrades.net/srv/git/phing-task $SRCDIR/phing-task
+cd $SRCDIR/phing-task
 git remote update
 git checkout master
 git reset --hard origin/master
 git clean -f -d
 cd $SCRIPT_PATH
 
-ln -s  phing-task/build/$NAME/build.xml $srcdir/build.xml
+ln -sf phing-task/build/$NAME/build.xml $SRCDIR/build.xml
 
+mkdir -p $BUILDROOT/var/pkg/${NAME}-${VERSION}-${RELEASE}
+phing -Dname=$NAME -Ddestdir=$BUILDROOT/var/pkg/${NAME}-${VERSION}-${RELEASE} -Ddictionary.sqlite.update=false -Drepositories.update=false -f $SRCDIR/build.xml build
+[ $? != "0" ] && exit
 
-cat <<EOF > $specfile || exit 1
-%define __os_install_post %{nil}
+# Create deb-package
+echo "2.0" > $BUILDTMP/debian-binary
 
-Name:           $NAME
-Version:        $VERSION
-Release:        $RELEASE%{?dist}
-Summary:        WhoTrades.com $NAME sources
+echo "TAR directory $BUILDROOT"
+cd $BUILDROOT
+tar -cf - * | gzip > $BUILDTMP/data.tar.gz
 
-Group:          Applications/WWW
-License:        Proprietary
-URL:            http://whotrades.com
-BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-BuildArch:      noarch
+cd $BUILDTMP
+echo "Package: ${NAME}-${VERSION}" > ./control
+echo "Architecture: all" >> ./control
+echo "Version: ${VERSION}-${RELEASE}" >> ./control
+echo "Maintainer: Package Builder <vdm+release@whotrades.net>" >> ./control
+echo "Priority: optional" >> ./control
+echo "Description: WhoTrades.com ${NAME} sources" >> ./control
+echo " WhoTrades.com ${NAME} sources" >> ./control
+tar -cf - ./control | gzip > ./control.tar.gz
 
-BuildRequires:  php-pear-phing
+ar -qS "${NAME}-${VERSION}-${RELEASE}_all.deb" debian-binary control.tar.gz data.tar.gz
 
-%description
-WhoTrades.Com: $NAME sources.
+cd /var/www/whotrades_repo
+reprepro export
+reprepro createsymlinks
+reprepro -S admin -C non-free -P extra includedeb wheezy $BUILDTMP/${NAME}-${VERSION}-${RELEASE}_all.deb
+RETVAL=$?
 
-%prep
-
-
-%build
-
-%install
-rm -rf %{buildroot}
-mkdir -p %{buildroot}%{_localstatedir}/pkg/$NAME-$VERSION-$RELEASE
-phing -Dname=$NAME -Ddestdir=%{buildroot}%{_localstatedir}/pkg/$NAME-$VERSION-$RELEASE -f $srcdir/build.xml $COMMAND
-
-
-%clean
-rm -rf %{buildroot}
-
-
-%files
-%defattr(-,release,release,-)
-%verify(not md5 mtime size) %{_localstatedir}/pkg/$NAME-$VERSION-$RELEASE
-
-
-%changelog
-* `date "+%a %b %d %Y"` Package Builder <vdm+release@whotrades.net> - $VERSION-$RELEASE
-- RPM Package.
-EOF
-
-
-
-trap "{ rm -f $specfile; }" EXIT
-
-rpmbuild="rpmbuild -ba $specfile"
-if verbose; then
-  rpmbuild="rpmbuild"
-else
-  rpmbuild="rpmbuild --quiet"
+if [ $RETVAL -eq 0 ]; then
+  echo ${GREEN}$NAME-$VERSION${NORMAL}
 fi
 
-$rpmbuild -ba $specfile
-retval=$?
-
-cd $dir
-
-if [ $retval -eq 0 ]; then
-  echo ${GREEN}$NAME $VERSION-$RELEASE${NORMAL}
-fi
-
-exit $retval
+cd $SCRIPT_PATH
+exit $RETVAL

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # $Id: cmd.sh 33733 2010-08-05 16:29:17Z release $
 
@@ -40,7 +40,7 @@ clearcache() {
 
   local cacheglob=""
   case $cachetype in 
-    template)  cacheglob="/tmp/mirtesen_*"
+    template)  cacheglob="/tmp/comon_*"
                   ;;
     shindig)   cacheglob="/var/cache/shindig/*"
                   ;;
@@ -58,8 +58,8 @@ clearcache() {
         continue
       fi
       tmpdir=\`mktemp -u ${TMPDIR:-/tmp}/cache.XXXXXX\`
-      sudo mv \$d \$tmpdir
-      sudo rm -fr \$tmpdir
+      mv \$d \$tmpdir
+      rm -fr \$tmpdir
     done
   " || errx "clearcache() failed!"
 }
@@ -75,7 +75,7 @@ drop_dictionary_cache() {
 
   execute_once $groupname \
   "
-    sudo -u apache -H \
+    sudo -u www-data -H \
       php $PKGDIR/$packagename/misc/tools/runner.php \
         --tool=CacheInvalidator --mapper-name=Mapper_Dictionary
   "
@@ -151,7 +151,7 @@ duplicateconf() {
   execute_concurrent $groupname \
   "
   [ -r $conf ] || exit $EXIT_FAILURE
-  sudo cp -a ${conf} ${conf}.bak
+  cp -a ${conf} ${conf}.bak
   " || errx "duplicate-conf() failed!"
 }
 
@@ -168,9 +168,9 @@ createconf() {
 
   execute_concurrent $groupname \
   "
-  sudo mkdir ${confpath}
+  mkdir ${confpath}
   
-  sudo touch ${conf}
+  touch ${conf}
   " || errx "create-conf() failed!"
 }
 
@@ -206,7 +206,7 @@ appendconf() {
 
   execute_concurrent $groupname \
   "
-  sudo cp -a $conf ${conf}.append-conf.new
+  cp -a $conf ${conf}.append-conf.new
   [ \$? -eq 0 ] || exit $EXIT_FAILURE
 
   (
@@ -214,10 +214,10 @@ appendconf() {
 $comment
 $code
 EOF
-  ) | sudo tee -a ${conf}.append-conf.new > /dev/null
+  ) | tee -a ${conf}.append-conf.new > /dev/null
   [ \$? -eq 0 ] || exit $EXIT_FAILURE
 
-  sudo mv ${conf}.append-conf.new ${conf}
+  mv ${conf}.append-conf.new ${conf}
   " || errx "append-conf() failed!"
 }
 
@@ -243,12 +243,12 @@ syncconf() {
 
   execute_concurrent $groupname \
   "
-  cat<<'EOF' | sudo tee ${conf}.sync-conf.new > /dev/null
+  cat<<'EOF' | tee ${conf}.sync-conf.new > /dev/null
 $confbody
 EOF
   [ \$? -eq 0 ] || exit $EXIT_FAILURE
 
-  sudo mv ${conf}.sync-conf.new ${conf}
+  mv ${conf}.sync-conf.new ${conf}
   " || errx "sync-conf() failed!"
 }
 
@@ -266,7 +266,7 @@ rollbackconf() {
   "
     [ -s ${conf}.bak ] || exit $EXIT_FAILURE
 
-    sudo mv ${conf}.bak $conf
+    mv ${conf}.bak $conf
   " || errx "rollback-conf() failed!"
 }
 
