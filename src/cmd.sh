@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # $Id: cmd.sh 33733 2010-08-05 16:29:17Z release $
 
@@ -58,8 +58,8 @@ clearcache() {
         continue
       fi
       tmpdir=\`mktemp -u ${TMPDIR:-/tmp}/cache.XXXXXX\`
-      mv \$d \$tmpdir
-      rm -fr \$tmpdir
+      sudo -u www-data mv \$d \$tmpdir
+      sudo -u www-data rm -fr \$tmpdir
     done
   " || errx "clearcache() failed!"
 }
@@ -87,7 +87,7 @@ dictionary_update() {
     exitf
   fi
 
-  sh update-data-static.sh
+  bash $SCRIPT_PATH/update-data-static.sh
   drop_dictionary_cache $1 $2
   clearcache $1 $2 template
 }
