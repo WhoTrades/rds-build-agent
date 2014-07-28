@@ -57,8 +57,8 @@ try {
     $filename = "/home/release/buildroot/$project-$version/var/pkg/$project-$version/misc/tools/migration.php";
     if (file_exists($filename)) {
         //an: Проект с миграциями
-        $command = "php $filename migration --type=pre --project=$project count --interactive=0|tail -n 1";
-        $count = executeCommand($command);
+        $command = "php $filename migration --type=pre --project=$project count --interactive=0|grep 'Count of migrations'";
+        $count = (int)executeCommand($command);
     } else {
         //an: Проект без миграций
         $count = 0;
