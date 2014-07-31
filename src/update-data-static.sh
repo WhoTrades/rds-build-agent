@@ -8,7 +8,7 @@ NORMAL=`$TPUT op`
 
 : ${PGHOST=pg-0-1.core.local}; export PGHOST
 : ${PGUSER=comon};          export PGUSER
-: ${PGDATABASE=comon};      export PGDATABASE
+: ${PGDATABASE=comon1};      export PGDATABASE
 : ${PGPASSFILE=~/.pgpass};     export PGPASSFILE
 
 if [ -r $HOME/.update-data-static ]; then
