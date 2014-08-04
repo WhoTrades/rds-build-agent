@@ -58,7 +58,7 @@ try {
     $migrations = array();
     if (file_exists($filename)) {
         //an: Проект с миграциями
-        $command = "php $filename migration --type=pre --project=$project new --limit=100000 --interactive=0";
+        $command = "php $filename migration --type=pre --project=$project new 100000 --interactive=0";
         $text = executeCommand($command);
         if (preg_match('~Found (\d+) new migration~', $text, $ans)) {
             //an: Текст, начиная с Found (\d+) new migration
