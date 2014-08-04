@@ -55,16 +55,22 @@ try {
 
     //an: Должно быть такое же, как в rebuild-package.sh
     $filename = "/home/release/buildroot/$project-$version/var/pkg/$project-$version/misc/tools/migration.php";
+    $migrations = array();
     if (file_exists($filename)) {
         //an: Проект с миграциями
-        $command = "php $filename migration --type=pre --project=$project count --interactive=0|grep 'Count of migrations'";
-        $count = (int)executeCommand($command);
-    } else {
-        //an: Проект без миграций
-        $count = 0;
+        $command = "php $filename migration --type=pre --project=$project new --limit=100000 --interactive=0";
+        $text = executeCommand($command);
+        if (preg_match('~Found (\d+) new migration~', $text, $ans)) {
+            //an: Текст, начиная с Found (\d+) new migration
+            $subtext = substr($text, strpos($text, $ans[0]));
+            $lines = explode("\n", str_replace("\r", "", $subtext));
+            array_shift($lines);
+            $migrations = array_slice($lines, 0, $ans[1]);
+            $migrations = array_map('trim', $migrations);
+        }
     }
 
-    RemoteModel::getInstance()->sendMigrationCount($taskId, $count);
+    RemoteModel::getInstance()->sendMigrations($taskId, $migrations);
 
     $currentOperation = "installing";
     //an: Раскладываем собранный проект по серверам

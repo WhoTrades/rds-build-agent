@@ -58,11 +58,11 @@ class RemoteModel
         ), true);
     }
 
-    public function sendMigrationCount($taskId, $count)
+    public function sendMigrations($taskId, $migrations)
     {
-        return $this->sendRequest("sendMigrationCount", array(
+        return $this->sendRequest("sendMigrations", array(
             'taskId' => $taskId,
-            'count' => $count,
+            'migrations' => $migrations,
         ));
     }
 
