@@ -63,6 +63,7 @@ try {
         if (preg_match('~Found (\d+) new migration~', $text, $ans)) {
             //an: Текст, начиная с Found (\d+) new migration
             $subtext = substr($text, strpos($text, $ans[0]));
+            $subtext = str_replace('\\', '/', $subtext);
             $lines = explode("\n", str_replace("\r", "", $subtext));
             array_shift($lines);
             $migrations = array_slice($lines, 0, $ans[1]);
