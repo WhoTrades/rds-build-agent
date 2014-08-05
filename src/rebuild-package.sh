@@ -44,7 +44,7 @@ BUILDROOT="/home/release/buildroot/${NAME}-${VERSION}"
 rm -rf $BUILDROOT/*
 
 SRCDIR=`printf %s/../build/%s $SCRIPT_PATH $NAME`
-rm -rf $SRCDIR
+rm -rf $SRCDIR/phing-task
 
 git clone ssh://git.whotrades.net/srv/git/phing-task $SRCDIR/phing-task
 cd $SRCDIR/phing-task
