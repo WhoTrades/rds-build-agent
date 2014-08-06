@@ -28,6 +28,9 @@ class RemoteModel
         curl_setopt($ch, CURLOPT_URL, $url);
 
         echo date("r").": Requesting $url\n";
+        if ($isPost) {
+            echo "POST data: ".json_encode($data)."\n";
+        }
 
         for ($i = 0; $i < 10; $i++) {
             $result = curl_exec($ch);
@@ -116,6 +119,16 @@ class RemoteModel
         return $this->sendRequest('getRejects', array(
             'projectName' => $project,
         ));
+    }
+
+    public function getProjects()
+    {
+        return $this->sendRequest('getProjects', array());
+    }
+
+    public function getProjectBuildsToDelete($allBuilds)
+    {
+        return $this->sendRequest('getProjectBuildsToDelete', array('builds' => $allBuilds), true);
     }
 }
 
