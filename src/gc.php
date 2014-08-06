@@ -28,15 +28,15 @@ foreach ($projects as $project) {
         echo "No builds of {$project['name']} found\n";
     }
 }
-$toTest = array();
 
 $command = config::$debug ? "cat deploy/whotrades_builds.txt" : "find /home/release/buildroot/ -maxdepth 1 -type d";
 $text = executeCommand($command);
-if (preg_match_all('~[\w-]{5,}-([\d.]{5,})~', $text, $ans)) {
-    $versions = $ans[1];
-    foreach ($versions as $version) {
-        $toTest[$project['name']."-".$version] = array(
-            'project' => $project['name'],
+if (preg_match_all('~([\w-]{5,})-([\d.]{5,})~', $text, $ans)) {
+    $versions = $ans[2];
+    foreach ($versions as $key => $version) {
+        $project = $ans[1][$key];
+        $toTest["$project-$version"] = array(
+            'project' => $project,
             'version' => $version,
         );
     }
@@ -46,11 +46,12 @@ if (preg_match_all('~[\w-]{5,}-([\d.]{5,})~', $text, $ans)) {
 
 $commands = [];
 $toDelete = RemoteModel::getInstance()->getProjectBuildsToDelete($toTest);
+
 foreach ($toDelete as $val) {
     $project = $val['project'];
     $version = $val['version'];
-    if (strlen($project < 3)) continue;
-    if (strlen($version < 3)) continue;
+    if (strlen($project) < 3) continue;
+    if (strlen($version) < 3) continue;
     $commands[] = "/home/release/buildroot/$project-$version";
     $commands[] = "bash deploy/deploy.sh remove $project $version";
     $commands[] = "reprepro -b /var/www/whotrades_repo/ remove wheezy $project-$version";
