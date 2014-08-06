@@ -52,7 +52,7 @@ foreach ($toDelete as $val) {
     $version = $val['version'];
     if (strlen($project) < 3) continue;
     if (strlen($version) < 3) continue;
-    $commands[] = "/home/release/buildroot/$project-$version";
+    $commands[] = "rm -rf /home/release/buildroot/$project-$version";
     $commands[] = "bash deploy/deploy.sh remove $project $version";
     $commands[] = "reprepro -b /var/www/whotrades_repo/ remove wheezy $project-$version";
 }
