@@ -130,6 +130,11 @@ class RemoteModel
     {
         return $this->sendRequest('getProjectBuildsToDelete', array('builds' => $allBuilds), true);
     }
+
+    public function removeReleaseRequest($projectName, $version)
+    {
+        return $this->sendRequest('removeReleaseRequest', array('projectName' => $projectName, 'version' => $version));
+    }
 }
 
 function executeCommand($command)

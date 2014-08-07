@@ -44,7 +44,6 @@ if (preg_match_all('~([\w-]{5,})-([\d.]{5,})~', $text, $ans)) {
     echo "No builds at /home/release/buildroot/ found\n";
 }
 
-$commands = [];
 foreach (array_chunk($toTest, 100) as $part) {
     $toDelete = RemoteModel::getInstance()->getProjectBuildsToDelete($part);
 
@@ -53,10 +52,23 @@ foreach (array_chunk($toTest, 100) as $part) {
         $version = $val['version'];
         if (strlen($project) < 3) continue;
         if (strlen($version) < 3) continue;
-        $commands[] = "rm -rf /home/release/buildroot/$project-$version";
-        $commands[] = "bash deploy/deploy.sh remove $project $version";
-        $commands[] = "reprepro -b /var/www/whotrades_repo/ remove wheezy $project-$version";
+        if (in_array('--dry-run', $argv)) {
+            echo "Fake removing $project-$version\n";
+        } else {
+            echo "Removing $project-$version\n";
+            if (is_dir("/home/release/buildroot/$project-$version")) {
+                executeCommand("rm -rf /home/release/buildroot/$project-$version");
+            }
+            try {
+                executeCommand("bash deploy/deploy.sh remove $project $version");
+            } catch (CommandException $e) {
+                if ($e->getCode() != 1) {
+                    //an: Код 1 - допустим, его игнорируем, значит просто не на всех серверах была установлена эта сборка
+                    throw new CommandException($e->getMessage(), $e->getCode(), $e->output, $e);
+                }
+            }
+            executeCommand("reprepro -b /var/www/whotrades_repo/ remove wheezy $project-$version");
+            RemoteModel::getInstance()->removeReleaseRequest($project, $version);
+        }
     }
 }
-echo "Commands: \n";
-echo implode("\n", $commands);
