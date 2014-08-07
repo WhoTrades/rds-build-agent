@@ -45,16 +45,18 @@ if (preg_match_all('~([\w-]{5,})-([\d.]{5,})~', $text, $ans)) {
 }
 
 $commands = [];
-$toDelete = RemoteModel::getInstance()->getProjectBuildsToDelete($toTest);
+foreach (array_chunk($toTest, 100) as $part) {
+    $toDelete = RemoteModel::getInstance()->getProjectBuildsToDelete($part);
 
-foreach ($toDelete as $val) {
-    $project = $val['project'];
-    $version = $val['version'];
-    if (strlen($project) < 3) continue;
-    if (strlen($version) < 3) continue;
-    $commands[] = "rm -rf /home/release/buildroot/$project-$version";
-    $commands[] = "bash deploy/deploy.sh remove $project $version";
-    $commands[] = "reprepro -b /var/www/whotrades_repo/ remove wheezy $project-$version";
+    foreach ($toDelete as $val) {
+        $project = $val['project'];
+        $version = $val['version'];
+        if (strlen($project) < 3) continue;
+        if (strlen($version) < 3) continue;
+        $commands[] = "rm -rf /home/release/buildroot/$project-$version";
+        $commands[] = "bash deploy/deploy.sh remove $project $version";
+        $commands[] = "reprepro -b /var/www/whotrades_repo/ remove wheezy $project-$version";
+    }
 }
 echo "Commands: \n";
 echo implode("\n", $commands);
