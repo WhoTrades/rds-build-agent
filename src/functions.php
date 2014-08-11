@@ -114,13 +114,6 @@ class RemoteModel
         return $this->sendRequest('getCurrentStatus', array('id' => $taskId));
     }
 
-    public function getRejectsForProject($project)
-    {
-        return $this->sendRequest('getRejects', array(
-            'projectName' => $project,
-        ));
-    }
-
     public function getProjects()
     {
         return $this->sendRequest('getProjects', array());

@@ -21,19 +21,6 @@ if isnull $NAME; then
   exitf
 fi
 
-php deploy/releaseCheckRules.php $NAME
-check=$?
-
-if [ $check = 66 ]; then
-  if [ "$2" = "--force" ]; then
-	echo "skip warning by --force"
-  else
-	echo "Can't release, exiting..."
-	exit $check
-  fi
-fi
-echo "It's OK, building..."
-
 BUILD="/home/release/build"
 #rm -rf $BUILD/*
 
