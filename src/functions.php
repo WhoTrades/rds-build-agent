@@ -69,6 +69,14 @@ class RemoteModel
         ));
     }
 
+    public function sendCronConfig($taskId, $text)
+    {
+        return $this->sendRequest("sendCronConfig", array(
+            'taskId' => $taskId,
+            'text' => $text,
+        ), true);
+    }
+
     public function getNextTask($workerName)
     {
         return $this->sendRequest('getBuildTasks', array('worker' => $workerName));

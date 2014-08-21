@@ -32,6 +32,7 @@ pcntl_signal(SIGTERM, function($signal) use ($taskId, $version){
     exit($signal);
 });
 
+$projetDir = "/home/release/buildroot/$project-$version/var/pkg/$project-$version/";
 
 $text = '';
 $currentOperation = "none";
@@ -54,7 +55,7 @@ try {
     RemoteModel::getInstance()->sendStatus($taskId, 'built', $version);
 
     //an: Должно быть такое же, как в rebuild-package.sh
-    $filename = "/home/release/buildroot/$project-$version/var/pkg/$project-$version/misc/tools/migration.php";
+    $filename = "$projetDir/misc/tools/migration.php";
     $migrations = array();
     if (file_exists($filename)) {
         //an: Проект с миграциями
@@ -81,6 +82,19 @@ try {
         $command = "php deploy/fakeRebuild.php $project $version";
     }
     $text = executeCommand($command);
+
+    //an: Отправляем новые сгенерированные /etc/cron.d конфиги
+    $cronConfig = "";
+    if (!Config::$debug) {
+        foreach (glob("$projetDir/cronjob-*") as $file) {
+            $cronConfig .= "#       ".preg_replace('~^.*/~', '', $file)."\n\n";
+            $cronConfig .= file_get_contents($file);
+            $cronConfig .= "\n\n";
+        }
+    } elseif (file_exists("/home/an/cronjob-$project")) {
+        $cronConfig = file_get_contents("/home/an/cronjob-$project");
+    }
+    RemoteModel::getInstance()->sendCronConfig($taskId, $cronConfig);
 
     //an: Сигнализируем все что сделали
     RemoteModel::getInstance()->sendStatus($taskId, 'installed', $version, $text);
