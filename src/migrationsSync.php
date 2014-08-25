@@ -39,9 +39,7 @@ try {
                     $migrations = array_map('trim', $migrations);
                 }
 
-                var_export(array($migrations, $type));
-
-                //RemoteModel::getInstance()->sendMigrations($taskId, $migrations, $type);
+                RemoteModel::getInstance()->sendMigrations($taskId, $migrations, $type);
             }
         }
     }
