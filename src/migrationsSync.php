@@ -23,6 +23,11 @@ try {
         }
         list(, $project, $version) = $ans;
 
+        if ($project == 'dictionary') {
+            //an: В этом проекте чекаутится comon, но при этом нет миграций
+            continue;
+        }
+
         //an: Должно быть такое же, как в rebuild-package.sh
         $filename = "$projetDir$project-$version/var/pkg/$project-$version//misc/tools/migration.php";
         $migrations = array();
