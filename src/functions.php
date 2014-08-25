@@ -61,10 +61,11 @@ class RemoteModel
         ), true);
     }
 
-    public function sendMigrations($taskId, $migrations, $type)
+    public function sendMigrations($project, $version, $migrations, $type)
     {
         return $this->sendRequest("sendMigrations", array(
-            'taskId' => $taskId,
+            'project' => $project,
+            'version' => $version,
             'migrations' => $migrations,
             'type' => $type,
         ));

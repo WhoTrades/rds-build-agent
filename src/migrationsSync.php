@@ -39,24 +39,11 @@ try {
                     $migrations = array_map('trim', $migrations);
                 }
 
-                RemoteModel::getInstance()->sendMigrations($taskId, $migrations, $type);
+                RemoteModel::getInstance()->sendMigrations($project, $version, $migrations, $type);
             }
         }
     }
 
 } catch (CommandException $e) {
-    if ($e->getCode() == 66) {
-        //an: Это генерит скрипт releaseCheckRules.php
-        echo "Release rejected\n";
-        RemoteModel::getInstance()->sendStatus($taskId, 'failed');
-    } else {
-        $text = $e->output;
-        echo "\n=======================\n";
-        $title = "Failed to execute '$currentOperation'";
-        echo "$title\n";
-        RemoteModel::getInstance()->sendStatus($taskId, 'failed', $version, $text);
-    }
     exit($e->getCode());
-} catch (Exception $e) {
-    RemoteModel::getInstance()->sendStatus($taskId, 'failed', $version, $e->getMessage());
 }

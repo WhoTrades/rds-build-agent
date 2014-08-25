@@ -71,7 +71,7 @@ try {
                 $migrations = array_slice($lines, 0, $ans[1]);
                 $migrations = array_map('trim', $migrations);
             }
-            RemoteModel::getInstance()->sendMigrations($taskId, $migrations, $type);
+            RemoteModel::getInstance()->sendMigrations($project, $version, $migrations, $type);
         }
     }
 
