@@ -18,7 +18,10 @@ try {
         if (false === strpos($dirName, '-')) {
             continue;
         }
-        list($project, $version) = explode('-', $dirName);
+        if (!preg_match('~^/?([\w-]+)-([\d.]+)/?$~', $dirName, $ans)) {
+            continue;
+        }
+        list(, $project, $version) = $ans;
 
         //an: Должно быть такое же, как в rebuild-package.sh
         $filename = "$projetDir$project-$version/var/pkg/$project-$version//misc/tools/migration.php";
