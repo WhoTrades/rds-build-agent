@@ -59,20 +59,22 @@ try {
     $migrations = array();
     if (file_exists($filename)) {
         //an: Проект с миграциями
-        $command = "php $filename migration --type=pre --project=$project new 100000 --interactive=0";
-        $text = executeCommand($command);
-        if (preg_match('~Found (\d+) new migration~', $text, $ans)) {
-            //an: Текст, начиная с Found (\d+) new migration
-            $subtext = substr($text, strpos($text, $ans[0]));
-            $subtext = str_replace('\\', '/', $subtext);
-            $lines = explode("\n", str_replace("\r", "", $subtext));
-            array_shift($lines);
-            $migrations = array_slice($lines, 0, $ans[1]);
-            $migrations = array_map('trim', $migrations);
+        foreach (array('pre', 'post') as $type) {
+            $command = "php $filename migration --type=$type --project=$project new 100000 --interactive=0";
+            $text = executeCommand($command);
+            if (preg_match('~Found (\d+) new migration~', $text, $ans)) {
+                //an: Текст, начиная с Found (\d+) new migration
+                $subtext = substr($text, strpos($text, $ans[0]));
+                $subtext = str_replace('\\', '/', $subtext);
+                $lines = explode("\n", str_replace("\r", "", $subtext));
+                array_shift($lines);
+                $migrations = array_slice($lines, 0, $ans[1]);
+                $migrations = array_map('trim', $migrations);
+            }
+            RemoteModel::getInstance()->sendMigrations($taskId, $migrations, $type);
         }
     }
 
-    RemoteModel::getInstance()->sendMigrations($taskId, $migrations);
 
     $currentOperation = "installing";
     //an: Раскладываем собранный проект по серверам

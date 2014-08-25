@@ -61,11 +61,12 @@ class RemoteModel
         ), true);
     }
 
-    public function sendMigrations($taskId, $migrations)
+    public function sendMigrations($taskId, $migrations, $type)
     {
         return $this->sendRequest("sendMigrations", array(
             'taskId' => $taskId,
             'migrations' => $migrations,
+            'type' => $type,
         ));
     }
 
@@ -87,9 +88,9 @@ class RemoteModel
         return $this->sendRequest('getMigrationTask', array('worker' => $workerName));
     }
 
-    public function sendMigrationStatus($project, $version, $status)
+    public function sendMigrationStatus($project, $version, $type, $status)
     {
-        return $this->sendRequest('sendMigrationStatus', array('project' => $project, 'version' => $version, 'status' => $status));
+        return $this->sendRequest('sendMigrationStatus', array('project' => $project, 'version' => $version, 'type' => $type, 'status' => $status));
     }
 
     public function getUseTask($workerName)

@@ -18,6 +18,7 @@ for (;;) {
     if ($data) {
         $project = $data['project'];
         $version = $data['version'];
+        $type = isset($data['type']) ? $data['type'] : 'pre';
     } else {
         echo ("No work\n");
         continue;
@@ -26,14 +27,14 @@ for (;;) {
     try {
         //an: Должно быть такое же, как в rebuild-package.sh
         $filename = "/home/release/buildroot/$project-$version/var/pkg/$project-$version/misc/tools/migration.php";
-        $command = "php $filename migration --type=pre --project=$project up --interactive=0";
+        $command = "php $filename migration --type=$type --project=$project up --interactive=0";
         $count = executeCommand($command);
-        RemoteModel::getInstance()->sendMigrationStatus($project, $version, 'up');
+        RemoteModel::getInstance()->sendMigrationStatus($project, $version, $type, 'up');
     } catch (CommandException $e) {
         $text = $e->output;
-        RemoteModel::getInstance()->sendMigrationStatus($project, $version, 'failed');
+        RemoteModel::getInstance()->sendMigrationStatus($project, $version, $type, 'failed');
         exit($e->getCode());
     } catch (Exception $e) {
-        RemoteModel::getInstance()->sendMigrationStatus($project, $version, 'failed');
+        RemoteModel::getInstance()->sendMigrationStatus($project, $version, $type, 'failed');
     }
 }
