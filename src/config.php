@@ -4,6 +4,7 @@ class Config
     public static $rdsDomain = "phplogs.whotrades.net";
     public static $workerName = null;
     public static $debug = false;
+    public static $createTag = 1;
 }
 
 if (file_exists(__DIR__."/config.local.php")) {

@@ -42,7 +42,7 @@ try {
     RemoteModel::getInstance()->sendStatus($taskId, 'building');
 
     //an: Собираем проект
-    $command = "env VERBOSE=y bash deploy/rebuild-package.sh $project $version $release 2>&1";
+    $command = "env VERBOSE=y bash deploy/rebuild-package.sh $project $version $release $taskId ".Config::$rdsDomain." ".Config::$createTag." 2>&1";
 
     if (Config::$debug) {
         $command = "php deploy/fakeRebuild.php $project $version";
