@@ -103,7 +103,7 @@ acquire_global_lock() {
 
   execute_once $groupname \
   "
-    sudo -u apache -H \
+    sudo -u www-data -H \
       php $PKGDIR/$packagename/misc/tools/runner.php \
         --tool=GlobalLock --acquire
   "
@@ -120,7 +120,7 @@ release_global_lock() {
 
   execute_once $groupname \
   "
-    sudo -u apache -H \
+    sudo -u www-data -H \
       php $PKGDIR/$packagename/misc/tools/runner.php \
         --tool=GlobalLock --release
   "
