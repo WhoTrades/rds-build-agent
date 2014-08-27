@@ -47,7 +47,7 @@ cd $SCRIPT_PATH
 ln -sf phing-task/build/$NAME/build.xml $SRCDIR/build.xml
 
 mkdir -p $BUILDROOT/var/pkg/${NAME}-${VERSION}
-phing -Dname=$NAME -Ddestdir=$BUILDROOT/var/pkg/${NAME}-${VERSION} -DtaskId=${taskId} -DrdsDomain=${rdsDomain} -Drepository.createtag=0 -Dversion=${VERSION} -Dproject=${NAME} -Ddictionary.sqlite.update=true -Drelease=$release  -Drepositories.update=true -f $SRCDIR/build.xml build
+phing -Dname=$NAME -Ddestdir=$BUILDROOT/var/pkg/${NAME}-${VERSION} -DtaskId=${taskId} -DrdsDomain=${rdsDomain} -Drepository.createtag=$${createTag} -Dversion=${VERSION} -Dproject=${NAME} -Ddictionary.sqlite.update=true -Drelease=$release  -Drepositories.update=true -f $SRCDIR/build.xml build
 code=$?
 [ $code != "0" ] && exit $code
 
