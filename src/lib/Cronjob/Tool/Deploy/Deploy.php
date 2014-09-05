@@ -1,10 +1,12 @@
 <?php
-declare(ticks = 1);
 /**
  * @example dev/services/deploy/misc/tools/runner.php --tool=Deploy_Deploy -vv
  */
 class Cronjob_Tool_Deploy_Deploy extends Cronjob\Tool\ToolBase
 {
+    private $taskId;
+    private $version;
+
     /**
      * Use this function to get command line spec for cronjob
      * @return array
@@ -29,21 +31,15 @@ class Cronjob_Tool_Deploy_Deploy extends Cronjob\Tool\ToolBase
 
         if ($data) {
             $project = $data['project'];
-            $taskId = $data['id'];
-            $version = $data['version'];
+            $this->taskId = $taskId = $data['id'];
+            $this->version = $version = $data['version'];
             $release = $data['release'];
         } else {
             $this->debugLogger->message('No work');
             return;
         }
 
-        pcntl_signal(SIGTERM, function($signal) use ($taskId, $version){
-            $this->debugLogger->message("Cancelling...");
-            RemoteModel::getInstance()->sendStatus($taskId, 'cancelled', $version);
-            $this->debugLogger->message("Cancelled...");
-            CoreLight::getInstance()->getFatalWatcher()->stop();
-            exit($signal);
-        });
+
 
         $projectDir = "/home/release/buildroot/$project-$version/var/pkg/$project-$version/";
 
@@ -130,5 +126,18 @@ class Cronjob_Tool_Deploy_Deploy extends Cronjob\Tool\ToolBase
             RemoteModel::getInstance()->sendStatus($taskId, 'failed', $version, $e->getMessage());
         }
 
+    }
+
+    public function onTerm($signo)
+    {
+        if ($signo == SIGTERM) {
+            $this->debugLogger->message("Cancelling...");
+            RemoteModel::getInstance()->sendStatus($this->taskId, 'cancelled', $this->version);
+            $this->debugLogger->message("Cancelled...");
+            CoreLight::getInstance()->getFatalWatcher()->stop();
+            exit($signo);
+        }
+
+        return parent::onTerm($signo);
     }
 }
