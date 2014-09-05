@@ -35,7 +35,7 @@ class Cronjob_Tool_Deploy_Use extends Cronjob\Tool\ToolBase
         $this->debugLogger->message("Using $project:$version, task_id=$taskId");
 
         try {
-            $command = "bash/deploy.sh status $project 2>&1";
+            $command = "bash bash/deploy.sh status $project 2>&1";
 
             if (Config::getInstance()->debug) {
                 $command = "php bash/fakeStatus_".Config::getInstance()->workerName.".php";
@@ -67,7 +67,7 @@ class Cronjob_Tool_Deploy_Use extends Cronjob\Tool\ToolBase
                 return;
             }
 
-            $command = "bash/deploy.sh use $project $version 2>&1";
+            $command = "bash bash/deploy.sh use $project $version 2>&1";
             if (Config::getInstance()->debug) {
                 $command = "php bash/fakeUse.php $project $version ".Config::getInstance()->workerName;
             }
@@ -81,7 +81,7 @@ class Cronjob_Tool_Deploy_Use extends Cronjob\Tool\ToolBase
                 RemoteModel::getInstance()->setUsedVersion(\Config::getInstance()->workerName, $project, $version, $useStatus);
             } catch (\Exception $e) {
                 $this->debugLogger->message("Can't send to server real used version, reverting\n");
-                $command = "bash/deploy.sh use $project $oldVersion 2>&1";
+                $command = "bash bash/deploy.sh use $project $oldVersion 2>&1";
                 if (Config::getInstance()->debug) {
                     $command = "php bash/fakeUse.php $project $version ".Config::getInstance()->workerName;
                 }
@@ -95,7 +95,7 @@ class Cronjob_Tool_Deploy_Use extends Cronjob\Tool\ToolBase
                 $reply = RemoteModel::getInstance()->getCurrentStatus($taskId);
                 if ($reply['status'] != 'used') {
                     $this->debugLogger->message("Reverting $project back to v.$oldVersion, task_id=$taskId");
-                    $command = "bash/deploy.sh use $project $oldVersion 2>&1";
+                    $command = "bash bash/deploy.sh use $project $oldVersion 2>&1";
                     if (Config::getInstance()->debug) {
                         $command = "php bash/fakeUse.php $project $oldVersion ".Config::getInstance()->workerName;
                     }
