@@ -32,6 +32,8 @@ class ServiceDeployProdTL1
         return [
             'MAILTO=adm+ny_cron@whotrades.org',
             'CRONJOB_TOOLS=/var/www/service-deploy/misc/tools',
+            'PATH=/usr/local/bin:/usr/bin:/bin',
+            'TERM=xterm',
         ];
     }
 }
