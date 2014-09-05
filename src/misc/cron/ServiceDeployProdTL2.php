@@ -1,5 +1,5 @@
 <?php
-class DeployProdTL2
+class ServiceDeployProdTL2
 {
     public function getCronConfigRows()
     {

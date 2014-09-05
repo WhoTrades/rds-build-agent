@@ -1,5 +1,5 @@
 <?php
-class DeployDevTL1 extends DeployProdTL1
+class ServiceDeployDevTL1 extends ServiceDeployProdTL1
 {
    protected function getEnv()
     {

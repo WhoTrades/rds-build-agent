@@ -8,7 +8,7 @@ use \Cronjob\ConfigGenerator\PeriodicCommand;
 use \Cronjob\ConfigGenerator\MultiCommandToCron;
 use \Cronjob\ConfigGenerator\MultiPeriodicCommand;
 
-class DeployProdTL1
+class ServiceDeployProdTL1
 {
     public function getCronConfigRows()
     {
