@@ -18,7 +18,7 @@ class RemoteModel
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1 );
-        $url = "http://".Config::$rdsDomain."/api/$action";
+        $url = "http://".\Config::getInstance()->rdsDomain."/api/$action";
         if ($isPost) {
             curl_setopt($ch, CURLOPT_POST, 1);
             curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
@@ -140,26 +140,5 @@ class RemoteModel
     }
 }
 
-function executeCommand($command)
-{
-    echo "Executing `$command`\n";
-    exec($command, $output, $returnVar);
-    $text = implode("\n", $output);
 
-    if ($returnVar) {
-        throw new \CommandException("Return var is non-zero", $returnVar, $text);
-    }
 
-    return $text;
-}
-
-class CommandException extends Exception
-{
-    public $output;
-
-    public function __construct($message, $code, $output, $previous = null)
-    {
-        $this->output = $output;
-        parent::__construct($message, $code, $previous);
-    }
-}
