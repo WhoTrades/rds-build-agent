@@ -28,7 +28,6 @@ class Config
         foreach (array(
                  'config/config.db.php', // vdm: подключил т.к. он используется внутри config.pgq
                  'config/config.comon.php',
-                 'config/config.finam_tender.php',
                  'config/config.taskssystem.php',
                  'config/config.servicebase.php',
                  'config/config.stm.php', // vdm: подключаем сразу после config.services.php
