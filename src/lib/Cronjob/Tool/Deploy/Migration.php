@@ -39,7 +39,7 @@ class Cronjob_Tool_Deploy_Migration extends Cronjob\Tool\ToolBase
             $command = "php $filename migration --type=$type --project=$project up --interactive=0";
             $commandExecutor->executeCommand($command);
             RemoteModel::getInstance()->sendMigrationStatus($project, $version, $type, 'up');
-        } catch (CommandException $e) {
+        } catch (CommandExecutorException $e) {
             $text = $e->output;
             RemoteModel::getInstance()->sendMigrationStatus($project, $version, $type, 'failed');
             return $e->getCode();

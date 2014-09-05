@@ -113,7 +113,7 @@ class Cronjob_Tool_Deploy_Deploy extends Cronjob\Tool\ToolBase
             //an: Сигнализируем все что сделали
             RemoteModel::getInstance()->sendStatus($taskId, 'installed', $version, $text);
             $currentOperation = "send status 'installed'";
-        } catch (CommandException $e) {
+        } catch (CommandExecutorException $e) {
             if ($e->getCode() == 66) {
                 //an: Это генерит скрипт releaseCheckRules.php
                 echo "Release rejected\n";

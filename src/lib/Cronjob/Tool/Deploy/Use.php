@@ -106,7 +106,7 @@ class Cronjob_Tool_Deploy_Use extends Cronjob\Tool\ToolBase
                 }
             }
 
-        } catch (CommandException $e) {
+        } catch (CommandExecutorException $e) {
             RemoteModel::getInstance()->setUseError($taskId, $e->getMessage()."\nOutput: ".$e->output);
             $this->debugLogger->message($e->getMessage()."\n");
         }

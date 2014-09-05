@@ -40,7 +40,7 @@ class Cronjob_Tool_Deploy_Killer extends Cronjob\Tool\ToolBase
             $pid = file_get_contents($filename);
             $this->debugLogger->message("Pid: $pid at filename $filename");
             exec("kill -- -$pid");
-        } catch (CommandException $e) {
+        } catch (CommandExecutorException $e) {
             RemoteModel::getInstance()->setUseError($taskId, $e->getMessage()."\nOutput: ".$e->output);
             $this->debugLogger->error("CMD error: ".$e->getMessage());
         }
