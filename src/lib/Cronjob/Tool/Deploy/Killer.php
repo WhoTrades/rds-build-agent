@@ -32,7 +32,7 @@ class Cronjob_Tool_Deploy_Killer extends Cronjob\Tool\ToolBase
         $this->debugLogger->message("Killing $project, task_id=$taskId");
 
         try {
-            $filename = \Config::getInstance()->pid_dir."/{$workerName}_deploy.php.pgid";
+            $filename = \Config::getInstance()->pid_dir."/{$workerName}_deploy_$taskId.php.pid";
             if (!file_exists($filename)) {
                 $this->debugLogger->message("No pid file $filename, may be process already finished");
                 return;

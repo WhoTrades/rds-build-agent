@@ -24,9 +24,6 @@ class Cronjob_Tool_Deploy_Deploy extends Cronjob\Tool\ToolBase
         $workerName = \Config::getInstance()->workerName;
         $commandExecutor = new CommandExecutor($this->debugLogger);
         
-        file_put_contents(\Config::getInstance()->pid_dir."/{$workerName}_deploy.php.pid", posix_getpid());
-        file_put_contents(\Config::getInstance()->pid_dir."/{$workerName}_deploy.php.pgid", posix_getpgid(posix_getpid()));
-
         $data = RemoteModel::getInstance()->getNextTask($workerName);
 
         if ($data) {
@@ -36,10 +33,18 @@ class Cronjob_Tool_Deploy_Deploy extends Cronjob\Tool\ToolBase
             $release = $data['release'];
         } else {
             $this->debugLogger->message('No work');
-            return;
+            return 0;
         }
 
+        $basePidFilename = \Config::getInstance()->pid_dir."/{$workerName}_deploy_$taskId.php";
+        posix_setpgid(posix_getpid(), posix_getpid());
+        file_put_contents("$basePidFilename.pid", posix_getpid());
+        file_put_contents("$basePidFilename.pgid", posix_getpgid(posix_getpid()));
 
+        register_shutdown_function(function() use ($basePidFilename){
+            unlink("$basePidFilename.pid");
+            unlink("$basePidFilename.pgid");
+        });
 
         $projectDir = "/home/release/buildroot/$project-$version/var/pkg/$project-$version/";
 
@@ -130,12 +135,15 @@ class Cronjob_Tool_Deploy_Deploy extends Cronjob\Tool\ToolBase
 
     public function onTerm($signo)
     {
+        echo "Catched signal $signo\n";
         if ($signo == SIGTERM) {
             $this->debugLogger->message("Cancelling...");
             RemoteModel::getInstance()->sendStatus($this->taskId, 'cancelled', $this->version);
             $this->debugLogger->message("Cancelled...");
             CoreLight::getInstance()->getFatalWatcher()->stop();
-            exit($signo);
+
+            //an: выходим со статусом 0, что бы periodic не останавливался
+            exit(0);
         }
 
         return parent::onTerm($signo);
