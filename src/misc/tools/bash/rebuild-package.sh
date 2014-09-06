@@ -33,7 +33,7 @@ rm -rf $BUILDTMP/*
 BUILDROOT="/home/release/buildroot/${NAME}-${VERSION}"
 rm -rf $BUILDROOT/*
 
-SRCDIR=`printf %s/../build/%s $SCRIPT_PATH $NAME`
+SRCDIR=/home/release/build/$NAME
 rm -rf $SRCDIR/phing-task
 
 git clone ssh://git.whotrades.net/srv/git/phing-task $SRCDIR/phing-task
