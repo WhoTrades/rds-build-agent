@@ -70,9 +70,9 @@ class Cronjob_Tool_Deploy_Deploy extends Cronjob\Tool\ToolBase
             $srcDir="/home/release/build/$project";
 
             if ($lastBuildTag) {
-                $command = "(cd $srcDir; node /home/release/git-tools/alias/git-all.js git log $lastBuildTag..$project-$version --pretty='%H|%s')";
+                $command = "(cd $srcDir; node /home/release/git-tools/alias/git-all.js \"git log $lastBuildTag..$project-$version --pretty='%H|%s|/%an/'\")";
             } else {
-                $command = "(cd $srcDir; node /home/release/git-tools/alias/git-all.js git log $lastBuildTag --pretty='%H|%s')";
+                $command = "(cd $srcDir; node /home/release/git-tools/alias/git-all.js \"git log $lastBuildTag --pretty='%H|%s|/%an/'\")";
             }
 
             if (Config::getInstance()->debug) {
