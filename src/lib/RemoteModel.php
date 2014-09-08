@@ -61,6 +61,15 @@ class RemoteModel
         ), true);
     }
 
+    public function sendBuildPatch($project, $version, $output)
+    {
+        return $this->sendRequest("sendBuildPatch", array(
+            'project' => $project,
+            'version' => $version,
+            'output' => $output,
+        ), false);
+    }
+
     public function sendMigrations($project, $version, $migrations, $type)
     {
         return $this->sendRequest("sendMigrations", array(

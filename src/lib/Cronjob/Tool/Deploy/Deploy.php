@@ -31,6 +31,7 @@ class Cronjob_Tool_Deploy_Deploy extends Cronjob\Tool\ToolBase
             $this->taskId = $taskId = $data['id'];
             $this->version = $version = $data['version'];
             $release = $data['release'];
+            $lastBuildTag = $data['lastBuildTag'];
         } else {
             $this->debugLogger->message('No work');
             return 0;
@@ -55,7 +56,7 @@ class Cronjob_Tool_Deploy_Deploy extends Cronjob\Tool\ToolBase
             RemoteModel::getInstance()->sendStatus($taskId, 'building');
 
             //an: Собираем проект
-            $command = "env VERBOSE=y bash bash/rebuild-package.sh $project $version $release $taskId ".Config::getInstance()->rdsDomain." ".Config::getInstance()->createTag." 2>&1";
+            $command = "env VERBOSE=y bash bash/rebuild-package.sh $project $version $release $taskId ".Config::getInstance()->rdsDomain." ".Config::getInstance()->createTag." $lastBuildTag 2>&1";
 
             if (Config::getInstance()->debug) {
                 $command = "php bash/fakeRebuild.php $project $version";
@@ -63,6 +64,26 @@ class Cronjob_Tool_Deploy_Deploy extends Cronjob\Tool\ToolBase
 
             $currentOperation = "building";
             $text = $commandExecutor->executeCommand($command);
+
+            //an: Отправляем на сервер какие тикеты были в этом билде
+            $currentOperation = "getting_build_patch";
+            $srcDir="/home/release/build/$project";
+
+            if ($lastBuildTag) {
+                $command = "/home/release/git-tools/alias/git-all.js git log $lastBuildTag..$project-$version --pretty='%H|%s'";
+            } else {
+                $command = "/home/release/git-tools/alias/git-all.js git log $lastBuildTag --pretty='%H|%s'";
+            }
+
+            if (Config::getInstance()->debug) {
+                $command = "cat /home/an/log.txt";
+            }
+
+            $output = $commandExecutor->executeCommand($command);
+
+            $currentOperation = "sending_build_patch";
+
+            RemoteModel::getInstance()->sendBuildPatch($project, $version, $output);
 
             //an: Сигнализируем все что собрали и начинаем раскладывать по серверам
             RemoteModel::getInstance()->sendStatus($taskId, 'built', $version);
@@ -115,17 +136,11 @@ class Cronjob_Tool_Deploy_Deploy extends Cronjob\Tool\ToolBase
             RemoteModel::getInstance()->sendStatus($taskId, 'installed', $version, $text);
             $currentOperation = "send status 'installed'";
         } catch (CommandExecutorException $e) {
-            if ($e->getCode() == 66) {
-                //an: Это генерит скрипт releaseCheckRules.php
-                echo "Release rejected\n";
-                RemoteModel::getInstance()->sendStatus($taskId, 'failed');
-            } else {
-                $text = $e->output;
-                echo "\n=======================\n";
-                $title = "Failed to execute '$currentOperation'";
-                echo "$title\n";
-                RemoteModel::getInstance()->sendStatus($taskId, 'failed', $version, $text);
-            }
+            $text = $e->output;
+            echo "\n=======================\n";
+            $title = "Failed to execute '$currentOperation'";
+            echo "$title\n";
+            RemoteModel::getInstance()->sendStatus($taskId, 'failed', $version, $text);
             return $e->getCode();
         } catch (Exception $e) {
             RemoteModel::getInstance()->sendStatus($taskId, 'failed', $version, $e->getMessage());
