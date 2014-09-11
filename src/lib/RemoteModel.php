@@ -67,7 +67,7 @@ class RemoteModel
             'project' => $project,
             'version' => $version,
             'output' => $output,
-        ), false);
+        ), true);
     }
 
     public function sendMigrations($project, $version, $migrations, $type)
