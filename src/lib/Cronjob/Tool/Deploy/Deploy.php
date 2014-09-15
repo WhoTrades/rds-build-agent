@@ -65,21 +65,24 @@ class Cronjob_Tool_Deploy_Deploy extends Cronjob\Tool\ToolBase
             $currentOperation = "building";
             $text = $commandExecutor->executeCommand($command);
 
-            //an: Отправляем на сервер какие тикеты были в этом билде
-            $currentOperation = "getting_build_patch";
-            $srcDir="/home/release/build/$project";
+            //an: хак, для словаря мы ничего не тегаем и патч не отправляем, пока что
+            if ($project != 'dictionary') {
+                //an: Отправляем на сервер какие тикеты были в этом билде
+                $currentOperation = "getting_build_patch";
+                $srcDir="/home/release/build/$project";
 
-            if ($lastBuildTag) {
-                $command = "(cd $srcDir/lib; node /home/release/git-tools/alias/git-all.js \"git log $lastBuildTag..$project-$version --pretty='%H|%s|/%an/'\")";
-            } else {
-                $command = "(cd $srcDir/lib; node /home/release/git-tools/alias/git-all.js \"git log $lastBuildTag --pretty='%H|%s|/%an/'\")";
+                if ($lastBuildTag) {
+                    $command = "(cd $srcDir/lib; node /home/release/git-tools/alias/git-all.js \"git log $lastBuildTag..$project-$version --pretty='%H|%s|/%an/'\")";
+                } else {
+                    $command = "(cd $srcDir/lib; node /home/release/git-tools/alias/git-all.js \"git log $lastBuildTag --pretty='%H|%s|/%an/'\")";
+                }
+
+                if (Config::getInstance()->debug) {
+                    $command = "cat /home/an/log.txt";
+                }
+
+                $output = $commandExecutor->executeCommand($command);
             }
-
-            if (Config::getInstance()->debug) {
-                $command = "cat /home/an/log.txt";
-            }
-
-            $output = $commandExecutor->executeCommand($command);
 
             $currentOperation = "sending_build_patch";
 
