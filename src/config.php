@@ -5,6 +5,7 @@ class Config
     public static $workerName = null;
     public static $debug = false;
     public static $createTag = 1;
+    public static $importDataFromProd = false;
 }
 
 if (file_exists(__DIR__."/config.local.php")) {
