@@ -2,7 +2,7 @@
 /**
  * @example dev/services/deploy/misc/tools/runner.php --tool=Deploy_Killer -vv
  */
-class Cronjob_Tool_Deploy_Killer extends Cronjob\Tool\ToolBase
+class Cronjob_Tool_Deploy_Killer extends \RdsSystem\Cron\RabbitDaemon
 {
     /**
      * Use this function to get command line spec for cronjob
@@ -10,7 +10,7 @@ class Cronjob_Tool_Deploy_Killer extends Cronjob\Tool\ToolBase
      */
     public static function getCommandLineSpec()
     {
-        return array();
+        return [] + parent::getCommandLineSpec();
     }
 
 
@@ -19,30 +19,33 @@ class Cronjob_Tool_Deploy_Killer extends Cronjob\Tool\ToolBase
      */
     public function run(\Cronjob\ICronjob $cronJob)
     {
+        $rdsSystem = new RdsSystem\Factory($this->debugLogger);
+        $model  = $rdsSystem->getMessagingRdsMsModel();
         $workerName = \Config::getInstance()->workerName;
-        $data = RemoteModel::getInstance()->getKillTask($workerName);
-        if (!$data) {
-            $this->debugLogger->message("No process to kill");
-            return;
-        }
 
-        $project = $data['project'];
-        $taskId = $data['id'];
+        $model->getKillTask($workerName, false, function(\RdsSystem\Message\KillTask $task) use ($model, $workerName) {
+            $commandExecutor = new CommandExecutor($this->debugLogger);
 
-        $this->debugLogger->message("Killing $project, task_id=$taskId");
+            $this->debugLogger->message("Killing $task->project, task_id=$task->taskId");
 
-        try {
-            $filename = \Config::getInstance()->pid_dir."/{$workerName}_deploy_$taskId.php.pid";
+            $filename = \Config::getInstance()->pid_dir."/{$workerName}_deploy_$task->taskId.php.pid";
             if (!file_exists($filename)) {
                 $this->debugLogger->message("No pid file $filename, may be process already finished");
+                $task->accepted();
                 return;
             }
             $pid = file_get_contents($filename);
             $this->debugLogger->message("Pid: $pid at filename $filename");
-            exec("kill -- -$pid");
-        } catch (CommandExecutorException $e) {
-            RemoteModel::getInstance()->setUseError($taskId, $e->getMessage()."\nOutput: ".$e->output);
-            $this->debugLogger->error("CMD error: ".$e->getMessage());
-        }
+
+            try {
+                $commandExecutor->executeCommand("kill -- -$pid");
+            } catch (CommandExecutorException $e) {
+                $this->debugLogger->error($e->getMessage());
+            }
+
+            $task->accepted();
+        });
+
+        $this->waitForMessages($model, $cronJob);
     }
 }

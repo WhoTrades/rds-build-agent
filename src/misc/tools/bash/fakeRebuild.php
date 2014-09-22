@@ -1,4 +1,7 @@
 <?php
+$m = 2;
+
+//$m = 0;
 $version = $_SERVER['argv'][2];
 echo "Version: '$version'\n";
-sleep(rand(5, 10));
+sleep(rand($m, 2*$m));

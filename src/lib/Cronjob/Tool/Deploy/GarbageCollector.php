@@ -2,7 +2,7 @@
 /**
  * @example dev/services/deploy/misc/tools/runner.php --tool=Deploy_GarbageCollector -vv
  */
-class Cronjob_Tool_Deploy_GarbageCollector extends Cronjob\Tool\ToolBase
+class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
 {
     /**
      * Use this function to get command line spec for cronjob
@@ -15,7 +15,7 @@ class Cronjob_Tool_Deploy_GarbageCollector extends Cronjob\Tool\ToolBase
                 'desc' => 'do not remove any packages, only output information about them',
                 'default' => false,
             ),
-        );
+        ) + parent::getCommandLineSpec();
     }
 
 
@@ -24,45 +24,51 @@ class Cronjob_Tool_Deploy_GarbageCollector extends Cronjob\Tool\ToolBase
      */
     public function run(\Cronjob\ICronjob $cronJob)
     {
-        $projects = RemoteModel::getInstance()->getProjects();
+        $rdsSystem = new RdsSystem\Factory($this->debugLogger);
+        $model  = $rdsSystem->getMessagingRdsMsModel();
+        $model->sendGetProjectsRequest(new \RdsSystem\Message\ProjectsRequest());
         $commandExecutor = new CommandExecutor($this->debugLogger);
 
-        $toTest = array();
-        foreach ($projects as $project) {
-            $command = Config::getInstance()->debug ? "cat bash/whotrades_repo.txt" : "reprepro -b /var/www/whotrades_repo/ listmatched wheezy '{$project['name']}-*'";
-            $text = $commandExecutor->executeCommand($command);
-            if (preg_match_all('~'.$project['name'].'-([\d.]+)~', $text, $ans)) {
-                $versions = $ans[1];
-                foreach ($versions as $version) {
-                    $toTest[$project['name']."-".$version] = array(
+        $model->readGetProjectsReply(false, function(\RdsSystem\Message\ProjectsReply $message) use ($model, $cronJob, $commandExecutor) {
+            $toTest = array();
+            foreach ($message->projects as $project) {
+                $command = Config::getInstance()->debug ? "cat bash/whotrades_repo.txt" : "reprepro -b /var/www/whotrades_repo/ listmatched wheezy '{$project['name']}-*'";
+                $text = $commandExecutor->executeCommand($command);
+                if (preg_match_all('~'.$project['name'].'-([\d.]+)~', $text, $ans)) {
+                    $versions = $ans[1];
+                    foreach ($versions as $version) {
+                        $toTest[$project['name']."-".$version] = array(
                             'project' => $project['name'],
                             'version' => $version,
+                        );
+                    }
+                } else {
+                    $this->debugLogger->message("No builds of {$project['name']} found");
+                }
+            }
+
+            $command = Config::getInstance()->debug ? "cat bash/whotrades_builds.txt" : "find /home/release/buildroot/ -maxdepth 1 -type d";
+            $text = $commandExecutor->executeCommand($command);
+            if (preg_match_all('~([\w-]{5,})-([\d.]{5,})~', $text, $ans)) {
+                $versions = $ans[2];
+                foreach ($versions as $key => $version) {
+                    $project = $ans[1][$key];
+                    $toTest["$project-$version"] = array(
+                        'project' => $project,
+                        'version' => $version,
                     );
                 }
             } else {
-                $this->debugLogger->message("No builds of {$project['name']} found");
+                $this->debugLogger->message("No builds at /home/release/buildroot/ found");
             }
-        }
 
-        $command = Config::getInstance()->debug ? "cat bash/whotrades_builds.txt" : "find /home/release/buildroot/ -maxdepth 1 -type d";
-        $text = $commandExecutor->executeCommand($command);
-        if (preg_match_all('~([\w-]{5,})-([\d.]{5,})~', $text, $ans)) {
-            $versions = $ans[2];
-            foreach ($versions as $key => $version) {
-                $project = $ans[1][$key];
-                $toTest["$project-$version"] = array(
-                        'project' => $project,
-                        'version' => $version,
-                );
-            }
-        } else {
-            $this->debugLogger->message("No builds at /home/release/buildroot/ found");
-        }
+            $model->sendGetProjectBuildsToDeleteRequest(new \RdsSystem\Message\ProjectBuildsToDeleteRequest($toTest));
 
-        foreach (array_chunk($toTest, 100) as $part) {
-            $toDelete = RemoteModel::getInstance()->getProjectBuildsToDelete($part);
+            $message->accepted();
+        });
 
-            foreach ($toDelete as $val) {
+        $model->readGetProjectBuildsToDeleteReply(false, function(\RdsSystem\Message\ProjectBuildsToDeleteReply $buildsReply) use ($model, $cronJob, $commandExecutor) {
+            foreach ($buildsReply->buildToDelete as $val) {
                 $project = $val['project'];
                 $version = $val['version'];
                 if (strlen($project) < 3) continue;
@@ -70,7 +76,7 @@ class Cronjob_Tool_Deploy_GarbageCollector extends Cronjob\Tool\ToolBase
                 if ($cronJob->getOption('dry-run')) {
                     $this->debugLogger->message("Fake removing $project-$version");
                 } else {
-                    echo "Removing $project-$version\n";
+                    $this->debugLogger->message("Removing $project-$version");
                     if (is_dir("/home/release/buildroot/$project-$version")) {
                         $commandExecutor->executeCommand("rm -rf /home/release/buildroot/$project-$version");
                     }
@@ -86,6 +92,14 @@ class Cronjob_Tool_Deploy_GarbageCollector extends Cronjob\Tool\ToolBase
                     RemoteModel::getInstance()->removeReleaseRequest($project, $version);
                 }
             }
+
+            $buildsReply->accepted();
+        });
+
+        try {
+            $model->waitForMessages(null, null, 30);
+        } catch (PhpAmqpLib\Exception\AMQPTimeoutException $e) {
+
         }
     }
 }

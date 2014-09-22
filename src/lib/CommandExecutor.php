@@ -16,7 +16,7 @@ class CommandExecutor
 		$text = implode("\n", $output);
 
 		if ($returnVar) {
-			throw new \CommandExecutorException("Return var is non-zero", $returnVar, $text);
+			throw new \CommandExecutorException("Return var is non-zero, code=".$returnVar.", command=$command", $returnVar, $text);
 		}
 
 		return $text;

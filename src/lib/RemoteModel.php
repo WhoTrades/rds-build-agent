@@ -51,103 +51,21 @@ class RemoteModel
         return $data;
     }
 
-    public function sendStatus($taskId, $status, $version = null, $attach = null)
-    {
-        return $this->sendRequest("sendStatus", array(
-            'taskId' => $taskId,
-            'status' => $status,
-            'version' => $version,
-            'attach' => $attach,
-        ), true);
-    }
-
-    public function sendBuildPatch($project, $version, $output)
-    {
-        return $this->sendRequest("sendBuildPatch", array(
-            'project' => $project,
-            'version' => $version,
-            'output' => $output,
-        ), true);
-    }
-
-    public function sendMigrations($project, $version, $migrations, $type)
-    {
-        return $this->sendRequest("sendMigrations", array(
-            'project' => $project,
-            'version' => $version,
-            'migrations' => $migrations,
-            'type' => $type,
-        ));
-    }
-
-    public function sendCronConfig($taskId, $text)
-    {
-        return $this->sendRequest("sendCronConfig", array(
-            'taskId' => $taskId,
-            'text' => $text,
-        ), true);
-    }
-
-    public function getNextTask($workerName)
-    {
-        return $this->sendRequest('getBuildTasks', array('worker' => $workerName));
-    }
-
-    public function getMigrationTask($workerName)
-    {
-        return $this->sendRequest('getMigrationTask', array('worker' => $workerName));
-    }
-
-    public function sendMigrationStatus($project, $version, $type, $status)
-    {
-        return $this->sendRequest('sendMigrationStatus', array('project' => $project, 'version' => $version, 'type' => $type, 'status' => $status));
-    }
-
-    public function getUseTask($workerName)
-    {
-        return $this->sendRequest('getUseTasks', array('worker' => $workerName));
-    }
-
-    public function getKillTask($workerName)
-    {
-        return $this->sendRequest('getKillTask', array('worker' => $workerName));
-    }
-
-    public function setUseError($id, $text)
-    {
-        return $this->sendRequest('setUseError', array('id' => $id, 'text' => $text,));
-    }
-
-    public function setOldVersion($id, $version)
-    {
-        return $this->sendRequest('setOldVersion', array('id' => $id, 'version' => $version));
-    }
-
-    public function setUsedVersion($worker, $project, $version, $status)
-    {
-        return $this->sendRequest('setUsedVersion', array('worker' => $worker, 'project' => $project, 'version' => $version, 'status' => $status));
-    }
-
-    public function getCurrentStatus($taskId)
-    {
-        return $this->sendRequest('getCurrentStatus', array('id' => $taskId));
-    }
-
-    public function getProjects()
-    {
-        return $this->sendRequest('getProjects', array());
-    }
-
+    /** @implemented \RdsSystem\Message\ReleaseRequestsRequest */
+    /** @implemented \RdsSystem\Message\ReleaseRequestsReply */
     public function getReleaseRequests($project)
     {
         return $this->sendRequest('getReleaseRequests', array('project' => $project));
     }
 
+    /** @implemented \RdsSystem\Message\ProjectBuildsToDeleteRequest */
+    /** @implemented \RdsSystem\Message\ProjectBuildsToDeleteReply */
     public function getProjectBuildsToDelete($allBuilds)
     {
         return $this->sendRequest('getProjectBuildsToDelete', array('builds' => $allBuilds), true);
     }
 
+    /** @implemented \RdsSystem\Message\RemoveReleaseRequest */
     public function removeReleaseRequest($projectName, $version)
     {
         return $this->sendRequest('removeReleaseRequest', array('projectName' => $projectName, 'version' => $version));
