@@ -17,7 +17,7 @@ class ServiceDeployProdTL1
             new CronCommand(new PeriodicCommand(\Cronjob_Tool_Deploy_Use::getToolCommand(['--max-duration=60'], $verbosity=3), 1), '* * * * *'),
             new CronCommand(new PeriodicCommand(\Cronjob_Tool_Deploy_Killer::getToolCommand(['--max-duration=60'], $verbosity=3), 3), '* * * * *'),
             new CronCommand(new PeriodicCommand(\Cronjob_Tool_Deploy_Migration::getToolCommand(['--max-duration=60'], $verbosity=3), 3), '* * * * *'),
-            new CronCommand(new PeriodicCommand(\Cronjob_Tool_Deploy_GarbageCollector::getToolCommand([], $verbosity=3), 86400), '* * * * *'),
+            new CronCommand(new PeriodicCommand(\Cronjob_Tool_Deploy_GarbageCollector::getToolCommand(['--dry-run'], $verbosity=3), 86400), '* * * * *'),
         ];
 
         $allCommands = new MultiCronCommand($allCommands);
