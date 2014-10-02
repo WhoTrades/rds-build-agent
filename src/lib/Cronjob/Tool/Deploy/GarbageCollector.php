@@ -2,6 +2,9 @@
 /**
  * @example dev/services/deploy/misc/tools/runner.php --tool=Deploy_GarbageCollector -vv
  */
+
+use \RdsSystem\Message;
+
 class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
 {
     /**
@@ -26,10 +29,10 @@ class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
     {
         $rdsSystem = new RdsSystem\Factory($this->debugLogger);
         $model  = $rdsSystem->getMessagingRdsMsModel();
-        $model->sendGetProjectsRequest(new \RdsSystem\Message\ProjectsRequest());
+        $model->sendGetProjectsRequest(new Message\ProjectsRequest());
         $commandExecutor = new CommandExecutor($this->debugLogger);
 
-        $model->readGetProjectsReply(false, function(\RdsSystem\Message\ProjectsReply $message) use ($model, $cronJob, $commandExecutor) {
+        $model->readGetProjectsReply(false, function(Message\ProjectsReply $message) use ($model, $cronJob, $commandExecutor) {
             $toTest = array();
             foreach ($message->projects as $project) {
                 $command = Config::getInstance()->debug ? "cat bash/whotrades_repo.txt" : "reprepro -b /var/www/whotrades_repo/ listmatched wheezy '{$project['name']}-*'";
@@ -62,12 +65,12 @@ class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
                 $this->debugLogger->message("No builds at /home/release/buildroot/ found");
             }
 
-            $model->sendGetProjectBuildsToDeleteRequest(new \RdsSystem\Message\ProjectBuildsToDeleteRequest($toTest));
+            $model->sendGetProjectBuildsToDeleteRequest(new Message\ProjectBuildsToDeleteRequest($toTest));
 
             $message->accepted();
         });
 
-        $model->readGetProjectBuildsToDeleteReply(false, function(\RdsSystem\Message\ProjectBuildsToDeleteReply $buildsReply) use ($model, $cronJob, $commandExecutor) {
+        $model->readGetProjectBuildsToDeleteReply(false, function(Message\ProjectBuildsToDeleteReply $buildsReply) use ($model, $cronJob, $commandExecutor) {
             foreach ($buildsReply->buildToDelete as $val) {
                 $project = $val['project'];
                 $version = $val['version'];
@@ -89,7 +92,7 @@ class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
                         }
                     }
                     $commandExecutor->executeCommand("reprepro -b /var/www/whotrades_repo/ remove wheezy $project-$version");
-                    RemoteModel::getInstance()->removeReleaseRequest($project, $version);
+                    $model->removeReleaseRequest(new Message\RemoveReleaseRequest($project, $version));
                 }
             }
 

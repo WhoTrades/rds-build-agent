@@ -64,12 +64,6 @@ class RemoteModel
     {
         return $this->sendRequest('getProjectBuildsToDelete', array('builds' => $allBuilds), true);
     }
-
-    /** @implemented \RdsSystem\Message\RemoveReleaseRequest */
-    public function removeReleaseRequest($projectName, $version)
-    {
-        return $this->sendRequest('removeReleaseRequest', array('projectName' => $projectName, 'version' => $version));
-    }
 }
 
 
