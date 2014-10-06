@@ -19,8 +19,7 @@ class Cronjob_Tool_Deploy_Killer extends \RdsSystem\Cron\RabbitDaemon
      */
     public function run(\Cronjob\ICronjob $cronJob)
     {
-        $rdsSystem = new RdsSystem\Factory($this->debugLogger);
-        $model  = $rdsSystem->getMessagingRdsMsModel();
+        $model  = $this->getMessagingModel($cronJob);
         $workerName = \Config::getInstance()->workerName;
 
         $model->getKillTask($workerName, false, function(\RdsSystem\Message\KillTask $task) use ($model, $workerName) {

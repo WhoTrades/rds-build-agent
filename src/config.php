@@ -1,7 +1,7 @@
 <?php
 class Config
 {
-    public static $rdsDomain = "phplogs.whotrades.net";
+    public static $rdsDomain = "rds.whotrades.net";
     public static $workerName = null;
     public static $debug = false;
     public static $createTag = 1;
