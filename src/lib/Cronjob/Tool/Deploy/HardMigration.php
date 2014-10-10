@@ -40,7 +40,7 @@ class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
                 //an: 66 - это остановка миграции из RDS
                 if ($e->getCode() == 66) {
                     $this->debugLogger->message("Stopped migration via RDS signal");
-                    $model->sendHardMigrationStatus(new \RdsSystem\Message\HardMigrationStatus($task->migration, 'stopped'));
+                    $model->sendHardMigrationStatus(new \RdsSystem\Message\HardMigrationStatus($task->migration, 'stopped', $e->output));
                 } else {
                     $this->debugLogger->error($e->getMessage());
                     $this->debugLogger->info($e->output);
