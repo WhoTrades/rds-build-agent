@@ -157,7 +157,7 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends Cronjob\Tool\ToolBase
 
             //an: Очистка pgq
             if (!\Config::getInstance()->debug) {
-                $db->getDbConnection()->executeQuery("UPDATE pgq.subscription SET sub_last_tick=(select max(tick_id) from pgq.tick where tick_queue=sub_queue)");
+                $db->getDbConnection()->executeQuery("UPDATE pgq.subscription SET sub_batch=null, sub_next_tick=null, sub_last_tick=(select max(tick_id) from pgq.tick where tick_queue=sub_queue)");
             } else {
                 $db->getDbConnection()->executeQuery("SELECT VERSION()");
             }
