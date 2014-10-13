@@ -171,6 +171,10 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends Cronjob\Tool\ToolBase
 
         $this->debugLogger->info("[!] action=fix_bfs, status='fix read/write units'");
         if (!\Config::getInstance()->debug) {
+            $db = new \DbFunc\ConnectionManager(
+                $this->debugLogger,
+                ['dsn' => \Config::getInstance()->DSN_DB1,]
+            );
             $db->getDbConnection()->executeQuery('UPDATE storage_unit SET write_enable=false');
             //$db->getDbConnection()->executeQuery('storage_unit SET write_enable=false');
         }
