@@ -120,7 +120,12 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends Cronjob\Tool\ToolBase
 
     private function importPostgres()
     {
-        $this->debugLogger->info("[!] action=import_postgres");
+        $this->debugLogger->info("action=import_postgres");
+        $command = "ssh fre-tstwt-db1.whotrades.net bash /opt/postgres-import.sh";
+        if (\Config::getInstance()->debug) {
+            $command = "ls /tmp";
+        }
+        $this->commandExecutor->executeCommand($command);
     }
 
     private function importMongo()
