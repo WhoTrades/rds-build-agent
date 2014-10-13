@@ -60,6 +60,8 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends Cronjob\Tool\ToolBase
 
             $this->openStorageAccess();
 
+            sleep(5);
+
             $this->fixPostgresData();
             //an: на самом деле releaseLock не нужен, так как мемкеш мы почистили, а флаг блокировки лежит там. Но для целостности логики я оставил тут этот оператор
             $this->debugLogger->info("action=tools_work, status=start");
@@ -71,6 +73,14 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends Cronjob\Tool\ToolBase
 
             throw $e;
         }
+
+        \CoreLight::getInstance()->getFatalWatcher()->stop();
+
+
+        $this->debugLogger->message("Successful imported data");
+
+        //an: Выходим сами, так как стандарное поведение подразумевает регистравию завершения работы скрипта в базе, а у нас база-то уже новая
+        exit(0);
     }
 
     private function flushRedis()
@@ -178,5 +188,7 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends Cronjob\Tool\ToolBase
             $db->getDbConnection()->executeQuery('UPDATE storage_unit SET write_enable=false');
             //$db->getDbConnection()->executeQuery('storage_unit SET write_enable=false');
         }
+
+        $this->debugLogger->message("Successful fixed postgres data");
     }
 }
