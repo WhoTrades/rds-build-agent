@@ -22,6 +22,8 @@ for S in $DBSERVERS; do
         check_ec
         ssh $S "$IPTABLES -I INPUT -p tcp -s fre-tstwt-ms1 --dport $P -j ACCEPT"
         check_ec
+        ssh $S "$IPTABLES -I INPUT -p tcp -s 127.0.0.1 --dport $P -j ACCEPT"
+        check_ec
     done
 done
 
@@ -29,7 +31,7 @@ for S in $MGSERVERS; do
     for P in $MGPORTS; do
         ssh $S "$IPTABLES -I INPUT -p tcp --dport $P -j DROP"
         check_ec
-        ssh $S "$IPTABLES -I INPUT -p tcp -s fre-tstwt-ms1 --dport $P -j ACCEPT"
+        ssh $S "$IPTABLES -I INPUT -p tcp -s 127.0.0.1 --dport $P -j ACCEPT"
         check_ec
     done
 done
