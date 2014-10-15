@@ -25,7 +25,11 @@ class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
                 $filename = "/home/release/buildroot/$task->project-$task->version/var/pkg/$task->project-$task->version/misc/tools/migration.php";
 
                 if (Config::getInstance()->debug) {
-                    $filename = __DIR__."/../../../../../rds/misc/tools/migration.php";
+                    if ($task->project == 'comon') {
+                        $filename = __DIR__."/../../../../../../comon/misc/tools/migration.php";
+                    } else {
+                        $filename = __DIR__."/../../../../../$task->project/misc/tools/migration.php";
+                    }
                 }
 
                 $this->debugLogger->message($filename);
