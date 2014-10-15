@@ -60,7 +60,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
             $projectDir = "/home/release/buildroot/$project-$version/var/pkg/$project-$version/";
 
             if (Config::getInstance()->debug) {
-                $projectDir = "/home/an/dev/$project-$version/var/pkg/$project-$version/";
+                $projectDir = $project == 'comon' ? "/home/an/dev/$project/" : "/home/an/dev/services/$project/";
             }
 
             $currentOperation = "none";
