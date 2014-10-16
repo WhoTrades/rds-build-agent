@@ -97,6 +97,7 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends Cronjob\Tool\ToolBase
     private function flushMemcache()
     {
         $this->debugLogger->info("action=flush_memcached");
+        CoreLight::getInstance()->getServiceBaseCacheMemcached()->flush();
         MemcachedManager::getInstance()->flush();
         Cache::getSharedMemoryStorage()->flush();
         Utils_Filesystem::rmtree(\Config::getInstance()->cache_dir_root);
@@ -158,27 +159,21 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends Cronjob\Tool\ToolBase
     private function fixPostgresData()
     {
         $this->debugLogger->info("action=fix_domain");
-        $db = new \DbFunc\ConnectionManager(
-            $this->debugLogger,
-            ['dsn' => \Config::getInstance()->DSN_DB1,]
-        );
-        $db->getDbConnection()->executeQuery('update "group" set group_prefix=replace(group_prefix, \'whotrades.com\', \'wtpred.net\')');
-        $db->getDbConnection()->executeQuery('update "group_domain" set gd_prefix=replace(gd_prefix, \'whotrades.com\', \'wtpred.net\')');
+        $this->getConnection('DSN_DB1')->executeQuery('update "group" set group_prefix=replace(group_prefix, \'whotrades.com\', \'wtpred.net\')');
+        $this->getConnection('DSN_DB1')->executeQuery('update "group_domain" set gd_prefix=replace(gd_prefix, \'whotrades.com\', \'wtpred.net\')');
 
         $this->debugLogger->info("action=clear_pgq_queues");
         foreach (['DSN_DB1', 'DSN_DB2', 'DSN_DB3', 'DSN_DB4', 'DSN_SERVICES_FTENDER'] as $val) {
-            $db = new \DbFunc\ConnectionManager(
-                $this->debugLogger,
-                ['dsn' => \Config::getInstance()->$val,]
-            );
-
             //an: Очистка pgq
             if (!\Config::getInstance()->debug) {
-                $db->getDbConnection()->executeQuery("UPDATE pgq.subscription SET sub_batch=null, sub_next_tick=null, sub_last_tick=(select max(tick_id) from pgq.tick where tick_queue=sub_queue)");
+                $this->getConnection($val)->executeQuery("UPDATE pgq.subscription SET sub_batch=null, sub_next_tick=null, sub_last_tick=(select max(tick_id) from pgq.tick where tick_queue=sub_queue)");
             } else {
-                $db->getDbConnection()->executeQuery("SELECT VERSION()");
+                $this->getConnection($val)->executeQuery("SELECT VERSION()");
             }
         }
+
+        $this->debugLogger->info("Clearing phplogs.logs");
+        $this->getConnection('DSN_DB4')->executeQuery("truncate table phplogs.logs");
 
 
         $this->debugLogger->info("[!] action=fix_bfs, status='fix read/write units'");
@@ -192,5 +187,13 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends Cronjob\Tool\ToolBase
         }
 
         $this->debugLogger->message("Successful fixed postgres data");
+    }
+
+    private function getConnection($dnsAlias)
+    {
+        return (new \DbFunc\ConnectionManager(
+                $this->debugLogger,
+                ['dsn' => \Config::getInstance()->$dnsAlias,]
+        ))->getDbConnection();
     }
 }
