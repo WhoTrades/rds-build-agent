@@ -64,6 +64,10 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
 
             $projectDir = "/home/release/buildroot/$project-$version/var/pkg/$project-$version/";
 
+            if (Config::getInstance()->debug) {
+                $projectDir = $project == 'comon' ? "/home/an/dev/$project/" : "/home/an/dev/services/$project/";
+            }
+
             $currentOperation = "none";
             try {
                 //an: Сигнализируем о начале работы
@@ -123,7 +127,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                 $migrations = array();
                 if (file_exists($filename)) {
                     //an: Проект с миграциями
-                    foreach (array('pre', 'post') as $type) {
+                    foreach (array('pre', 'post', 'hard') as $type) {
                         $command = "php $filename migration --type=$type --project=$project new 100000 --interactive=0";
                         $text = $commandExecutor->executeCommand($command);
                         if (preg_match('~Found (\d+) new migration~', $text, $ans)) {
@@ -142,9 +146,13 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                 }
 
                 if (\Config::getInstance()->debug) {
-                    $migrations = ["Y2014_2\/m140905_090321_add_new_func_get_trade_transaction_list_by_account_and_operation_types","Y2014_2\/m140908_193018_add_col__trade_repeater__payment__status","Y2014_2\/m140908_194447_new_sp__trade_repeater__add_payment","Y2014_2\/m140908_195905_new_sp__trade_repeater__update_payment_transfer_status"];
+                    $migrations = ["Y2014_2/m140905_090321_add_new_func_get_trade_transaction_list_by_account_and_operation_types","Y2014_2/m140908_193018_add_col__trade_repeater__payment__status","Y2014_2/m140908_194447_new_sp__trade_repeater__add_payment","Y2014_2/m140908_195905_new_sp__trade_repeater__update_payment_transfer_status"];
                     $this->model->sendMigrations(
                         new Message\ReleaseRequestMigrations($project, $version, $migrations, 'pre')
+                    );
+                    $migrations = ["Y2014_2/m140804_121502_rds_test #WTA-67"];
+                    $this->model->sendMigrations(
+                        new Message\ReleaseRequestMigrations($project, $version, $migrations, 'hard')
                     );
                 }
 

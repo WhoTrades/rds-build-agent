@@ -45,6 +45,20 @@ class Cronjob_Tool_Deploy_Killer extends \RdsSystem\Cron\RabbitDaemon
             $task->accepted();
         });
 
+        $model->readUnixSignals(false, function(\RdsSystem\Message\UnixSignal $message) use ($model, $workerName) {
+            $commandExecutor = new CommandExecutor($this->debugLogger);
+
+            $this->debugLogger->message("Sending signal $message->signal to PID=$message->pid");
+
+            try {
+                $commandExecutor->executeCommand("kill -$message->signal $message->pid");
+            } catch (CommandExecutorException $e) {
+                $this->debugLogger->error($e->getMessage());
+            }
+
+            $message->accepted();
+        });
+
         $this->waitForMessages($model, $cronJob);
     }
 }

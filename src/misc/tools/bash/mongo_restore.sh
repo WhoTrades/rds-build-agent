@@ -5,7 +5,9 @@ if [[ -z "$1" || -z "$2" ]]; then
     exit 1
 fi
 
-. /opt/bin/mongo.conf
+DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+. $DIR/mongo.conf
 
 FROMDB=$1
 DESTDB=$2
