@@ -125,15 +125,17 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                     foreach (array('pre', 'post', 'hard') as $type) {
                         $command = "php $filename migration --type=$type --project=$project new 100000 --interactive=0";
                         $text = $commandExecutor->executeCommand($command);
-                        if (preg_match('~Found (\d+) new migration~', $text, $ans)) {
-                            //an: Текст, начиная с Found (\d+) new migration
-                            $subtext = substr($text, strpos($text, $ans[0]));
-                            $subtext = str_replace('\\', '/', $subtext);
-                            $lines = explode("\n", str_replace("\r", "", $subtext));
-                            array_shift($lines);
-                            $migrations = array_slice($lines, 0, $ans[1]);
-                            $migrations = array_map('trim', $migrations);
+                        if (!preg_match('~Found (\d+) new migration~', $text, $ans)) {
+                            continue;
                         }
+
+                        //an: Текст, начиная с Found (\d+) new migration
+                        $subtext = substr($text, strpos($text, $ans[0]));
+                        $subtext = str_replace('\\', '/', $subtext);
+                        $lines = explode("\n", str_replace("\r", "", $subtext));
+                        array_shift($lines);
+                        $migrations = array_slice($lines, 0, $ans[1]);
+                        $migrations = array_map('trim', $migrations);
                         $this->model->sendMigrations(
                             new Message\ReleaseRequestMigrations($project, $version, $migrations, $type)
                         );
