@@ -45,6 +45,7 @@ class Cronjob_Tool_Deploy_Migration extends \RdsSystem\Cron\RabbitDaemon
                     $model->sendMigrationStatus(new \RdsSystem\Message\ReleaseRequestMigrationStatus($task->project, $task->version, $task->type, 'up'));
                 } else {
                     //an: Если миграций нет - просто говорим что все ок
+                    $this->debugLogger->message("Migration file $filename not found, so skip migrations");
                     $model->sendMigrationStatus(new \RdsSystem\Message\ReleaseRequestMigrationStatus($task->project, $task->version, $task->type, 'up'));
                 }
             } catch (CommandExecutorException $e) {
