@@ -38,9 +38,15 @@ class Cronjob_Tool_Deploy_Migration extends \RdsSystem\Cron\RabbitDaemon
                     $filename = "/home/dev/dev/comon/misc/tools/migration.php";
                 }
 
-                $command = "php $filename migration --type=$task->type --project=$task->project up --interactive=0";
-                $commandExecutor->executeCommand($command);
-                $model->sendMigrationStatus(new \RdsSystem\Message\ReleaseRequestMigrationStatus($task->project, $task->version, $task->type, 'up'));
+                //an: Если миграции существуют, то есть есть в проекте
+                if (file_exists($filename)) {
+                    $command = "php $filename migration --type=$task->type --project=$task->project up --interactive=0";
+                    $commandExecutor->executeCommand($command);
+                    $model->sendMigrationStatus(new \RdsSystem\Message\ReleaseRequestMigrationStatus($task->project, $task->version, $task->type, 'up'));
+                } else {
+                    //an: Если миграций нет - просто говорим что все ок
+                    $model->sendMigrationStatus(new \RdsSystem\Message\ReleaseRequestMigrationStatus($task->project, $task->version, $task->type, 'up'));
+                }
             } catch (CommandExecutorException $e) {
                 $this->debugLogger->error($e->getMessage());
                 $this->debugLogger->info($e->output);
