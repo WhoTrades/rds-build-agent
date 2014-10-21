@@ -168,9 +168,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                 }
                 $text = $commandExecutor->executeCommand($command);
 
-                if ($project === 'service-mailer') {
-                    $this->installToPreprod($this->model, $taskId, $version, $project);
-                }
+                $this->installToPreprod($this->model, $taskId, $version, $project);
 
                 //an: Отправляем новые сгенерированные /etc/cron.d конфиги
                 $cronConfig = "";
