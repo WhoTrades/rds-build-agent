@@ -20,8 +20,7 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
      */
     public function run(\Cronjob\ICronjob $cronJob)
     {
-        $rdsSystem = new RdsSystem\Factory($this->debugLogger);
-        $model  = $rdsSystem->getMessagingRdsMsModel();
+        $model  = $this->getMessagingModel($cronJob);
 
         $workerName = \Config::getInstance()->workerName;
         $model->getUseTask($workerName, false, function(\RdsSystem\Message\UseTask $task) use ($workerName, $model) {
@@ -53,6 +52,12 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
                         return;
                     }
                     list($server, $sv) = explode(" ", $line);
+
+                    $this->debugLogger->message("ServerRegex: ".\Config::getInstance()->serverRegex);
+                    if (!preg_match(\Config::getInstance()->serverRegex, $server)) {
+                        continue;
+                    }
+
                     if ($oldVersion === null) {
                         $oldVersion = $sv;
                     } elseif ($oldVersion != $sv) {
@@ -62,6 +67,15 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
                         $task->accepted();
                         return;
                     }
+                }
+
+                if ($oldVersion === null) {
+                    $this->debugLogger->error("Use error as empty oldVersion");
+                    $model->sendUseError(
+                        new Message\ReleaseRequestUseError($task->releaseRequestId, "Empty oldVersion")
+                    );
+                    $task->accepted();
+                    return;
                 }
 
                 $oldVersion = str_replace("$project-", "", $oldVersion);
@@ -126,6 +140,7 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
                 }
 
                 $task->accepted();
+                $this->debugLogger->message("Successful used $project-$version");
 
             } catch (CommandExecutorException $e) {
                 $model->sendUseError(

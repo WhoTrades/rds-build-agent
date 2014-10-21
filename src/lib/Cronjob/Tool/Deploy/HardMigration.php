@@ -13,8 +13,7 @@ class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
 
     public function run(\Cronjob\ICronjob $cronJob)
     {
-        $rdsSystem = new RdsSystem\Factory($this->debugLogger);
-        $model  = $rdsSystem->getMessagingRdsMsModel();
+        $model  = $this->getMessagingModel($cronJob);
         $workerName = \Config::getInstance()->workerName;
 
         $model->getHardMigrationTask(false, function(\RdsSystem\Message\HardMigrationTask $task) use ($workerName, $model) {

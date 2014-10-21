@@ -27,8 +27,7 @@ class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
      */
     public function run(\Cronjob\ICronjob $cronJob)
     {
-        $rdsSystem = new RdsSystem\Factory($this->debugLogger);
-        $model  = $rdsSystem->getMessagingRdsMsModel();
+        $model  = $this->getMessagingModel($cronJob);
         $model->sendGetProjectsRequest(new Message\ProjectsRequest());
         $commandExecutor = new CommandExecutor($this->debugLogger);
 

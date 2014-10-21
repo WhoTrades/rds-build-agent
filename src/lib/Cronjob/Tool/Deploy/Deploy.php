@@ -13,6 +13,9 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
     /** @var \RdsSystem\Model\Rabbit\MessagingRdsMs */
     private $model;
 
+    /** @var \RdsSystem\Model\Rabbit\MessagingRdsMs */
+    private $preprodModel;
+
     /** @var \RdsSystem\Message\BuildTask */
     private $currentTask;
 
@@ -30,9 +33,11 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
      */
     public function run(\Cronjob\ICronjob $cronJob)
     {
-        $rdsSystem = new RdsSystem\Factory($this->debugLogger);
         $workerName = \Config::getInstance()->workerName;
-        $this->model  = $rdsSystem->getMessagingRdsMsModel();
+        $this->model  = $this->getMessagingModel($cronJob);
+
+        $rdsSystem = new RdsSystem\Factory($this->debugLogger);
+        $this->preprodModel = $rdsSystem->getMessagingRdsMsModel('preprod');
 
         $this->gid = posix_getpgid(posix_getpid());
 
@@ -163,6 +168,8 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                 }
                 $text = $commandExecutor->executeCommand($command);
 
+                $this->installToPreprod($this->model, $taskId, $version, $project);
+
                 //an: Отправляем новые сгенерированные /etc/cron.d конфиги
                 $cronConfig = "";
                 if (!Config::getInstance()->debug) {
@@ -188,6 +195,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
 
                 $this->sendStatus('failed', $version, $text);
             } catch (Exception $e) {
+                $this->debugLogger->error("Unknown error: ".$e->getMessage());
                 $this->sendStatus('failed', $version, $e->getMessage());
             }
 
@@ -234,5 +242,87 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
         }
 
         return parent::onTerm($signo);
+    }
+
+    private function installToPreprod($model, $taskId, $version, $project)
+    {
+        $this->debugLogger->message("Installing to preprod");
+        //an: хардкод, тут нужно перебрать всех воркеров preprod контура
+        $worker = 'debian';
+
+        //an: генерируем рамдомную строчку, нам главное проверить что ответ пришел на нужным нам запрос
+        $releaseRequestId = uniqid();
+
+        $model->sendTaskStatusChanged(new Message\TaskStatusChanged($taskId, 'preprod_using'));
+
+
+        $this->debugLogger->message("Sending use task to preprod: project=$project, version=$version");
+
+        $this->preprodModel->sendUseTask($worker, new Message\UseTask($project, $releaseRequestId, $version, 'used'));
+
+        $this->preprodModel->readUsedVersion(false, function (Message\ReleaseRequestUsedVersion $message) use ($project, $version, $worker, $model, $taskId) {
+            if ($message->version != $version || $message->project != $project || $message->worker != $worker) {
+                $this->debugLogger->message("Skip used message as $message->version != $version || $message->project != $project || $message->worker != $worker");
+                $message->accepted();
+                return;
+            }
+
+            $message->accepted();
+            if ($message->status == 'used') {
+                $this->debugLogger->message("Sending migration task to preprod: project=$project, version=$version");
+                $model->sendTaskStatusChanged(new Message\TaskStatusChanged($taskId, 'preprod_migrations'));
+                $this->preprodModel->sendMigrationTask(new Message\MigrationTask($project, $version, 'pre'));
+            } else {
+                throw new Exception("Failed to use $project-$version on preprod " . json_encode($message));
+            }
+        });
+
+        $this->preprodModel->readUseError(false, function (Message\ReleaseRequestUseError $message) use ($releaseRequestId, $model, $taskId) {
+            if ($message->releaseRequestId != $releaseRequestId) {
+                $this->debugLogger->message("Skip use error message as $message->releaseRequestId != $releaseRequestId");
+                $message->accepted();
+                return;
+            }
+
+            $message->accepted();
+
+            $model->sendTaskStatusChanged(new Message\TaskStatusChanged($taskId, 'failed'));
+            $this->debugLogger->error("Failed to use version on preprod, " . json_decode($message));
+            $this->preprodModel->stopReceivingMessages();
+
+            throw new \Exception("Failed to use version on preprod, " . json_decode($message));
+        });
+
+        $this->preprodModel->readOldVersion(false, function (Message\ReleaseRequestOldVersion $message) use ($releaseRequestId, $model, $taskId) {
+            if ($message->releaseRequestId != $releaseRequestId) {
+                $this->debugLogger->message("Skip readOldVersion message as $message->releaseRequestId != $releaseRequestId");
+                $message->accepted();
+                return;
+            }
+
+            //an: Просто вычитываем очередь, что бы вообщения не скапливались
+            $message->accepted();
+        });
+
+        $this->preprodModel->readMigrationStatus(false, function (Message\ReleaseRequestMigrationStatus $message) use ($project, $version, $worker) {
+            $message->accepted();
+            if ($message->version == $version && $message->project == $project && $message->type == 'pre') {
+                if ($message->status == 'up') {
+                    $this->debugLogger->message("Migrations are up to date, exiting");
+                    $this->preprodModel->stopReceivingMessages();
+                } else {
+                    throw new Exception("Failed to migrate " . json_encode($message));
+                }
+            }
+        });
+
+
+        try {
+            $this->preprodModel->waitForMessages(null, null, 5);
+        } catch (\PhpAmqpLib\Exception\AMQPTimeoutException $e) {
+            $this->debugLogger->error("Failed to use version on preprod as timeout");
+            $model->sendTaskStatusChanged(new Message\TaskStatusChanged($taskId, 'failed'));
+            throw $e;
+        }
     }
 }

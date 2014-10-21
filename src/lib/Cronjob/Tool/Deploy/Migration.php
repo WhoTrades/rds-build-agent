@@ -19,8 +19,7 @@ class Cronjob_Tool_Deploy_Migration extends \RdsSystem\Cron\RabbitDaemon
      */
     public function run(\Cronjob\ICronjob $cronJob)
     {
-        $rdsSystem = new RdsSystem\Factory($this->debugLogger);
-        $model  = $rdsSystem->getMessagingRdsMsModel();
+        $model  = $this->getMessagingModel($cronJob);
         $workerName = \Config::getInstance()->workerName;
 
         $model->getMigrationTask(false, function(\RdsSystem\Message\MigrationTask $task) use ($workerName, $model) {
@@ -29,6 +28,11 @@ class Cronjob_Tool_Deploy_Migration extends \RdsSystem\Cron\RabbitDaemon
             try {
                 //an: Должно быть такое же, как в rebuild-package.sh
                 $filename = "/home/release/buildroot/$task->project-$task->version/var/pkg/$task->project-$task->version/misc/tools/migration.php";
+
+                //an: Это для препрода
+                if (!file_exists($filename)) {
+                    $filename = "/var/pkg/$task->project-$task->version/misc/tools/migration.php";
+                }
 
                 if (Config::getInstance()->debug) {
                     $filename = "/home/dev/dev/comon/misc/tools/migration.php";

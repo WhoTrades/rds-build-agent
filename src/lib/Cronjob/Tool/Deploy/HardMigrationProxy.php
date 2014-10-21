@@ -19,8 +19,7 @@ class Cronjob_Tool_Deploy_HardMigrationProxy extends RdsSystem\Cron\RabbitDaemon
 
     public function run(\Cronjob\ICronjob $cronJob)
     {
-        $rdsSystem = new RdsSystem\Factory($this->debugLogger);
-        $model  = $rdsSystem->getMessagingRdsMsModel();
+        $model  = $this->getMessagingModel($cronJob);
 
         $sock = socket_create_listen(self::LISTEN_PORT);
         socket_getsockname($sock, $addr, $port);
