@@ -23,6 +23,11 @@ class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
                 //an: Должно быть такое же, как в rebuild-package.sh
                 $filename = "/home/release/buildroot/$task->project-$task->version/var/pkg/$task->project-$task->version/misc/tools/migration.php";
 
+                //an: Это для препрода
+                if (!file_exists($filename)) {
+                    $filename = "/var/pkg/$task->project-$task->version/misc/tools/migration.php";
+                }
+
                 if (Config::getInstance()->debug) {
                     if ($task->project == 'comon') {
                         $filename = __DIR__."/../../../../../../comon/misc/tools/migration.php";
