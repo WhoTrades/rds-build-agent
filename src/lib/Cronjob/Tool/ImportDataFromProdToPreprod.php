@@ -176,17 +176,33 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends Cronjob\Tool\ToolBase
         $this->getConnection('DSN_DB4')->executeQuery("truncate table phplogs.logs");
 
 
-        $this->debugLogger->info("[!] action=fix_bfs, status='fix read/write units'");
+        $this->debugLogger->info("action=fix_bfs, status='fix read/write units'");
         if (!\Config::getInstance()->debug) {
             $db = new \DbFunc\ConnectionManager(
                 $this->debugLogger,
                 ['dsn' => \Config::getInstance()->DSN_DB1,]
             );
             $db->getDbConnection()->executeQuery('UPDATE storage_unit SET write_enable=false');
-            //$db->getDbConnection()->executeQuery('storage_unit SET write_enable=false');
+
+            $db->getDbConnection()->executeQuery("UPDATE storage_unit SET url=replace(url, 'storage1.comon.local', 'nye-wt-fs1.whotrades.net')");
+            $db->getDbConnection()->executeQuery("UPDATE storage_unit SET url=replace(url, 'storage2.comon.local', 'nye-wt-fs2.whotrades.net')");
+            $db->getDbConnection()->executeQuery("UPDATE storage_unit SET url=replace(url, 'storage3.comon.local', 'nye-wt-fs3.whotrades.net')");
+            $db->getDbConnection()->executeQuery("UPDATE storage_unit SET url=replace(url, 'storage4.comon.local', 'nye-wt-fs4.whotrades.net')");
+            $db->getDbConnection()->executeQuery("INSERT INTO public.storage_unit (unit_id, url, location, write_enable, read_enable, read_status, write_status) VALUES ('8', 'http://storage1.comon.local:10001', 'NYE', 't', 't', 't', 't')");
+            $db->getDbConnection()->executeQuery("INSERT INTO public.storage_unit (unit_id, url, location, write_enable, read_enable, read_status, write_status) VALUES ('8', 'http://storage1.comon.local:10002', 'NYE', 't', 't', 't', 't')");
         }
 
         $this->debugLogger->message("Successful fixed postgres data");
+    }
+
+    /**
+     * an: Этот метод позволяет не регистрировать тул в базе. А эта регистрация нам не нужна, так как по окончании работы тула база уже другая, и система сходит с ума при попытке разрегистрировать тул
+     * @param $cacheDir
+     * @return \Cronjob\InstanceManager\Single
+     */
+    static function getInstanceManager($cacheDir)
+    {
+        return new \Cronjob\InstanceManager\Dummy();
     }
 
     private function getConnection($dnsAlias)
