@@ -168,7 +168,11 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                 }
                 $text = $commandExecutor->executeCommand($command);
 
-                $this->installToPreprod($this->model, $taskId, $version, $project);
+                if (\Config::getInstance()->installToPreprod) {
+                    $this->installToPreprod($this->model, $taskId, $version, $project);
+                } else {
+                    $this->debugLogger->message("Skip installing to preprod");
+                }
 
                 //an: Отправляем новые сгенерированные /etc/cron.d конфиги
                 $cronConfig = "";
