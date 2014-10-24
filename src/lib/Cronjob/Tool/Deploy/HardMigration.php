@@ -44,20 +44,41 @@ class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
                 $port = Cronjob_Tool_Deploy_HardMigrationProxy::LISTEN_PORT;
                 $command = "php $filename migration --type=hard --project=$task->project --progressHost=$host --progressPort=$port upOne ".str_replace("/", "\\\\", $task->migration)." -vv 2>&1";
 
-                $text = $commandExecutor->executeCommand($command);
-                $model->sendHardMigrationStatus(new \RdsSystem\Message\HardMigrationStatus($task->migration, 'done', $text));
+                $output = "";
+                $t = microtime(true);
+                $chunk = "";
+                ob_start(function($string) use ($model, $task, &$t, &$chunk, &$output) {
+                    $chunk .= $string;
+                    $output .= $string;
+                    fwrite(STDOUT, $string);
+
+                    if (microtime(true) - $t > 1) {
+                        $chunk = "";
+                        $model->sendHardMigrationLogChunk(new \RdsSystem\Message\HardMigrationLogChunk($task->migration, $string));
+                    }
+                }, 10);
+
+                system($command, $returnVar);
+
+                ob_end_clean();
+
+                if ($returnVar) {
+                    throw new CommandExecutorException("Return var is non-zero, code=".$returnVar.", command=$command", $returnVar, $output);
+                }
+
+                $model->sendHardMigrationStatus(new \RdsSystem\Message\HardMigrationStatus($task->migration, 'done'));
             } catch (CommandExecutorException $e) {
                 //an: 66 - это остановка миграции из RDS
                 if ($e->getCode() == 66) {
                     $this->debugLogger->message("Stopped migration via RDS signal");
-                    $model->sendHardMigrationStatus(new \RdsSystem\Message\HardMigrationStatus($task->migration, 'stopped', $e->output));
+                    $model->sendHardMigrationStatus(new \RdsSystem\Message\HardMigrationStatus($task->migration, 'stopped'));
                 } elseif ($e->getCode() == 67) {
                     $this->debugLogger->message("Migration is not ready yet");
-                    $model->sendHardMigrationStatus(new \RdsSystem\Message\HardMigrationStatus($task->migration, 'new', $e->output));
+                    $model->sendHardMigrationStatus(new \RdsSystem\Message\HardMigrationStatus($task->migration, 'new'));
                 } else {
                     $this->debugLogger->error($e->getMessage());
                     $this->debugLogger->info($e->output);
-                    $model->sendHardMigrationStatus(new \RdsSystem\Message\HardMigrationStatus($task->migration, 'failed', $e->output));
+                    $model->sendHardMigrationStatus(new \RdsSystem\Message\HardMigrationStatus($task->migration, 'failed'));
                 }
             } catch (Exception $e) {
                 $model->sendHardMigrationStatus(new \RdsSystem\Message\HardMigrationStatus($task->migration, 'failed', $e->getMessage()));

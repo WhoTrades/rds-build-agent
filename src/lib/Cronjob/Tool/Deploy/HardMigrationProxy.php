@@ -43,16 +43,9 @@ class Cronjob_Tool_Deploy_HardMigrationProxy extends RdsSystem\Cron\RabbitDaemon
                 $migration = json_decode($message);
                 $model->sendHardMigrationProgress(new Message\HardMigrationProgress($migration->migration, $migration->progress, $migration->action, $migration->pid));
             }
+
+            $cronJob->checkStillCanRun();
         }
         socket_close($sock);
-
-        return;
-
-
-
-        $project = 'rds';
-        $filename = "/home/an/dev/services/rds/misc/tools/migration.php";
-
-        $command = "php $filename --type=hard --project=$project --restart up 1 --progress=127.0.0.1:55678";
     }
 }
