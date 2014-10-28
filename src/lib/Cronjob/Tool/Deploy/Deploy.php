@@ -6,6 +6,8 @@ use RdsSystem\Message;
  */
 class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
 {
+    const PREPROD_TIMEOUT = 60;
+
     private $gid;
     private $taskId;
     private $version;
@@ -322,7 +324,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
 
 
         try {
-            $this->preprodModel->waitForMessages(null, null, 5);
+            $this->preprodModel->waitForMessages(null, null, self::PREPROD_TIMEOUT);
         } catch (\PhpAmqpLib\Exception\AMQPTimeoutException $e) {
             $this->debugLogger->error("Failed to use version on preprod as timeout");
             $model->sendTaskStatusChanged(new Message\TaskStatusChanged($taskId, 'failed'));
