@@ -98,9 +98,7 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends Cronjob\Tool\ToolBase
     {
         $this->debugLogger->info("action=flush_memcached");
         CoreLight::getInstance()->getServiceBaseCacheMemcached()->flush();
-        MemcachedManager::getInstance()->flush();
-        Cache::getSharedMemoryStorage()->flush();
-        Utils_Filesystem::rmtree(\Config::getInstance()->cache_dir_root);
+        $this->commandExecutor->executeCommand("ssh mc-0-1.comon.local '/etc/init.d/memcache restart'");
     }
 
     private function clearBfs()
