@@ -8,3 +8,8 @@ $this->environment = 'main';
 //an: Используется для фильтрации прод серверов от пре-прод серверов
 $this->serverRegex = '~.*~';
 
+$this->installToPreprod = true;
+
+$this->hardMigration = [
+    'autoStartEnvironments' => ['preprod'],
+];
