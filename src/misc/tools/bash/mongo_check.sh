@@ -9,7 +9,7 @@ F=0
 
 for DB in $DBS; do
     ssh $MONGOSERVER "if [ -d /var/backup/${DB}.${YESTERDAY} ]; then echo '${DB}.${YESTERDAY}'; exit 0; fi; exit 15"
-    if [ "$?" = "0" ]; then
+    if [ "$?" != "0" ]; then
         F=1
     fi
 done
