@@ -186,7 +186,7 @@ appendconf() {
   local curuser="${SUDO_USER:-$USER}"
   local conf="/etc/$packagename/config.local.php"
   local comment="/* $curdate $curuser: append-conf() */"
-  
+
   if isnull $groupname || isnull $packagename; then
     echo "$0  ${GREEN}append-conf${NORMAL}           packagename"
     exitf
@@ -225,6 +225,7 @@ syncconf() {
   local groupname=$1
   local packagename=$2
   local conf="/etc/$packagename/config.local.php"
+  local confpreprod="/etc/$packagename/config.local.preprod.php"
 
   if isnull $groupname || isnull $packagename; then
     echo "$0  ${GREEN}sync-conf${NORMAL}             packagename"
@@ -239,6 +240,12 @@ syncconf() {
 
   confbody=`cat $conf`
 
+  preprod=0
+  if [ -e $confpreprod ]; then
+    confbodypreprod=`cat $confpreprod`
+    preprod=1
+  fi
+
   duplicateconf $groupname $packagename
 
   execute_concurrent $groupname \
@@ -247,6 +254,13 @@ syncconf() {
 $confbody
 EOF
   [ \$? -eq 0 ] || exit $EXIT_FAILURE
+
+  if [ $preprod -eq 1 ]; then
+      cat<<'EOF' | tee ${confpreprod}.sync-conf.new > /dev/null
+$confbodypreprod
+EOF
+      mv ${confpreprod}.sync-conf.new ${confpreprod}
+  fi
 
   mv ${conf}.sync-conf.new ${conf}
   " || errx "sync-conf() failed!"
