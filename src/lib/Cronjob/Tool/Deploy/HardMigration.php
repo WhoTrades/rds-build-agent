@@ -6,7 +6,7 @@ use RdsSystem\Message;
  */
 class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
 {
-    const LOG_LAG_TIME = 3; //an: в секундах
+    const LOG_LAG_TIME = 0.1; //an: в секундах
 
     public static function getCommandLineSpec()
     {
@@ -55,8 +55,9 @@ class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
                     fwrite(STDOUT, $string);
 
                     if (microtime(true) - $t > self::LOG_LAG_TIME) {
+                        $t = microtime(true);
+                        $model->sendHardMigrationLogChunk(new \RdsSystem\Message\HardMigrationLogChunk($task->migration, $chunk));
                         $chunk = "";
-                        $model->sendHardMigrationLogChunk(new \RdsSystem\Message\HardMigrationLogChunk($task->migration, $string));
                     }
                 }, 10);
 
