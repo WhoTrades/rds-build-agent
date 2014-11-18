@@ -3,7 +3,7 @@
  * @example dev/services/deploy/misc/tools/runner.php --tool=ImportDataFromProdToPreprod -vv
  */
 
-class Cronjob_Tool_ImportDataFromProdToPreprod extends Cronjob\Tool\ToolBase
+class Cronjob_Tool_ImportDataFromProdToPreprod extends RdsSystem\Cron\RabbitDaemon
 {
     /** @var CommandExecutor */
     private $commandExecutor;
@@ -26,11 +26,14 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends Cronjob\Tool\ToolBase
                 'valueRequired' => true,
                 'default' => 60,
             ],
-        );
+        ) + parent::getCommandLineSpec();
     }
 
     public function run(\Cronjob\ICronjob $cronJob)
     {
+        $model = $this->getMessagingModel($cronJob);
+        $model->sendPreProdDown(new \RdsSystem\Message\PreProd\Down());
+
         $this->commandExecutor = new CommandExecutor($this->debugLogger);
         $this->bashDir = dirname(dirname(dirname(__DIR__)))."/misc/tools/bash/";
 
@@ -71,16 +74,14 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends Cronjob\Tool\ToolBase
             $this->debugLogger->info("action=tools_work, status=start");
             $globalLock->releaseLock();
 
+            $model->sendPreProdUp(new \RdsSystem\Message\PreProd\Up());
+
             throw $e;
         }
 
-        \CoreLight::getInstance()->getFatalWatcher()->stop();
-
-
         $this->debugLogger->message("Successful imported data");
 
-        //an: Выходим сами, так как стандарное поведение подразумевает регистравию завершения работы скрипта в базе, а у нас база-то уже новая
-        exit(0);
+        $model->sendPreProdUp(new \RdsSystem\Message\PreProd\Up());
     }
 
     private function flushRedis()
@@ -98,7 +99,8 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends Cronjob\Tool\ToolBase
     {
         $this->debugLogger->info("action=flush_memcached");
         CoreLight::getInstance()->getServiceBaseCacheMemcached()->flush();
-        $this->commandExecutor->executeCommand("ssh mc-0-1.comon.local '/etc/init.d/memcached restart'");
+        $cmd = \Config::getInstance()->debug ? "ls -lh /" : "ssh mc-0-1.comon.local '/etc/init.d/memcached restart'";
+        $this->commandExecutor->executeCommand($cmd);
     }
 
     private function clearBfs()

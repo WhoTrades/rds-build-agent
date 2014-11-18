@@ -170,7 +170,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                 }
                 $text = $commandExecutor->executeCommand($command);
 
-                if (\Config::getInstance()->installToPreprod) {
+                if (\Config::getInstance()->installToPreprod && $task->installToPreProd) {
                     $this->installToPreprod($this->model, $taskId, $version, $project);
                 } else {
                     $this->debugLogger->message("Skip installing to preprod");

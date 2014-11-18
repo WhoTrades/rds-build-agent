@@ -59,6 +59,20 @@ class Cronjob_Tool_Deploy_Killer extends \RdsSystem\Cron\RabbitDaemon
             $message->accepted();
         });
 
+        $model->readUnixSignalsToGroup(false, function(\RdsSystem\Message\UnixSignalToGroup $message) use ($model, $workerName) {
+            $commandExecutor = new CommandExecutor($this->debugLogger);
+
+            $this->debugLogger->message("Sending signal to PGID=$message->pgid");
+
+            try {
+                $commandExecutor->executeCommand("kill -- -$message->pgid");
+            } catch (CommandExecutorException $e) {
+                $this->debugLogger->error($e->getMessage());
+            }
+
+            $message->accepted();
+        });
+
         $this->waitForMessages($model, $cronJob);
     }
 }
