@@ -67,7 +67,7 @@ class Cronjob_Tool_Maintenance_ToolRunner extends RdsSystem\Cron\RabbitDaemon
 
             system($task->command, $returnVar);
 
-            $output = ob_get_clean();
+            $output = $chunk . ob_get_clean();
 
             if ($output) {
                 $this->model->sendMaintenanceToolLogChunk(new \RdsSystem\Message\MaintenanceTool\LogChunk($task->id, $chunk));
