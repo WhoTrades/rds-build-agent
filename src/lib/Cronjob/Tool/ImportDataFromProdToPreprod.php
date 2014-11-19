@@ -5,6 +5,7 @@
 
 class Cronjob_Tool_ImportDataFromProdToPreprod extends RdsSystem\Cron\RabbitDaemon
 {
+    const PROD_ENV_DETECTED_ERROR_CODE = 12;
     /** @var CommandExecutor */
     private $commandExecutor;
 
@@ -32,9 +33,18 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends RdsSystem\Cron\RabbitDaem
     public function run(\Cronjob\ICronjob $cronJob)
     {
         $model = $this->getMessagingModel($cronJob);
+        $this->debugLogger->message("Preprod marked as down");
         $model->sendPreProdDown(new \RdsSystem\Message\PreProd\Down());
 
         $this->commandExecutor = new CommandExecutor($this->debugLogger);
+
+        //an: Этот скрипт ни в коем случае нельзя запускать на проде, потому мы проверяем сервер, откуда скрипт запускается
+        $hostname = $this->commandExecutor->executeCommand("hostname");
+        if (false !== strpos($hostname, "nye-wt")) {
+            $this->debugLogger->error("Running on prod server detected, exiting");
+            return self::PROD_ENV_DETECTED_ERROR_CODE;
+        }
+
         $this->bashDir = dirname(dirname(dirname(__DIR__)))."/misc/tools/bash/";
 
         $globalLock = \Cronjob\Factory::getGlobalLock($this->debugLogger);
@@ -75,6 +85,7 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends RdsSystem\Cron\RabbitDaem
             $globalLock->releaseLock();
 
             $model->sendPreProdUp(new \RdsSystem\Message\PreProd\Up());
+            $this->debugLogger->message("Preprod marked as online");
 
             throw $e;
         }
@@ -82,6 +93,7 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends RdsSystem\Cron\RabbitDaem
         $this->debugLogger->message("Successful imported data");
 
         $model->sendPreProdUp(new \RdsSystem\Message\PreProd\Up());
+        $this->debugLogger->message("Preprod marked as online");
     }
 
     private function flushRedis()
@@ -110,7 +122,7 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends RdsSystem\Cron\RabbitDaem
 
     private function closeStorageAccess()
     {
-        $this->debugLogger->info("action=storage_access, status=clos");
+        $this->debugLogger->info("action=storage_access, status=close");
 
         $command = "bash $this->bashDir/access_close.sh";
         if (\Config::getInstance()->debug) {
