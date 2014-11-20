@@ -6,7 +6,7 @@ use RdsSystem\Message;
  */
 class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
 {
-    const PREPROD_TIMEOUT = 60;
+    const PREPROD_TIMEOUT = 300;
 
     private $gid;
     private $taskId;
