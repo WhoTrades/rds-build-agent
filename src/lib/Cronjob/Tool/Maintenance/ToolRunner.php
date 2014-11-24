@@ -65,7 +65,7 @@ class Cronjob_Tool_Maintenance_ToolRunner extends RdsSystem\Cron\RabbitDaemon
                 }
             }, 10);
 
-            system($task->command, $returnVar);
+            system($task->command." 2>&1", $returnVar);
 
             $output = $chunk . ob_get_clean();
 
