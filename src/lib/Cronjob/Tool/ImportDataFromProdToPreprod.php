@@ -80,6 +80,8 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends RdsSystem\Cron\RabbitDaem
             $this->debugLogger->info("action=tools_work, status=start");
             $globalLock->releaseLock();
         } catch (Exception $e) {
+            $this->debugLogger->error("Unknown error occurred: ".$e->getMessage());
+            $this->debugLogger->message($e->getTraceAsString());
             $this->openStorageAccess();
             $this->debugLogger->info("action=tools_work, status=start");
             $globalLock->releaseLock();
