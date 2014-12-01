@@ -108,6 +108,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                     } catch (CommandExecutorException $e) {
                         //an: 128 - это когда нет какого-то тега в прошлом.
                         //@todo подумать как это корректо обрабатывать такую ситуацию и реализовать
+                        $output = $e->output;
                         if ($e->getCode() != 128) {
                             throw $e;
                         }
