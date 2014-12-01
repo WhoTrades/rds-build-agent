@@ -6,6 +6,7 @@ use RdsSystem\Message;
  */
 class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
 {
+    const MAX_LOG_LENGTH = 100000;
     const LOG_LAG_TIME = 0.1; //an: в секундах
 
     public static function getCommandLineSpec()
@@ -51,7 +52,8 @@ class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
                 $chunk = "";
                 ob_start(function($string) use ($model, $task, &$t, &$chunk, &$output) {
                     $chunk .= $string;
-                    $output .= $string;
+                    $output = substr($output.$string, -self::MAX_LOG_LENGTH);
+
                     fwrite(STDOUT, $string);
 
                     if (microtime(true) - $t > self::LOG_LAG_TIME) {
