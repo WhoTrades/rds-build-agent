@@ -67,6 +67,9 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends RdsSystem\Cron\RabbitDaem
                 $this->importMongo();
             }
 
+            //an: тут часто соединение обрывается из-за очень большого времени выполнения импорта, потому реконнектимся
+            $model->reconnect();
+
             $this->clearBfs();
             $this->flushRedis();
             $this->flushMemcache();
