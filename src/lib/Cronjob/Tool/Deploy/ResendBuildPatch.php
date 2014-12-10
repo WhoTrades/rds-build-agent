@@ -1,9 +1,12 @@
 <?php
-use RdsSystem\Message;
-
 /**
  * @example dev/services/deploy/misc/tools/runner.php --tool=Deploy_ResendBuildPatch -vv
  */
+
+use RdsSystem\Message;
+use RdsSystem\lib\CommandExecutor;
+use RdsSystem\lib\CommandExecutorException;
+
 class Cronjob_Tool_Deploy_ResendBuildPatch extends RdsSystem\Cron\RabbitDaemon
 {
     public static function getCommandLineSpec()

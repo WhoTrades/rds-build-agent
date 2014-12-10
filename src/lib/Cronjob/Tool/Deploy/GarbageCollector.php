@@ -4,6 +4,8 @@
  */
 
 use \RdsSystem\Message;
+use RdsSystem\lib\CommandExecutor;
+use RdsSystem\lib\CommandExecutorException;
 
 class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
 {

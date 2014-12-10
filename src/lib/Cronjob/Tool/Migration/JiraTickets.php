@@ -2,6 +2,10 @@
 /**
  * @example dev/services/deploy/misc/tools/runner.php --tool=Migration_JiraTickets -vv
  */
+
+use RdsSystem\lib\CommandExecutor;
+use RdsSystem\lib\CommandExecutorException;
+
 class Cronjob_Tool_Migration_JiraTickets extends Cronjob\Tool\ToolBase
 {
     /**

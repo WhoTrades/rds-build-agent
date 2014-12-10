@@ -1,5 +1,7 @@
 <?php
 use RdsSystem\Message;
+use RdsSystem\lib\CommandExecutor;
+use RdsSystem\lib\CommandExecutorException;
 
 /**
  * @example dev/services/deploy/misc/tools/runner.php --tool=Deploy_Deploy -vv

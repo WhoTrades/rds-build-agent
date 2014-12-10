@@ -3,6 +3,8 @@
  * @example dev/services/deploy/misc/tools/runner.php --tool=ImportDataFromProdToPreprod -vv
  */
 
+use RdsSystem\lib\CommandExecutor;
+
 class Cronjob_Tool_ImportDataFromProdToPreprod extends RdsSystem\Cron\RabbitDaemon
 {
     const PROD_ENV_DETECTED_ERROR_CODE = 12;

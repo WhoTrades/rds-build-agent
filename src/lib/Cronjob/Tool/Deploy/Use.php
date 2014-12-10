@@ -1,8 +1,12 @@
 <?php
-use RdsSystem\Message;
 /**
  * @example dev/services/deploy/misc/tools/runner.php --tool=Deploy_Use -vv
  */
+
+use RdsSystem\Message;
+use RdsSystem\lib\CommandExecutor;
+use RdsSystem\lib\CommandExecutorException;
+
 class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
 {
     /**

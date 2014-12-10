@@ -2,6 +2,9 @@
 /**
  * @example dev/services/deploy/misc/tools/runner.php --tool=Deploy_Migration -vv
  */
+use RdsSystem\lib\CommandExecutor;
+use RdsSystem\lib\CommandExecutorException;
+
 class Cronjob_Tool_Deploy_Migration extends \RdsSystem\Cron\RabbitDaemon
 {
     /**

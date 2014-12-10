@@ -2,6 +2,10 @@
 /**
  * @example dev/services/deploy/misc/tools/runner.php --tool=Deploy_Killer -vv
  */
+
+use RdsSystem\lib\CommandExecutor;
+use RdsSystem\lib\CommandExecutorException;
+
 class Cronjob_Tool_Deploy_Killer extends \RdsSystem\Cron\RabbitDaemon
 {
     /**
