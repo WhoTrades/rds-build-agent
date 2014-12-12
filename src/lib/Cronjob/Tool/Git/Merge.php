@@ -40,6 +40,8 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
             $sourceBranch = $task->sourceBranch;
             $targetBranch = $task->targetBranch;
 
+            $this->debugLogger->message("Merging $sourceBranch to $targetBranch");
+
             $dir = Config::getInstance()->mergePoolDir.$instance;
 
             $this->debugLogger->message("Pool dir: $dir");
