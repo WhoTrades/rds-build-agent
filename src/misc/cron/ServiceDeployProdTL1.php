@@ -23,7 +23,6 @@ class ServiceDeployProdTL1
                 new CronCommand(new PeriodicCommand(\Cronjob_Tool_Deploy_HardMigrationProxy::getToolCommand(['--max-duration=300'], $verbosity=3), 0), '* * * * *'),
                 new CronCommand(\Cronjob_Tool_Deploy_GarbageCollector::getToolCommand(['--dry-run'], $verbosity=3), '20 0 * * *'),
                 new CronCommand(new PeriodicCommand(\Cronjob_Tool_Maintenance_ToolRunner::getToolCommand(['--max-duration=60'], $verbosity=3), 0), '* * * * *'),
-                new CronCommand(\Cronjob_Tool_JiraMergeTasks::getToolCommand([], $verbosity=3), '* * * * *'),
             ],
             $this->getGitMergeTasks($this->mergeInstanceCount)
         );
