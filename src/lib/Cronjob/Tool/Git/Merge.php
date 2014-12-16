@@ -53,62 +53,70 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
             $this->commandExecutor = new CommandExecutor($this->debugLogger);
 
             $errors = [];
-            $repositories = $this->getAllRepositories();
-            foreach ($repositories as $key => $url) {
-                $this->debugLogger->message("Processing repository $key ($url)");
-                $repoDir = $dir."/".$key;
+            try {
+                $repositories = $this->getAllRepositories();
+                foreach ($repositories as $key => $url) {
+                    $this->debugLogger->debug("Processing repository $key ($url)");
+                    $repoDir = $dir . "/" . $key;
 
-                if (!is_dir($repoDir)) {
-                    $this->debugLogger->message("Creating directory $repoDir");
-                    mkdir($repoDir, 0777, true);
+                    if (!is_dir($repoDir)) {
+                        $this->debugLogger->message("Creating directory $repoDir");
+                        mkdir($repoDir, 0777, true);
+                    }
+
+                    if (!is_dir($repoDir . "/.git")) {
+                        $this->debugLogger->debug("Repository $key not exists as $repoDir, start cloning...");
+                        mkdir($repoDir, 0777);
+                        $cmd = "(cd $repoDir; git clone $url .)";
+                        $this->commandExecutor->executeCommand($cmd);
+                    }
                 }
-
-                if (is_dir($repoDir."/.git")) {
-                    $this->debugLogger->debug("Repository $key already exists as $repoDir, fetching changes");
-                    $cmd = "(cd $repoDir; git fetch)";
-                    $this->commandExecutor->executeCommand($cmd);
-                } else {
-                    $this->debugLogger->debug("Repository $key not exists as $repoDir, start cloning...");
-                    mkdir($repoDir, 0777);
-                    $cmd = "(cd $repoDir; git clone $url .)";
-                    $this->commandExecutor->executeCommand($cmd);
-                }
-
-                $this->debugLogger->message("Cleaning repository $key ($url)");
-                $repoDir = $dir."/".$key;
-                $cmd = "(cd $repoDir; git reset origin/master --hard)";
-                $this->commandExecutor->executeCommand($cmd);
-                $cmd = "(cd $repoDir; git clean -fd)";
+                $cmd = "(cd $dir; node git-tools/alias/git-all.js git fetch)";
                 $this->commandExecutor->executeCommand($cmd);
 
-
-                $cmd = "(cd $repoDir; git show-branch origin/$sourceBranch)";
-                try {
-                    $this->commandExecutor->executeCommand($cmd);
-                } catch (\RdsSystem\lib\CommandExecutorException $e) {
-                    //an: исходной ветки, значит ничего не мержим
-                    $this->debugLogger->warning("Source branch $sourceBranch not found at repository $key");
-                    continue;
-                }
-                $cmd = "(cd $repoDir; git checkout $sourceBranch)";
-                $this->commandExecutor->executeCommand($cmd);
-                $cmd = "(cd $repoDir; git reset origin/$sourceBranch --hard)";
-                $this->commandExecutor->executeCommand($cmd);
-                $cmd = "(cd $repoDir; git clean -fd)";
-                $this->commandExecutor->executeCommand($cmd);
-                $cmd = "(cd $repoDir; git pull)";
+                //an: clean up
+                $cmd = "(cd $dir; node git-tools/alias/git-all.js git reset origin/master --hard)";
                 $this->commandExecutor->executeCommand($cmd);
 
-                $cmd = "(cd $repoDir; git checkout $targetBranch)";
-                $this->commandExecutor->executeCommand($cmd);
-                $cmd = "(cd $repoDir; git reset origin/$targetBranch --hard)";
-                $this->commandExecutor->executeCommand($cmd);
-                $cmd = "(cd $repoDir; git clean -fd)";
-                $this->commandExecutor->executeCommand($cmd);
-                $cmd = "(cd $repoDir; git pull)";
+                $cmd = "(cd $dir; node git-tools/alias/git-all.js git checkout master)";
                 $this->commandExecutor->executeCommand($cmd);
 
-                $cmd = "(cd $repoDir; git merge $sourceBranch)";
+                $cmd = "(cd $dir; node git-tools/alias/git-all.js git reset origin/master --hard)";
+                $this->commandExecutor->executeCommand($cmd);
+
+                $cmd = "(cd $dir; node git-tools/alias/git-all.js git clean -fd)";
+                $this->commandExecutor->executeCommand($cmd);
+
+                //an: source branch
+                $cmd = "(cd $dir; node git-tools/alias/git-all.js \"git checkout $task->sourceBranch || git checkout -b $task->sourceBranch\")";
+                $this->commandExecutor->executeCommand($cmd);
+
+                $cmd = "cd $dir && node git-tools/alias/git-all.js \"git rev-parse --abbrev-ref $task->sourceBranch@{upstream} || (echo 'pushing branch' && git push -u origin $task->sourceBranch:$task->sourceBranch)\"";
+                exec($cmd, $output, $returnVar);
+
+
+                $cmd = "(cd $dir; node git-tools/alias/git-all.js git reset origin/$task->sourceBranch --hard)";
+                $this->commandExecutor->executeCommand($cmd);
+
+                $cmd = "(cd $dir; node git-tools/alias/git-all.js git pull --fast)";
+                $this->commandExecutor->executeCommand($cmd);
+
+                //: target branch
+                $cmd = "(cd $dir; node git-tools/alias/git-all.js \"git checkout $task->targetBranch || git checkout -b $task->targetBranch\")";
+                $this->commandExecutor->executeCommand($cmd);
+
+
+                $cmd = "cd $dir && node git-tools/alias/git-all.js \"git rev-parse --abbrev-ref $task->targetBranch@{upstream} || (echo 'pushing branch' && git push -u origin $task->targetBranch:$task->targetBranch)\"";
+                exec($cmd, $output, $returnVar);
+
+                $cmd = "(cd $dir; node git-tools/alias/git-all.js git reset origin/$task->targetBranch --hard)";
+                $this->commandExecutor->executeCommand($cmd);
+
+                $cmd = "(cd $dir; node git-tools/alias/git-all.js git pull --fast)";
+                $this->commandExecutor->executeCommand($cmd);
+
+                $cmd = "(cd $dir; node git-tools/alias/git-all.js git merge $task->sourceBranch)";
+
                 try {
                     $this->commandExecutor->executeCommand($cmd);
                 } catch (\RdsSystem\lib\CommandExecutorException $e) {
@@ -118,17 +126,22 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                         $errors[] = "Conflict at repository $key: $e->output";
                     }
                 }
+            } catch (\RdsSystem\lib\CommandExecutorException $e) {
+                $this->debugLogger->message("Unknown error during merge, $e->output");
+                $errors[] = "Unknown error during merge: $e->output";
             }
 
+
             if (empty($errors)) {
-                $this->debugLogger->message("No errors during merge, pushing changes");
-                foreach ($repositories as $key => $url) {
-                    $this->debugLogger->message("Processing repository $key ($url)");
-                    $repoDir = $dir."/".$key;
-                    $cmd = "(cd $repoDir; git pull)";
+                try {
+                    $this->debugLogger->message("No errors during merge, pushing changes");
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js git pull --fast)";
                     $this->commandExecutor->executeCommand($cmd);
-                    $cmd = "(cd $repoDir; git push)";
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js git push)";
                     $this->commandExecutor->executeCommand($cmd);
+                } catch (\RdsSystem\lib\CommandExecutorException $e) {
+                    $this->debugLogger->message("Unknown error during pushing merge: $e->output");
+                    $errors[] = "Unknown error during pushing merge: $e->output";
                 }
             } else {
                 $this->debugLogger->message("Merge errors detected, skip pushing");
@@ -164,5 +177,25 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
         }
 
         return $result;
+    }
+
+    private function checkoutBranchOrBranchFromMaster($dir, $branch)
+    {
+        $cmd = "(cd $dir; node git-tools/alias/git-all.js git checkout master)";
+        $this->commandExecutor->executeCommand($cmd);
+
+        //an: переключаемся в конечный бранч, делаем пулл
+        $cmd = "(cd $dir; node git-tools/alias/git-all.js git checkout $branch || git checkout -b $branch)";
+        $this->commandExecutor->executeCommand($cmd);
+
+        //an: creating new branch, if not exists at origin
+        $cmd = "cd ".Config::$projectPath." && node git-tools/alias/git-all.js \"git rev-parse --abbrev-ref $branch@{upstream} || (git push -u origin $branch:$branch)\"";
+        exec($cmd, $output, $returnVar);
+
+        $cmd = "(cd $dir; node git-tools/alias/git-all.js git reset)";
+        $this->commandExecutor->executeCommand($cmd);
+
+        $cmd = "(cd $dir; node git-tools/alias/git-all.js git pull --fast)";
+        $this->commandExecutor->executeCommand($cmd);
     }
 }
