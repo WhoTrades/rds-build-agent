@@ -39,7 +39,7 @@ class ServiceDeployProdTL1
     {
         $result = [];
         for ($i = 0; $i < $count; $i++) {
-            $result[] = new CronCommand(new PeriodicCommand(\Cronjob_Tool_Git_Merge::getToolCommand(['--instance='.$i], $verbosity=3), 0), '* * * * *');
+            $result[] = new CronCommand(new PeriodicCommand(\Cronjob_Tool_Git_Merge::getToolCommand(['--max-duration=60', '--instance='.$i], $verbosity=3), 0), '* * * * *');
         }
 
         return $result;
