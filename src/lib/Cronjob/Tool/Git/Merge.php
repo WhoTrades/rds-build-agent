@@ -75,6 +75,9 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                 $this->commandExecutor->executeCommand($cmd);
 
                 //an: clean up
+                $cmd = "(cd $dir; node git-tools/alias/git-all.js rm -fr .git/rebase-apply)";
+                $this->commandExecutor->executeCommand($cmd);
+
                 $cmd = "(cd $dir; node git-tools/alias/git-all.js git reset origin/master --hard)";
                 $this->commandExecutor->executeCommand($cmd);
 
@@ -93,7 +96,6 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
                 $cmd = "cd $dir && node git-tools/alias/git-all.js \"git rev-parse --abbrev-ref $task->sourceBranch@{upstream} || (echo 'pushing branch' && git push -u origin $task->sourceBranch:$task->sourceBranch)\"";
                 exec($cmd, $output, $returnVar);
-
 
                 $cmd = "(cd $dir; node git-tools/alias/git-all.js git reset origin/$task->sourceBranch --hard)";
                 $this->commandExecutor->executeCommand($cmd);
@@ -123,7 +125,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                     if ($e->getCode() == 1) {
                         //an: Ошибка мержа
                         $this->debugLogger->message("Conflict detected, $e->output");
-                        $errors[] = "Conflict at repository $key: $e->output";
+                        $errors[] = "Conflicts detected: $e->output";
                     }
                 }
             } catch (\RdsSystem\lib\CommandExecutorException $e) {
@@ -135,8 +137,6 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
             if (empty($errors)) {
                 try {
                     $this->debugLogger->message("No errors during merge, pushing changes");
-                    $cmd = "(cd $dir; node git-tools/alias/git-all.js git pull --fast)";
-                    $this->commandExecutor->executeCommand($cmd);
                     $cmd = "(cd $dir; node git-tools/alias/git-all.js git push)";
                     $this->commandExecutor->executeCommand($cmd);
                 } catch (\RdsSystem\lib\CommandExecutorException $e) {
