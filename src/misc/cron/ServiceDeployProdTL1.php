@@ -10,7 +10,7 @@ use \Cronjob\ConfigGenerator\MultiPeriodicCommand;
 
 class ServiceDeployProdTL1
 {
-    protected $mergeInstanceCount = 5;
+    protected $mergeInstanceCount = 1;
 
     public function getCronConfigRows()
     {
