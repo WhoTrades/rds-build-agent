@@ -2,7 +2,7 @@
 
 DBSERVERS="fre-tstwt-db1 fre-tstwt-db2"
 DBPORTS="5432 5450"
-MGSERVERS="fre-tstwt-mg1 fre-tstwt-mg2"
+MGSERVERS="fre-tstwt-mg1"
 MGPORTS="28017 27017"
 REDISSERVERS="fre-tstwt-ms1"
 REDISPORTS="6380"
