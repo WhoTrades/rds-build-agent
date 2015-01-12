@@ -154,7 +154,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
             $task->accepted();
         });
 
-        $model->waitForMessages();
+        $this->waitForMessages($model, $cronJob);
     }
 
 
