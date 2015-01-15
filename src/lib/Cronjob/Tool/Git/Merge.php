@@ -8,7 +8,7 @@ use RdsSystem\lib\CommandExecutorException;
  */
 class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 {
-    const PACKAGES_TIMEOUT = 30;
+    const PACKAGES_TIMEOUT = 60;
 
     /** @var CommandExecutor */
     private $commandExecutor;
@@ -42,35 +42,13 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
             $this->debugLogger->message("Merging $sourceBranch to $targetBranch");
 
-            $dir = Config::getInstance()->mergePoolDir.$instance;
-
-            $this->debugLogger->message("Pool dir: $dir");
-            if (!is_dir($dir)) {
-                $this->debugLogger->message("Creating directory $dir");
-                mkdir($dir, 0777, true);
-            }
+            $dir = self::fetchRepositories($this->debugLogger);
 
             $this->commandExecutor = new CommandExecutor($this->debugLogger);
 
             $errors = [];
             try {
-                $repositories = $this->getAllRepositories();
-                foreach ($repositories as $key => $url) {
-                    $this->debugLogger->debug("Processing repository $key ($url)");
-                    $repoDir = $dir . "/" . $key;
 
-                    if (!is_dir($repoDir)) {
-                        $this->debugLogger->message("Creating directory $repoDir");
-                        mkdir($repoDir, 0777, true);
-                    }
-
-                    if (!is_dir($repoDir . "/.git")) {
-                        $this->debugLogger->debug("Repository $key not exists as $repoDir, start cloning...");
-                        mkdir($repoDir, 0777);
-                        $cmd = "(cd $repoDir; git clone $url .)";
-                        $this->commandExecutor->executeCommand($cmd);
-                    }
-                }
                 $cmd = "(cd $dir; node git-tools/alias/git-all.js git fetch)";
                 $this->commandExecutor->executeCommand($cmd);
 
@@ -158,10 +136,10 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
     }
 
 
-    private function getAllRepositories()
+    private static function getAllRepositories(\ServiceBase_IDebugLogger $debugLogger)
     {
         $url = "http://git.whotrades.net/packages.json";
-        $httpSender = new \ServiceBase\HttpRequest\RequestSender($this->debugLogger);
+        $httpSender = new \ServiceBase\HttpRequest\RequestSender($debugLogger);
         $json = $httpSender->getRequest($url, '', self::PACKAGES_TIMEOUT);
         $data = json_decode($json, true);
         if (empty($data)) {
@@ -179,23 +157,35 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
         return $result;
     }
 
-    private function checkoutBranchOrBranchFromMaster($dir, $branch)
+    public static function fetchRepositories(\ServiceBase_IDebugLogger $debugLogger, $instance = 0)
     {
-        $cmd = "(cd $dir; node git-tools/alias/git-all.js git checkout master)";
-        $this->commandExecutor->executeCommand($cmd);
+        $dir = Config::getInstance()->mergePoolDir.$instance;
 
-        //an: переключаемся в конечный бранч, делаем пулл
-        $cmd = "(cd $dir; node git-tools/alias/git-all.js git checkout $branch || git checkout -b $branch)";
-        $this->commandExecutor->executeCommand($cmd);
+        $debugLogger->message("Pool dir: $dir");
+        if (!is_dir($dir)) {
+            $debugLogger->message("Creating directory $dir");
+            mkdir($dir, 0777, true);
+        }
 
-        //an: creating new branch, if not exists at origin
-        $cmd = "cd ".Config::$projectPath." && node git-tools/alias/git-all.js \"git rev-parse --abbrev-ref $branch@{upstream} || (git push -u origin $branch:$branch)\"";
-        exec($cmd, $output, $returnVar);
+        $commandExecutor = new CommandExecutor($debugLogger);
+        $repositories = Cronjob_Tool_Git_Merge::getAllRepositories($debugLogger);
+        foreach ($repositories as $key => $url) {
+            $debugLogger->debug("Processing repository $key ($url)");
+            $repoDir = $dir . "/" . $key;
 
-        $cmd = "(cd $dir; node git-tools/alias/git-all.js git reset)";
-        $this->commandExecutor->executeCommand($cmd);
+            if (!is_dir($repoDir)) {
+                $debugLogger->message("Creating directory $repoDir");
+                mkdir($repoDir, 0777, true);
+            }
 
-        $cmd = "(cd $dir; node git-tools/alias/git-all.js git pull --fast)";
-        $this->commandExecutor->executeCommand($cmd);
+            if (!is_dir($repoDir . "/.git")) {
+                $debugLogger->debug("Repository $key not exists as $repoDir, start cloning...");
+                mkdir($repoDir, 0777);
+                $cmd = "(cd $repoDir; git clone $url .)";
+                $commandExecutor->executeCommand($cmd);
+            }
+        }
+
+        return $dir;
     }
 }
