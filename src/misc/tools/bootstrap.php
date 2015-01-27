@@ -43,15 +43,15 @@ class Config
         }
         $this->cache_dir = '/var/tmp/deploy/cache/';
         $this->pid_dir = '/var/tmp/deploy/pid/';
+        $this->semaphore_dir = '/var/tmp/deploy/semaphore/';
         $this->project = 'deploy';
 
         chdir(dirname(__FILE__));
 
-        if (!is_dir($this->cache_dir)) {
-            mkdir($this->cache_dir, 0777, true);
-        }
-        if (!is_dir($this->pid_dir)) {
-            mkdir($this->pid_dir, 0777, true);
+        foreach ([$this->cache_dir, $this->pid_dir, $this->semaphore_dir] as $dir) {
+            if (!is_dir($dir)) {
+                mkdir($dir, 0777, true);
+            }
         }
     }
 
