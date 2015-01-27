@@ -1,5 +1,5 @@
 <?php
-$m = 2;
+$m = 20;
 
 //$m = 0;
 $version = $_SERVER['argv'][2];

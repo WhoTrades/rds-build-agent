@@ -34,6 +34,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
      */
     public function run(\Cronjob\ICronjob $cronJob)
     {
+        ini_set("memory_limit", "1G");
         $model  = $this->getMessagingModel($cronJob);
         $instance = $cronJob->getOption('instance');
         $model->readMergeTask(false, function(\RdsSystem\Message\Merge\Task $task) use ($model ,$instance) {
@@ -115,11 +116,29 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
             if (empty($errors)) {
                 try {
                     $this->debugLogger->message("No errors during merge, pushing changes");
+
+                    if ($targetBranch == "master") {
+                        $semaphore = new \Semaphore($this->debugLogger, \Config::getInstance()->semaphore_dir."/merge_deploy.smp");
+                        $this->debugLogger->message("Locking semaphore");
+                        $semaphore->lock();
+                        $this->debugLogger->message("Locked semaphore");
+                    }
                     $cmd = "(cd $dir; node git-tools/alias/git-all.js git push)";
-                    $this->commandExecutor->executeCommand($cmd);
+                    if (!\Config::getInstance()->mergeDryRun) {
+                        $this->commandExecutor->executeCommand($cmd);
+                    } else {
+                        sleep(10);
+                        $this->debugLogger->message("Skip pushing as Config::mergeDryRun set to true");
+                    }
                 } catch (\RdsSystem\lib\CommandExecutorException $e) {
                     $this->debugLogger->message("Unknown error during pushing merge: $e->output");
                     $errors[] = "Unknown error during pushing merge: $e->output";
+                }
+                if (!empty($semaphore)) {
+                    $semaphore->unlock();
+                    $this->debugLogger->message("Unlocking semaphore");
+                    unset($semaphore);
+                    $this->debugLogger->message("Unlocked semaphore");
                 }
             } else {
                 $this->debugLogger->message("Merge errors detected, skip pushing");
@@ -150,6 +169,9 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
             if (0 !== strpos($key, 'whotrades.com')) {
                 continue;
             }
+//            if (false === strpos($key, 'test') && false === strpos($key, 'git-tools')) {
+//                continue;
+//            }
 
             $result[str_replace('whotrades.com/', '', $key)] = $val['dev-master']['source']['url'];
         }

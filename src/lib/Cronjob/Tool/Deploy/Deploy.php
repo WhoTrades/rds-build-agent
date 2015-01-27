@@ -57,6 +57,8 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
             $release = $task->release;
             $lastBuildTag = $task->lastBuildTag;
 
+            $semaphore = new \Semaphore($this->debugLogger, \Config::getInstance()->semaphore_dir."/merge_deploy.smp");
+
             $basePidFilename = \Config::getInstance()->pid_dir."/{$workerName}_deploy_$taskId.php";
             file_put_contents("$basePidFilename.pid", posix_getpid());
             file_put_contents("$basePidFilename.pgid", posix_getpgid(posix_getpid()));
@@ -86,7 +88,13 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                 }
 
                 $currentOperation = "building";
+
+                $this->debugLogger->message("Locking semaphore");
+                $semaphore->lock();
+                $this->debugLogger->message("Locked semaphore");
                 $text = $commandExecutor->executeCommand($command);
+                $semaphore->unlock();
+                $this->debugLogger->message("Unlocked semaphore");
 
                 $output = '';
                 //an: хак, для словаря мы ничего не тегаем и патч не отправляем, пока что
