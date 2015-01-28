@@ -96,7 +96,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                 $cmd = "(cd $dir; node git-tools/alias/git-all.js git pull --fast)";
                 $this->commandExecutor->executeCommand($cmd);
 
-                $cmd = "(cd $dir; node git-tools/alias/git-all.js git merge $task->sourceBranch)";
+                $cmd = "(cd $dir; node git-tools/alias/git-all.js git merge -Xignore-space-change $task->sourceBranch)";
 
                 try {
                     $this->commandExecutor->executeCommand($cmd);
@@ -104,7 +104,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                     if ($e->getCode() == 1) {
                         //an: Ошибка мержа
                         $this->debugLogger->message("Conflict detected, $e->output");
-                        $errors[] = "Conflicts detected: $e->output";
+                        $errors[] = "Conflicts detected: \n".$this->parseMergeOutput($e->output);
                     }
                 }
             } catch (\RdsSystem\lib\CommandExecutorException $e) {
@@ -152,6 +152,35 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
         });
 
         $this->waitForMessages($model, $cronJob);
+    }
+
+    /**
+     * Парсит вывод git-all.js git merge и возвращает форматированный текст
+     * @param $text
+     * @return array
+     */
+    private function parseMergeOutput($text)
+    {
+        $text = str_replace("script worked", ">>>", $text);;
+        $text = preg_replace('~>>>\s+'.realpath(\Config::getInstance()->mergePoolDir).'~', "$0\n$0", $text);;
+
+        $regex = '~>>>\s+'.realpath(\Config::getInstance()->mergePoolDir).'/\d+/([\w-]+)\s*(.*?)\s*\n>>>~sui';
+        $result = [];
+        preg_replace_callback($regex, function($ans) use (&$result){
+                    if ($ans[2] == 'Already up-to-date.') {
+                        return;
+                    }
+                    $result[$ans[1]] = $ans[2];
+                }, $text.">>>");
+
+        ksort($result);
+
+        $output = "";
+        foreach ($result as $repo => $body) {
+            $output .= "$repo\n$body\n\n";
+        }
+
+        return $output;
     }
 
 
