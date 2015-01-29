@@ -177,7 +177,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
         $output = "";
         foreach ($result as $repo => $body) {
-            $output .= "$repo\n$body\n\n";
+            $output .= "h6. $repo\n{quote}$body{quote}\n\n";
         }
 
         return $output;
