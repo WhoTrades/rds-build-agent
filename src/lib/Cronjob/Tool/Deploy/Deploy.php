@@ -328,7 +328,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                     $this->debugLogger->message("Migrations are up to date, exiting");
                     $this->preprodModel->stopReceivingMessages();
                 } else {
-                    throw new Exception("Failed to migrate " . json_encode($message));
+                    throw new Exception("Failed to migrate on preprod " . json_encode($message->errorText));
                 }
             }
         });
