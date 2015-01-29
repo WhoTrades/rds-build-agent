@@ -195,7 +195,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
         }
         $result = [];
         foreach ($data['packages'] as $key => $val) {
-            if (0 !== strpos($key, 'whotrades.com')) {
+            if (false === strpos($val['dev-master']['source']['url'], 'git.whotrades.net')) {
                 continue;
             }
 //            if (false === strpos($key, 'test') && false === strpos($key, 'git-tools')) {
