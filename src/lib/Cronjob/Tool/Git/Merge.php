@@ -202,7 +202,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 //                continue;
 //            }
 
-            $result[str_replace('whotrades.com/', '', $key)] = $val['dev-master']['source']['url'];
+            $result[preg_replace('~.*/~', '', $val['dev-master']['source']['url'])] = $val['dev-master']['source']['url'];
         }
 
         return $result;
