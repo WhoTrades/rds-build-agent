@@ -128,7 +128,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                     if (!\Config::getInstance()->mergeDryRun) {
                         $this->commandExecutor->executeCommand($cmd);
                     } else {
-                        sleep(10);
+                        sleep(3);
                         $this->debugLogger->message("Skip pushing as Config::mergeDryRun set to true");
                     }
                 } catch (\RdsSystem\lib\CommandExecutorException $e) {
@@ -146,10 +146,28 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
             }
 
             $this->debugLogger->debug("Sending reply with id=$task->featureId...");
-            $model->sendMergeTaskResult(new Message\Merge\TaskResult($task->featureId, $task->sourceBranch, $task->targetBranch, empty($errors), $errors));
+            $model->sendMergeTaskResult(new Message\Merge\TaskResult($task->featureId, $task->sourceBranch, $task->targetBranch, empty($errors), $errors, $task->type));
 
             $this->debugLogger->message("Task accepted");
             $task->accepted();
+        });
+
+        $model->readMergeCreateBranch(false, function(Message\Merge\CreateBranch $task){
+            $this->debugLogger->message("Creating branch $task->branch from $task->source");
+
+            if (empty($task->source)) {
+                throw new Exception("Empty source branch, can't create branch $task->branch from empty");
+            }
+
+            $dir = self::fetchRepositories($this->debugLogger);
+
+            $this->commandExecutor = new CommandExecutor($this->debugLogger);
+
+            $cmd = "(cd $dir; node git-tools/alias/git-all.js git push origin $task->source:$task->branch)";
+            $this->commandExecutor->executeCommand($cmd);
+
+            $task->accepted();
+            $this->debugLogger->message("Task accepted");
         });
 
         $this->waitForMessages($model, $cronJob);
