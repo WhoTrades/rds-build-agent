@@ -73,10 +73,11 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                 $cmd = "(cd $dir; node git-tools/alias/git-all.js \"git checkout $task->sourceBranch || git checkout -b $task->sourceBranch\")";
                 $this->commandExecutor->executeCommand($cmd);
 
-                $cmd = "cd $dir && node git-tools/alias/git-all.js \"git rev-parse --abbrev-ref $task->sourceBranch@{upstream} || (echo 'pushing branch' && git push -u origin $task->sourceBranch:$task->sourceBranch)\"";
-                exec($cmd, $output, $returnVar);
+                $cmd = "cd $dir && node git-tools/alias/git-all.js 'git ls-remote --exit-code origin refs/heads/$task->sourceBranch; code=$?; if [ \$code -eq 2 ]; then echo branch $task->sourceBranch not exists at remote; else if [ \$code -eq 0 ]; then git branch --set-upstream $task->sourceBranch origin/$task->sourceBranch; else exit 10; fi; fi;'";
+                $output = $this->commandExecutor->executeCommand($cmd);
+                $this->debugLogger->insane($output);
 
-                $cmd = "(cd $dir; node git-tools/alias/git-all.js git reset origin/$task->sourceBranch --hard)";
+                $cmd = "(cd $dir; node git-tools/alias/git-all.js \"(git rev-parse --abbrev-ref $task->sourceBranch@{upstream} && git reset origin/$task->sourceBranch --hard) || echo branch $task->sourceBranch not exists\")";
                 $this->commandExecutor->executeCommand($cmd);
 
                 $cmd = "(cd $dir; node git-tools/alias/git-all.js git pull --fast)";
@@ -198,9 +199,9 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
             if (false === strpos($val['dev-master']['source']['url'], 'git.whotrades.net')) {
                 continue;
             }
-//            if (false === strpos($key, 'test') && false === strpos($key, 'git-tools')) {
-//                continue;
-//            }
+            if (!empty(\Config::getInstance()->demoMerge) && false === strpos($key, 'test') && false === strpos($key, 'git-tools')) {
+                continue;
+            }
 
             $result[preg_replace('~.*/~', '', $val['dev-master']['source']['url'])] = $val['dev-master']['source']['url'];
         }
