@@ -41,7 +41,7 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
                 $command = "bash bash/deploy.sh status $project 2>&1";
 
                 if (Config::getInstance()->debug) {
-                    $command = "php bash/fakeStatus_$workerName.php";
+                    $command = "php bash/fakeStatus_$project.php";
                 }
                 $text = $commandExecutor->executeCommand($command);
                 $this->debugLogger->message($text);
@@ -96,7 +96,7 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
                 $text = $commandExecutor->executeCommand($command);
 
                 if (Config::getInstance()->debug) {
-                    $command = "php bash/fakeStatus_$workerName.php";
+                    $command = "php bash/fakeStatus_$project.php";
                 }
 
                 try {
