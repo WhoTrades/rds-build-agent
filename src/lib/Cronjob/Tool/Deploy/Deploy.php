@@ -46,6 +46,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
         $this->gid = posix_getpgid(posix_getpid());
 
         $this->model->getBuildTask($workerName, false, function(\RdsSystem\Message\BuildTask $task) use ($workerName) {
+            sleep(3);
             $this->currentTask = $task;
             $this->debugLogger->message("Task received: ".json_encode($task));
 

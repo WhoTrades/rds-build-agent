@@ -37,16 +37,24 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
         ini_set("memory_limit", "1G");
         $model  = $this->getMessagingModel($cronJob);
         $instance = $cronJob->getOption('instance');
+
         $model->readMergeTask(false, function(\RdsSystem\Message\Merge\Task $task) use ($model ,$instance) {
             $sourceBranch = $task->sourceBranch;
             $targetBranch = $task->targetBranch;
 
+            $autoConflictResolveEnabled = preg_match('~WTA-\d+~', $sourceBranch);
+
             $this->debugLogger->message("Merging $sourceBranch to $targetBranch");
+
+            if ($autoConflictResolveEnabled) {
+                $this->debugLogger->message("[!] Auto resolve conflicts enabled");
+            }
 
             $dir = self::fetchRepositories($this->debugLogger);
 
             $this->commandExecutor = new CommandExecutor($this->debugLogger);
 
+            $bashDir = dirname(dirname(dirname(dirname(__DIR__))))."/misc/tools/bash/";
             $errors = [];
             try {
 
@@ -68,6 +76,18 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
                 $cmd = "(cd $dir; node git-tools/alias/git-all.js git clean -fd)";
                 $this->commandExecutor->executeCommand($cmd);
+
+                if ($autoConflictResolveEnabled) {
+                    //an: Учимся разрешать конфликты
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $bashDir/rerere-train.sh --max-count 100 develop)";
+                    $this->commandExecutor->executeCommand($cmd);
+
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $bashDir/rerere-train.sh --max-count 100 staging)";
+                    $this->commandExecutor->executeCommand($cmd);
+
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $bashDir/rerere-train.sh --max-count 100 master)";
+                    $this->commandExecutor->executeCommand($cmd);
+                }
 
                 //an: source branch
                 $cmd = "(cd $dir; node git-tools/alias/git-all.js \"git checkout $task->sourceBranch || git checkout -b $task->sourceBranch\")";
@@ -97,15 +117,27 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                 $cmd = "(cd $dir; node git-tools/alias/git-all.js git pull --fast)";
                 $this->commandExecutor->executeCommand($cmd);
 
-                $cmd = "(cd $dir; node git-tools/alias/git-all.js git merge -Xignore-space-change $task->sourceBranch)";
+                if ($autoConflictResolveEnabled) {
+                    //an: Мержим с использованием http://git-scm.com/blog/2010/03/08/rerere.html. Это позволяет автоматически разрешать конфликты, разрешенные ранее
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js 'git merge -Xignore-space-change $task->sourceBranch || (if [ `git status --porcelain|grep -vE '^M '|wc -l` -eq 0 ]; then git commit -m \"auto resolve conflict using previous resolution\"; exit $?; else exit 1; fi;)')";
+                } else {
+                    //an: обычный мерж
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js git merge -Xignore-space-change $task->sourceBranch)";
+                }
 
                 try {
-                    $this->commandExecutor->executeCommand($cmd);
+                    $output = $this->commandExecutor->executeCommand($cmd);
+
+                    if ($autoConflictResolveEnabled) {
+                        $this->debugLogger->message("Output: ".json_encode($output));
+                    }
                 } catch (\RdsSystem\lib\CommandExecutorException $e) {
                     if ($e->getCode() == 1) {
                         //an: Ошибка мержа
                         $this->debugLogger->message("Conflict detected, $e->output");
                         $errors[] = "Conflicts detected: \n".$this->parseMergeOutput($e->output);
+                    } else {
+                        throw $e;
                     }
                 }
             } catch (\RdsSystem\lib\CommandExecutorException $e) {
