@@ -37,6 +37,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
         ini_set("memory_limit", "1G");
         $model  = $this->getMessagingModel($cronJob);
         $instance = $cronJob->getOption('instance');
+
         $model->readMergeTask(false, function(\RdsSystem\Message\Merge\Task $task) use ($model ,$instance) {
             $sourceBranch = $task->sourceBranch;
             $targetBranch = $task->targetBranch;
@@ -53,6 +54,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
             $this->commandExecutor = new CommandExecutor($this->debugLogger);
 
+            $bashDir = dirname(dirname(dirname(dirname(__DIR__))))."/misc/tools/bash/";
             $errors = [];
             try {
 
@@ -75,15 +77,17 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                 $cmd = "(cd $dir; node git-tools/alias/git-all.js git clean -fd)";
                 $this->commandExecutor->executeCommand($cmd);
 
-                //an: Учимся разрешать конфликты
-                $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $dir/git-tools/rerere-train.sh --max-depth 30 develop)";
-                $this->commandExecutor->executeCommand($cmd);
+                if ($autoConflictResolveEnabled) {
+                    //an: Учимся разрешать конфликты
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $bashDir/rerere-train.sh --max-count 100 develop)";
+                    $this->commandExecutor->executeCommand($cmd);
 
-                $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $dir/git-tools/rerere-train.sh --max-depth 30 staging)";
-                $this->commandExecutor->executeCommand($cmd);
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $bashDir/rerere-train.sh --max-count 100 staging)";
+                    $this->commandExecutor->executeCommand($cmd);
 
-                $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $dir/git-tools/rerere-train.sh --max-depth 30 master)";
-                $this->commandExecutor->executeCommand($cmd);
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $bashDir/rerere-train.sh --max-count 100 master)";
+                    $this->commandExecutor->executeCommand($cmd);
+                }
 
                 //an: source branch
                 $cmd = "(cd $dir; node git-tools/alias/git-all.js \"git checkout $task->sourceBranch || git checkout -b $task->sourceBranch\")";
