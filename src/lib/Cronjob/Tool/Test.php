@@ -20,12 +20,10 @@ class Cronjob_Tool_Test extends RdsSystem\Cron\RabbitDaemon
 
     public function run(\Cronjob\ICronjob $cronJob)
     {
-//        $semaphore = new \Semaphore($this->debugLogger, \Config::getInstance()->semaphore_dir."/merge_deploy.smp");
-//        $semaphore->lock();
-//        $this->debugLogger->message("Locked");
-//        sleep(10000);
         $model = $this->getMessagingModel($cronJob);
-        $model->sendMergeTask(new Message\Merge\Task(1, "master", "master"));
+        $model->sendBuildPatch(
+            new Message\ReleaseRequestBuildPatch('comon', '68.00.046.249', file_get_contents('/home/an/log.txt'))
+        );
     }
 }
 

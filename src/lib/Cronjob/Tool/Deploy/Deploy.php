@@ -105,9 +105,9 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                     $srcDir="/home/release/build/$project";
 
                     if ($lastBuildTag) {
-                        $command = "(cd $srcDir/lib; node /home/release/git-tools/alias/git-all.js \"git log $lastBuildTag..$project-$version --pretty='%H|%s|/%an/'\")";
+                        $command = "(cd $srcDir/lib; node /home/release/git-tools/alias/git-all.js \"echo -n \">>> \" && git remote -v|tail -n 1 && git log $lastBuildTag..$project-$version --pretty='%H|%s|/%an/'\")";
                     } else {
-                        $command = "(cd $srcDir/lib; node /home/release/git-tools/alias/git-all.js \"git log $lastBuildTag --pretty='%H|%s|/%an/'\")";
+                        $command = "(cd $srcDir/lib; node /home/release/git-tools/alias/git-all.js \"echo -n \">>> \" && git remote -v|tail -n 1 && git log $lastBuildTag --pretty='%H|%s|/%an/'\")";
                     }
 
                     if (Config::getInstance()->debug) {
