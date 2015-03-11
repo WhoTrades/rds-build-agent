@@ -43,6 +43,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
             $targetBranch = $task->targetBranch;
 
             $autoConflictResolveEnabled = preg_match('~WTA-\d+~', $sourceBranch);
+            $autoConflictResolveEnabled = true;
 
             $this->debugLogger->message("Merging $sourceBranch to $targetBranch");
 
@@ -79,13 +80,13 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
                 if ($autoConflictResolveEnabled) {
                     //an: Учимся разрешать конфликты
-                    $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $bashDir/rerere-train.sh --max-count 100 develop)";
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $bashDir/rerere-train.sh --max-count 100 origin/develop)";
                     $this->commandExecutor->executeCommand($cmd);
 
-                    $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $bashDir/rerere-train.sh --max-count 100 staging)";
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $bashDir/rerere-train.sh --max-count 100 origin/staging)";
                     $this->commandExecutor->executeCommand($cmd);
 
-                    $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $bashDir/rerere-train.sh --max-count 100 master)";
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $bashDir/rerere-train.sh --max-count 100 origin/master)";
                     $this->commandExecutor->executeCommand($cmd);
                 }
 
@@ -119,10 +120,10 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
                 if ($autoConflictResolveEnabled) {
                     //an: Мержим с использованием http://git-scm.com/blog/2010/03/08/rerere.html. Это позволяет автоматически разрешать конфликты, разрешенные ранее
-                    $cmd = "(cd $dir; node git-tools/alias/git-all.js 'git merge -Xignore-space-change $task->sourceBranch || (if [ `git status --porcelain|grep -vE '^M '|wc -l` -eq 0 ]; then git commit -m \"auto resolve conflict using previous resolution\"; exit $?; else exit 1; fi;)')";
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js 'git merge $task->sourceBranch || (if [ `git status --porcelain|grep -vE '^M '|grep -vE '^A '|wc -l` -eq 0 ]; then git commit -m \"auto resolve conflict using previous resolution\"; exit $?; else exit 1; fi;)')";
                 } else {
                     //an: обычный мерж
-                    $cmd = "(cd $dir; node git-tools/alias/git-all.js git merge -Xignore-space-change $task->sourceBranch)";
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js git merge $task->sourceBranch)";
                 }
 
                 try {
