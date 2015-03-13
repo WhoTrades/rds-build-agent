@@ -134,7 +134,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                 );
 
                 //an: Сигнализируем все что собрали и начинаем раскладывать по серверам
-                $this->sendStatus('built', $version);
+                $this->sendStatus('built', $version, $text);
 
                 //an: Должно быть такое же, как в rebuild-package.sh
                 $filename = "$projectDir/misc/tools/migration.php";
