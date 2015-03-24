@@ -190,14 +190,18 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
 
                 //an: Отправляем новые сгенерированные /etc/cron.d конфиги
                 $cronConfig = "";
-                if (!Config::getInstance()->debug) {
-                    foreach (glob("$projectDir/misc/cronjobs/cronjob-*") as $file) {
-                        $cronConfig .= "#       ".preg_replace('~^.*/~', '', $file)."\n\n";
-                        $cronConfig .= file_get_contents($file);
-                        $cronConfig .= "\n\n";
-                    }
-                } elseif (file_exists("/home/an/cronjob-$project")) {
-                    $cronConfig = file_get_contents("/home/an/cronjob-$project");
+                if (Config::getInstance()->debug) {
+                    $command = "php $projectDir/misc/tools/runner.php --tool=CodeGenerate_CronjobGenerator --project=$project --env=dev --server=1 --package=$project-$version > $projectDir/misc/cronjobs/cronjob-$project-tl1";
+                    $commandExecutor->executeCommand($command);
+
+                    $command = "php $projectDir/misc/tools/runner.php --tool=CodeGenerate_CronjobGenerator --project=$project --env=dev --server=2 --package=$project-$version > $projectDir/misc/cronjobs/cronjob-$project-tl2";
+                    $commandExecutor->executeCommand($command);
+                }
+
+                foreach (glob("$projectDir/misc/cronjobs/cronjob-*") as $file) {
+                    $cronConfig .= "#       " . preg_replace('~^.*/~', '', $file) . "\n\n";
+                    $cronConfig .= file_get_contents($file);
+                    $cronConfig .= "\n\n";
                 }
 
                 $this->model->sendCronConfig(

@@ -85,9 +85,6 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
                     $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $bashDir/rerere-train.sh --max-count 100 origin/staging)";
                     $this->commandExecutor->executeCommand($cmd);
-
-                    $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $bashDir/rerere-train.sh --max-count 100 origin/master)";
-                    $this->commandExecutor->executeCommand($cmd);
                 }
 
                 //an: source branch

@@ -10,7 +10,7 @@ class Cronjob_Tool_Test extends RdsSystem\Cron\RabbitDaemon
     public static function getCommandLineSpec()
     {
         return [
-            'test' => [
+            'server' => [
                 'desc' => '',
                 'useForBaseName' => true,
                 'valueRequired' => true,
@@ -20,10 +20,22 @@ class Cronjob_Tool_Test extends RdsSystem\Cron\RabbitDaemon
 
     public function run(\Cronjob\ICronjob $cronJob)
     {
-        $model = $this->getMessagingModel($cronJob);
-        $model->sendBuildPatch(
-            new Message\ReleaseRequestBuildPatch('comon', '68.00.046.249', file_get_contents('/home/an/log.txt'))
-        );
+        while (true)
+        {
+            $socket = stream_socket_server('udp://localhost:51411', $errno, $errstr);
+            if (!$socket) {
+                echo "$errstr ($errno)<br />\n";
+            } else {
+                // while there is connection, i'll receive it... if I didn't receive a message within $nbSecondsIdle seconds, the following function will stop.
+                while ($conn = stream_socket_accept($socket,5)) {
+                    $message= fread($conn, 1024);
+                    echo 'I have received that : '.$message;
+                    fputs ($conn, "OK\n");
+                    fclose ($conn);
+                }
+                fclose($socket);
+            }
+        }
     }
 }
 

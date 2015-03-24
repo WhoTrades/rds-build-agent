@@ -151,6 +151,8 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
                     new Message\ReleaseRequestUseError($task->releaseRequestId, $e->getMessage()."\nOutput: ".$e->output)
                 );
                 $this->debugLogger->error($e->getMessage());
+
+                $task->accepted();
             }
         });
 
