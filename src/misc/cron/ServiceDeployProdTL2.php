@@ -13,7 +13,7 @@ class ServiceDeployProdTL2
     public function getCronConfigRows()
     {
         $allCommands = [
-            new CronCommand(new PeriodicCommand(Cronjob_Tool_Maintenance_MasterTool::getToolCommand([], $verbosity=1), $delay = 5)),
+            new CronCommand(new PeriodicCommand(Cronjob_Tool_Maintenance_MasterTool::getToolCommand(['--max-duration=60'], $verbosity=1), $delay = 5)),
         ];
 
         $allCommands = new MultiCronCommand($allCommands);
