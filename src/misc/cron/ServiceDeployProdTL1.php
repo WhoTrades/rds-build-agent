@@ -24,6 +24,7 @@ class ServiceDeployProdTL1
                 new CronCommand(\Cronjob_Tool_Deploy_GarbageCollector::getToolCommand([], $verbosity=3), '20 0 * * *'),
                 new CronCommand(new PeriodicCommand(\Cronjob_Tool_Maintenance_ToolRunner::getToolCommand(['--max-duration=60'], $verbosity=3), 0), '* * * * *'),
                 new CronCommand(new PeriodicCommand(\Cronjob_Tool_Git_RemoveBranches::getToolCommand(['--max-duration=60 --instance=1'], $verbosity=3), 0), '* * * * *'),
+                new CronCommand(new PeriodicCommand(Cronjob_Tool_Maintenance_MasterTool::getToolCommand([], $verbosity=1), $delay = 5)),
             ],
             $this->getGitMergeTasks($this->mergeInstanceCount)
         );
