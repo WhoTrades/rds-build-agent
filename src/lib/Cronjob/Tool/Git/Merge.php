@@ -71,7 +71,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                 $this->debugLogger->message("[!] Auto resolve conflicts enabled");
             }
 
-            $dir = self::fetchRepositories($this->debugLogger);
+            $dir = self::fetchRepositories($this->debugLogger, $instance);
 
             $this->commandExecutor = new CommandExecutor($this->debugLogger);
 

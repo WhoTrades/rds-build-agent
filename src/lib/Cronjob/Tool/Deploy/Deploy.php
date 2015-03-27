@@ -136,13 +136,14 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                 //an: Сигнализируем все что собрали и начинаем раскладывать по серверам
                 $this->sendStatus('built', $version, $text);
 
+                $currentOperation = "get_migrations_list";
                 //an: Должно быть такое же, как в rebuild-package.sh
                 $filename = "$projectDir/misc/tools/migration.php";
                 $migrations = array();
                 if (file_exists($filename)) {
                     //an: Проект с миграциями
                     foreach (array('pre', 'post', 'hard') as $type) {
-                        $command = "php $filename migration --type=$type --project=$project new 100000 --interactive=0";
+                        $command = "php $filename migration --type=$type --project=$project new 100000 --interactive=0 2>&1";
                         $text = $commandExecutor->executeCommand($command);
                         if (!preg_match('~Found (\d+) new migration~', $text, $ans)) {
                             continue;
