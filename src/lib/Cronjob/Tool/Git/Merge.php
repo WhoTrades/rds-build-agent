@@ -13,6 +13,9 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
     /** @var CommandExecutor */
     private $commandExecutor;
 
+    private $allowedBranches = [];
+    private $disallowedBranches = [];
+
     /**
      * Use this function to get command line spec for cronjob
      * @return array
@@ -26,6 +29,16 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                 'required' => true,
                 'useForBaseName' => true,
             ],
+            'allowed-branches' => [
+                'desc' => 'List of branches, exploded by coma which are allowed to process',
+                'valueRequired' => true,
+                'required' => false,
+            ],
+            'disallowed-branches' => [
+                'desc' => 'List of branches, exploded by coma which are disallowed to process',
+                'valueRequired' => true,
+                'required' => false,
+            ],
         ] + parent::getCommandLineSpec();
     }
 
@@ -37,12 +50,19 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
         ini_set("memory_limit", "1G");
         $model  = $this->getMessagingModel($cronJob);
         $instance = $cronJob->getOption('instance');
+        $this->allowedBranches = array_filter(explode(",", $cronJob->getOption('allowed-branches')));
+        $this->disallowedBranches = array_filter(explode(",", $cronJob->getOption('disallowed-branches')));
 
         $model->readMergeTask(false, function(\RdsSystem\Message\Merge\Task $task) use ($model ,$instance) {
             $sourceBranch = $task->sourceBranch;
             $targetBranch = $task->targetBranch;
 
-            $autoConflictResolveEnabled = preg_match('~WTA-\d+~', $sourceBranch);
+            if (!$this->isBranchAllowed($targetBranch)) {
+                $this->debugLogger->message("[!] Skip merge task to branch $targetBranch as it is not allowed");
+                $task->retry();
+                return;
+            }
+
             $autoConflictResolveEnabled = true;
 
             $this->debugLogger->message("Merging $sourceBranch to $targetBranch");
@@ -51,7 +71,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                 $this->debugLogger->message("[!] Auto resolve conflicts enabled");
             }
 
-            $dir = self::fetchRepositories($this->debugLogger);
+            $dir = self::fetchRepositories($this->debugLogger, $instance);
 
             $this->commandExecutor = new CommandExecutor($this->debugLogger);
 
@@ -193,7 +213,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
             $this->commandExecutor = new CommandExecutor($this->debugLogger);
 
-            $cmd = "(cd $dir; node git-tools/alias/git-all.js git push origin $task->source:$task->branch)";
+            $cmd = "(cd $dir; node git-tools/alias/git-all.js git push origin $task->source:$task->branch".($task->force ? " --force" : "").")";
             $this->commandExecutor->executeCommand($cmd);
 
             $task->accepted();
@@ -201,6 +221,22 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
         });
 
         $this->waitForMessages($model, $cronJob);
+    }
+
+    private function isBranchAllowed($branch)
+    {
+        //an: Если наша ветка в списке запрещенных - она запрещена
+        if (!empty($this->disallowedBranches) && in_array($branch, $this->disallowedBranches)) {
+            return false;
+        }
+
+        //an: Если нашей ветке нет в списке разрешенных - она запрещена
+        if (!empty($this->allowedBranches) && !in_array($branch, $this->allowedBranches)) {
+            return false;
+        }
+
+        //an: Если оба списка пустые - ветка разрешена
+        return true;
     }
 
     /**
