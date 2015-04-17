@@ -213,6 +213,9 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
             $this->commandExecutor = new CommandExecutor($this->debugLogger);
 
+            $cmd = "(cd $dir; node git-tools/alias/git-all.js git fetch)";
+            $this->commandExecutor->executeCommand($cmd);
+
             $cmd = "(cd $dir; node git-tools/alias/git-all.js git push origin $task->source:$task->branch".($task->force ? " --force" : "").")";
             $this->commandExecutor->executeCommand($cmd);
 
