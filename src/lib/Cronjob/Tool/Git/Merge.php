@@ -102,12 +102,12 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                     //an: Учимся разрешать конфликты
                     $branch = 'develop';
                     $file = ".git/rerere-$branch";
-                    $cmd = "(cd $dir; node git-tools/alias/git-all.js 'if [ -f $file ]; then start=`cat $file`; bash $bashDir/rerere-train.sh \$start..$branch; else bash $bashDir/rerere-train.sh --max-count=100 $branch; fi; git log origin/$branch -1 --pretty=%H > $file;')";
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js 'if [ -f $file ]; then start=`cat $file`; bash $bashDir/rerere-train.sh \$start..origin/$branch; else bash $bashDir/rerere-train.sh --max-count=100 $branch; fi; git log origin/$branch -1 --pretty=%H > $file;')";
                     $this->commandExecutor->executeCommand($cmd);
 
                     $branch = 'staging';
                     $file = ".git/rerere-$branch";
-                    $cmd = "(cd $dir; node git-tools/alias/git-all.js 'if [ -f $file ]; then start=`cat $file`; bash $bashDir/rerere-train.sh \$start..$branch; else bash $bashDir/rerere-train.sh --max-count=100 $branch; fi; git log origin/$branch -1 --pretty=%H > $file;')";
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js 'if [ -f $file ]; then start=`cat $file`; bash $bashDir/rerere-train.sh \$start..origin/$branch; else bash $bashDir/rerere-train.sh --max-count=100 $branch; fi; git log origin/$branch -1 --pretty=%H > $file;')";
                     $this->commandExecutor->executeCommand($cmd);
                 }
 

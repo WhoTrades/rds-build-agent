@@ -107,7 +107,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                     $mapFilename = "$srcDir/lib/map.txt";
 
                     if (file_exists($mapFilename)) {
-                        $dirs = preg_replace('~\s*~sui', ' ', file_get_contents($mapFilename));
+                        $dirs = preg_replace('~\s+~sui', ' ', file_get_contents($mapFilename));
                         if ($lastBuildTag) {
                             $command = "(cd $srcDir/lib/sparta; node /home/release/git-tools/alias/git-all.js \"echo -n \\\">>> \\\" && git remote -v|tail -n 1 && git log $lastBuildTag..$project-$version $dirs --pretty='%H|%s|/%an/'\")";
                         } else {
