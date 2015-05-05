@@ -53,7 +53,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
         $this->allowedBranches = array_filter(explode(",", $cronJob->getOption('allowed-branches')));
         $this->disallowedBranches = array_filter(explode(",", $cronJob->getOption('disallowed-branches')));
 
-        $model->readMergeTask(false, function(\RdsSystem\Message\Merge\Task $task) use ($model ,$instance) {
+        $model->readMergeTask(false, function(\RdsSystem\Message\Merge\Task $task) use ($model, $instance) {
             $sourceBranch = $task->sourceBranch;
             $targetBranch = $task->targetBranch;
 
@@ -100,10 +100,14 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
                 if ($autoConflictResolveEnabled) {
                     //an: Учимся разрешать конфликты
-                    $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $bashDir/rerere-train.sh --max-count 100 origin/develop)";
+                    $branch = 'develop';
+                    $file = ".git/rerere-$branch";
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js 'if [ -f $file ]; then start=`cat $file`; bash $bashDir/rerere-train.sh \$start..$branch; else bash $bashDir/rerere-train.sh --max-count=100 $branch; fi; git log origin/$branch -1 --pretty=%H > $file;')";
                     $this->commandExecutor->executeCommand($cmd);
 
-                    $cmd = "(cd $dir; node git-tools/alias/git-all.js bash $bashDir/rerere-train.sh --max-count 100 origin/staging)";
+                    $branch = 'staging';
+                    $file = ".git/rerere-$branch";
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js 'if [ -f $file ]; then start=`cat $file`; bash $bashDir/rerere-train.sh \$start..$branch; else bash $bashDir/rerere-train.sh --max-count=100 $branch; fi; git log origin/$branch -1 --pretty=%H > $file;')";
                     $this->commandExecutor->executeCommand($cmd);
                 }
 
@@ -202,18 +206,24 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
             $task->accepted();
         });
 
-        $model->readMergeCreateBranch(false, function(Message\Merge\CreateBranch $task){
+        $model->readMergeCreateBranch(false, function(Message\Merge\CreateBranch $task) use ($instance) {
             $this->debugLogger->message("Creating branch $task->branch from $task->source");
 
             if (empty($task->source)) {
                 throw new Exception("Empty source branch, can't create branch $task->branch from empty");
             }
 
-            $dir = self::fetchRepositories($this->debugLogger);
+            $dir = self::fetchRepositories($this->debugLogger, $instance);
 
             $this->commandExecutor = new CommandExecutor($this->debugLogger);
 
             $cmd = "(cd $dir; node git-tools/alias/git-all.js git fetch)";
+            $this->commandExecutor->executeCommand($cmd);
+
+            $cmd = "(cd $dir; node git-tools/alias/git-all.js git checkout $task->source)";
+            $this->commandExecutor->executeCommand($cmd);
+
+            $cmd = "(cd $dir; node git-tools/alias/git-all.js git reset origin/$task->source --hard)";
             $this->commandExecutor->executeCommand($cmd);
 
             $cmd = "(cd $dir; node git-tools/alias/git-all.js git push origin $task->source:$task->branch".($task->force ? " --force" : "").")";

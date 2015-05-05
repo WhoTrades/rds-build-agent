@@ -104,26 +104,33 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                     $currentOperation = "getting_build_patch";
                     $srcDir="/home/release/build/$project";
 
-                    if ($lastBuildTag) {
-                        $command = "(cd $srcDir/lib; node /home/release/git-tools/alias/git-all.js \"echo -n \\\">>> \\\" && git remote -v|tail -n 1 && git log $lastBuildTag..$project-$version --pretty='%H|%s|/%an/'\")";
-                    } else {
-                        $command = "(cd $srcDir/lib; node /home/release/git-tools/alias/git-all.js \"echo -n \\\">>> \\\" && git remote -v|tail -n 1 && git log $lastBuildTag --pretty='%H|%s|/%an/'\")";
-                    }
+                    $mapFilename = "$srcDir/lib/map.txt";
 
-                    if (Config::getInstance()->debug) {
-                        $command = "cat /home/an/log.txt";
-                    }
-
-                    try {
-                        $output = $commandExecutor->executeCommand($command);
-                    } catch (CommandExecutorException $e) {
-                        //an: 128 - это когда нет какого-то тега в прошлом.
-                        //@todo подумать как это корректо обрабатывать такую ситуацию и реализовать
-                        $output = $e->output;
-                        if ($e->getCode() != 128) {
-                            throw $e;
+                    if (file_exists($mapFilename)) {
+                        $dirs = preg_replace('~\s*~sui', ' ', file_get_contents($mapFilename));
+                        if ($lastBuildTag) {
+                            $command = "(cd $srcDir/lib/sparta; node /home/release/git-tools/alias/git-all.js \"echo -n \\\">>> \\\" && git remote -v|tail -n 1 && git log $lastBuildTag..$project-$version $dirs --pretty='%H|%s|/%an/'\")";
+                        } else {
+                            $command = "(cd $srcDir/lib/sparta; node /home/release/git-tools/alias/git-all.js \"echo -n \\\">>> \\\" && git remote -v|tail -n 1 && git log $lastBuildTag $dirs --pretty='%H|%s|/%an/'\")";
                         }
+                        if (Config::getInstance()->debug) {
+                            $command = "cat /home/an/log.txt";
+                        }
+
+                        try {
+                            $output = $commandExecutor->executeCommand($command);
+                        } catch (CommandExecutorException $e) {
+                            //an: 128 - это когда нет какого-то тега в прошлом.
+                            //@todo подумать как это корректо обрабатывать такую ситуацию и реализовать
+                            $output = $e->output;
+                            if ($e->getCode() != 128) {
+                                throw $e;
+                            }
+                        }
+                    } else {
+                        $this->debugLogger->message("No map.txt found, skip patch sending");
                     }
+
                 }
 
                 $currentOperation = "sending_build_patch";
