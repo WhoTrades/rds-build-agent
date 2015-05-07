@@ -109,9 +109,9 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                     if (file_exists($mapFilename)) {
                         $dirs = preg_replace('~\s+~sui', ' ', file_get_contents($mapFilename));
                         if ($lastBuildTag) {
-                            $command = "(cd $srcDir/lib/sparta; node /home/release/git-tools/alias/git-all.js \"echo -n \\\">>> \\\" && git remote -v|tail -n 1 && git log $lastBuildTag..$project-$version $dirs --pretty='%H|%s|/%an/'\")";
+                            $command = "(cd $srcDir/lib/sparta; echo -n '>>> '; git remote -v|tail -n 1; git log $lastBuildTag..$project-$version --pretty='%H|%s|/%an/' $dirs)";
                         } else {
-                            $command = "(cd $srcDir/lib/sparta; node /home/release/git-tools/alias/git-all.js \"echo -n \\\">>> \\\" && git remote -v|tail -n 1 && git log $lastBuildTag $dirs --pretty='%H|%s|/%an/'\")";
+                            $command = "(cd $srcDir/lib/sparta; echo -n '>>> '; git remote -v|tail -n 1; git log $lastBuildTag --pretty='%H|%s|/%an/' $dirs)";
                         }
                         if (Config::getInstance()->debug) {
                             $command = "cat /home/an/log.txt";
