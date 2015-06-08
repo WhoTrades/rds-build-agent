@@ -1,5 +1,6 @@
 count=`ps -Af|grep $0|grep -v grep|wc -l`
 if [ $count -gt 2 ]; then
+    echo `ps -Af|grep $0|grep -v grep`
     echo "Double run"
     exit 1;
 fi
