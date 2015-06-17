@@ -156,6 +156,34 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
             }
         });
 
+        $model->readProjectConfig(false, function(\RdsSystem\Message\ProjectConfig $task) use ($model) {
+            $this->debugLogger->message("Task received: ".json_encode($task));
+            $project = $task->project;
+            $config = $task->config;
+            $filename = "/etc/$project/config.local.php";
+
+            if (false === file_put_contents($filename, $task->config)) {
+                $this->debugLogger->dump()->message("an", "cant_save_project_config", false, [
+                    'project' => $project,
+                    'filename' => $filename,
+                    'config' => $config,
+                ])->critical()->save();
+
+                return;
+            }
+
+            $commandExecutor = new CommandExecutor($this->debugLogger);
+
+            if (Config::getInstance()->debug) {
+                $command = "sleep 1 # $project";
+            } else {
+                $command = "bash bash/cmd.sh sync-conf $project 2>&1";
+            }
+            $commandExecutor->executeCommand($command);
+
+            $task->accepted();
+        });
+
         $this->waitForMessages($model, $cronJob);
     }
 }
