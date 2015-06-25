@@ -1,9 +1,3 @@
-count=`ps -Af|grep $0|grep -v grep|grep -v sudo|wc -l`
-if [ $count -gt 2 ]; then
-    ps -Af|grep $0|grep -v grep|grep -v sudo
-    echo "Double run"
-    exit 1;
-fi
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 if [ $1 -ne "" ]; then
