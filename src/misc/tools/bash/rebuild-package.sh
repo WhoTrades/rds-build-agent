@@ -36,20 +36,26 @@ rm -rf $BUILDROOT/*
 SRCDIR=/home/release/build/$NAME
 rm -rf $SRCDIR/phing-task
 
-git clone ssh://git.whotrades.net/srv/git/phing-task $SRCDIR/phing-task
-cd $SRCDIR/phing-task
-git remote update
-git checkout master
-git reset --hard origin/master
-git clean -f -d
-cd $SCRIPT_PATH
+cd $BUILDTMP
+git archive --format tar --remote ssh://git.whotrades.net/srv/git/sparta master services/phing-task|tar -xv > phing-task.log
+code=$?
+if [ $code -ne 0 ]; then
+    echo "Error during fetching phing-task"
+    cat phing-task.log
+    exit 11
+fi
 
-ln -sf phing-task/build/$NAME/build.xml $SRCDIR/build.xml
+cd $SCRIPT_PATH
+ln -sf $BUILDTMP/services/phing-task/build/$NAME/build.xml $SRCDIR/build.xml
+ln -s $BUILDTMP/services/phing-task/ $SRCDIR/phing-task
 
 mkdir -p $BUILDROOT/var/pkg/${NAME}-${VERSION}
 phing -Dname=$NAME -Ddestdir=$BUILDROOT/var/pkg/${NAME}-${VERSION} -DtaskId=${taskId} -DrdsDomain=${rdsDomain} -Drepository.createtag=${createTag} -Dversion=${VERSION} -Dproject=${NAME} -Ddictionary.sqlite.update=true -Drelease=$release  -Drepositories.update=true -f $SRCDIR/build.xml build
 code=$?
-[ $code != "0" ] && exit $code
+if [ $code -ne 0 ]; then
+    echo "Build failed"
+    exit 12
+fi
 
 # Create deb-package
 echo "2.0" > $BUILDTMP/debian-binary
