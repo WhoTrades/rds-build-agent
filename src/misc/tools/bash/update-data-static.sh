@@ -40,7 +40,12 @@ EOF
   return $retval
 }
 rm -rfv ./data_static
-wget http://mdr.dev.whotrades.net/release/data_static
+WGET=`wget http://mdr.dev.whotrades.net/release/data_static 2>&1`
+code=$?
+if [ $code -ne 0 ]; then
+    echo "${RED}Error during fetching dictionary: ${NORMAL}"
+    "$WGET"
+fi
 
 SCRIPT_PATH=$(dirname $(readlink -f $0))
 
