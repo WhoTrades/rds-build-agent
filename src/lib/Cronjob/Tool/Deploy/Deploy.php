@@ -198,7 +198,8 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
 
                 //an: Отправляем новые сгенерированные /etc/cron.d конфиги
                 $cronConfig = "";
-                if (Config::getInstance()->debug) {
+                if (Config::getInstance()->debug && $project != 'dictionary') {
+
                     $command = "php $projectDir/misc/tools/runner.php --tool=CodeGenerate_CronjobGenerator --project=$project --env=dev --server=1 --package=$project-$version > $projectDir/misc/cronjobs/cronjob-$project-tl1";
                     $commandExecutor->executeCommand($command);
 
