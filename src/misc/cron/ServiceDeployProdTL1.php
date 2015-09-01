@@ -4,9 +4,7 @@ use \Cronjob\ConfigGenerator\Comment;
 use \Cronjob\ConfigGenerator\MultiCronCommand;
 use \Cronjob\ConfigGenerator\CronCommand;
 use \Cronjob\ConfigGenerator\SimpleCommand;
-use \Cronjob\ConfigGenerator\PeriodicCommand;
 use \Cronjob\ConfigGenerator\MultiCommandToCron;
-use \Cronjob\ConfigGenerator\MultiPeriodicCommand;
 
 class ServiceDeployProdTL1
 {
@@ -32,10 +30,10 @@ class ServiceDeployProdTL1
 
             new Comment("Git merge"),
             new CronCommand(\Cronjob_Tool_Git_Merge::getToolCommand(['--max-duration=60', '--instance=0'], $verbosity=2),'* * * * * *', 'deploy_git_merge'),
-//            new CronCommand(new PeriodicCommand(\Cronjob_Tool_Git_Merge::getToolCommand(['--max-duration=60', '--instance=0 --allowed-branches=develop'], $verbosity=2), 0), '* * * * *', 'deploy_git_merge-develop'),
-//            new CronCommand(new PeriodicCommand(\Cronjob_Tool_Git_Merge::getToolCommand(['--max-duration=60', '--instance=1 --allowed-branches=staging'], $verbosity=2), 0), '* * * * *', 'deploy_git_merge-staging'),
-//            new CronCommand(new PeriodicCommand(\Cronjob_Tool_Git_Merge::getToolCommand(['--max-duration=60', '--instance=2 --allowed-branches=master'], $verbosity=2), 0), '* * * * *', 'deploy_git_merge-master'),
-//            new CronCommand(new PeriodicCommand(\Cronjob_Tool_Git_Merge::getToolCommand(['--max-duration=60', '--instance=3 --disallowed-branches=develop,staging,master'], $verbosity=2), 0), '* * * * *', 'deploy_git_merge-builds'),
+//            new CronCommand(\Cronjob_Tool_Git_Merge::getToolCommand(['--max-duration=60', '--instance=0 --allowed-branches=develop'], $verbosity=2), '* * * * * *', 'deploy_git_merge-develop'),
+//            new CronCommand(\Cronjob_Tool_Git_Merge::getToolCommand(['--max-duration=60', '--instance=1 --allowed-branches=staging'], $verbosity=2), '* * * * * *', 'deploy_git_merge-staging'),
+//            new CronCommand(\Cronjob_Tool_Git_Merge::getToolCommand(['--max-duration=60', '--instance=2 --allowed-branches=master'], $verbosity=2), '* * * * * *', 'deploy_git_merge-master'),
+//            new CronCommand(\Cronjob_Tool_Git_Merge::getToolCommand(['--max-duration=60', '--instance=3 --disallowed-branches=develop,staging,master'], $verbosity=2), '* * * * * *', 'deploy_git_merge-builds'),
         ];
 
         $allCommands = new MultiCronCommand($allCommands);
