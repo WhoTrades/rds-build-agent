@@ -197,7 +197,6 @@ case "$whatwedo" in
   install) install $groupname $packagename $packageversion
            ;;
   use)     use     $groupname $packagename $packageversion
-	   fpm_reload  $groupname $packagename $packageversion
            ;;
   status)  status  $groupname $packagename
            ;;
