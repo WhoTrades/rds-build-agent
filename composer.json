@@ -1,12 +1,15 @@
 {
-	"name": "whotrades.com/deploy",
-	"type": "service",
-	"description": "Deploy scripts of whotrades.com",
-
-	"repositories": [ { "type": "composer", "url": "http://git.whotrades.net/packages.json" } ],
-	"minimum-stability": "dev",
-
-	"require": {
-		"php": ">=5.3.3"
-	}
+    "name": "whotrades.com/deploy",
+    "type": "service",
+    "description": "Deploy scripts of whotrades.com",
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "http://git.whotrades.net/packages.json"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=5.3.3"
+    }
 }
