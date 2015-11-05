@@ -226,8 +226,13 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
             $cmd = "(cd $dir; node git-tools/alias/git-all.js git checkout $task->source)";
             $this->commandExecutor->executeCommand($cmd);
 
-            $cmd = "(cd $dir; node git-tools/alias/git-all.js git push origin $task->source:$task->branch".($task->force ? " --force" : "").")";
-            $this->commandExecutor->executeCommand($cmd);
+            if (!\Config::getInstance()->mergeDryRun) {
+                $cmd = "(cd $dir; node git-tools/alias/git-all.js git push origin $task->source:$task->branch".($task->force ? " --force" : "").")";
+                $this->commandExecutor->executeCommand($cmd);
+            } else {
+                sleep(3);
+                $this->debugLogger->message("Skip pushing as Config::mergeDryRun set to true");
+            }
 
             $task->accepted();
             $this->debugLogger->message("Task accepted");
