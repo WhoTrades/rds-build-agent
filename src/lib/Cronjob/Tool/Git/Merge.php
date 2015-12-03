@@ -141,7 +141,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
                 if ($autoConflictResolveEnabled) {
                     //an: Мержим с использованием http://git-scm.com/blog/2010/03/08/rerere.html. Это позволяет автоматически разрешать конфликты, разрешенные ранее
-                    $cmd = "(cd $dir; node git-tools/alias/git-all.js 'git merge $task->sourceBranch || (if [ `git status --porcelain|grep -vE '^M '|grep -vE '^A '|wc -l` -eq 0 ]; then git commit -m \"auto resolve conflict using previous resolution\"; exit $?; else exit 1; fi;)')";
+                    $cmd = "(cd $dir; node git-tools/alias/git-all.js 'git merge $task->sourceBranch || (if [ `git status --porcelain|grep -vE \"^(M|E|A|D|C|R) \"|wc -l` -eq 0 ]; then git commit -m \"auto resolve conflict using previous resolution\"; exit $?; else exit 1; fi;)')";
                 } else {
                     //an: обычный мерж
                     $cmd = "(cd $dir; node git-tools/alias/git-all.js git merge $task->sourceBranch)";
