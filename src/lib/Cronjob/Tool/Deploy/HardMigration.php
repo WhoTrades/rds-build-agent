@@ -1,6 +1,5 @@
 <?php
 use RdsSystem\Message;
-use RdsSystem\lib\CommandExecutor;
 use RdsSystem\lib\CommandExecutorException;
 
 /**
@@ -22,8 +21,6 @@ class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
         $workerName = \Config::getInstance()->workerName;
 
         $model->getHardMigrationTask(false, function(\RdsSystem\Message\HardMigrationTask $task) use ($workerName, $model) {
-            $commandExecutor = new CommandExecutor($this->debugLogger);
-
             try {
                 //an: Должно быть такое же, как в rebuild-package.sh
                 $filename = "/home/release/buildroot/$task->project-$task->version/var/pkg/$task->project-$task->version/misc/tools/migration.php";
@@ -68,6 +65,11 @@ class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
                 system($command, $returnVar);
 
                 ob_end_clean();
+
+                // an: У нас может остаться кусочек логов за последние 100мс работы миграции, и в этом случае его нужно дослать
+                if ($chunk) {
+                    $model->sendHardMigrationLogChunk(new \RdsSystem\Message\HardMigrationLogChunk($task->migration, $chunk));
+                }
 
                 if ($returnVar) {
                     throw new CommandExecutorException("Return var is non-zero, code=".$returnVar.", command=$command", $returnVar, $output);
