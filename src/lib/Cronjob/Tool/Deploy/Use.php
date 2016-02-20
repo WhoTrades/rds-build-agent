@@ -1,5 +1,7 @@
 <?php
 /**
+ * Скрипт, который выполняет быстрые операции USE и выкладку конфигов
+ * @author Artem Naumenko
  * @example dev/services/deploy/misc/tools/runner.php --tool=Deploy_Use -vv
  */
 
@@ -11,6 +13,7 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
 {
     /**
      * Use this function to get command line spec for cronjob
+     *
      * @return array
      */
     public static function getCommandLineSpec()
@@ -18,17 +21,16 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
         return [] + parent::getCommandLineSpec();
     }
 
-
     /**
-     * Performs actual work
+     * @param \Cronjob\ICronjob $cronJob
      */
     public function run(\Cronjob\ICronjob $cronJob)
     {
-        $model  = $this->getMessagingModel($cronJob);
+        $model = $this->getMessagingModel($cronJob);
 
         $workerName = \Config::getInstance()->workerName;
-        $model->getUseTask($workerName, false, function(\RdsSystem\Message\UseTask $task) use ($workerName, $model) {
-            $this->debugLogger->message("Task received: ".json_encode($task));
+        $model->getUseTask($workerName, false, function (\RdsSystem\Message\UseTask $task) use ($workerName, $model) {
+            $this->debugLogger->message("Task received: " . json_encode($task));
             $project = $task->project;
             $releaseRequestId = $task->releaseRequestId;
             $version = $task->version;
@@ -49,15 +51,14 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
                 $oldVersion = null;
                 foreach (array_filter(explode("\n", str_replace("\r", "", $text))) as $line) {
                     if (false === strpos($line, ' ')) {
-                        $model->sendUseError(
-                            new Message\ReleaseRequestUseError($task->releaseRequestId, "Invalid output of status script:\n" . $text)
-                        );
+                        $model->sendUseError(new Message\ReleaseRequestUseError($task->releaseRequestId, "Invalid output of status script:\n" . $text));
                         $task->accepted();
+
                         return;
                     }
                     list($server, $sv) = explode(" ", $line);
 
-                    $this->debugLogger->message("ServerRegex: ".\Config::getInstance()->serverRegex);
+                    $this->debugLogger->message("ServerRegex: " . \Config::getInstance()->serverRegex);
                     if (!preg_match(\Config::getInstance()->serverRegex, $server)) {
                         continue;
                     }
@@ -65,10 +66,9 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
                     if ($oldVersion === null) {
                         $oldVersion = $sv;
                     } elseif ($oldVersion != $sv) {
-                        $model->sendUseError(
-                            new Message\ReleaseRequestUseError($task->releaseRequestId, "Versions of project different on servers:\n".$text)
-                        );
+                        $model->sendUseError(new Message\ReleaseRequestUseError($task->releaseRequestId, "Versions of project different on servers:\n" . $text));
                         $task->accepted();
+
                         return;
                     }
                 }
@@ -79,6 +79,7 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
                         new Message\ReleaseRequestUseError($task->releaseRequestId, "Empty oldVersion")
                     );
                     $task->accepted();
+
                     return;
                 }
 
@@ -125,7 +126,7 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
                     $model->sendCurrentStatusRequest(new Message\ReleaseRequestCurrentStatusRequest($task->releaseRequestId, $id = uniqid()));
 
                     $statusMessage = $model->getReleaseRequestStatus($task->releaseRequestId);
-                    $this->debugLogger->message("Status of release request: '".$statusMessage->status."'");
+                    $this->debugLogger->message("Status of release request: '" . $statusMessage->status . "'");
                     if ($statusMessage->status != 'used') {
                         $this->debugLogger->message("Reverting $project back to v.$oldVersion, task_id=$task->releaseRequestId");
                         $command = "bash bash/deploy.sh use $project $oldVersion 2>&1";
@@ -145,10 +146,9 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
 
                 $task->accepted();
                 $this->debugLogger->message("Successful used $project-$version");
-
             } catch (CommandExecutorException $e) {
                 $model->sendUseError(
-                    new Message\ReleaseRequestUseError($task->releaseRequestId, $e->getMessage()."\nOutput: ".$e->output)
+                    new Message\ReleaseRequestUseError($task->releaseRequestId, $e->getMessage() . "\nOutput: " . $e->output)
                 );
                 $this->debugLogger->error($e->getMessage());
 
@@ -156,26 +156,38 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
             }
         });
 
-        $model->readProjectConfig(false, function(\RdsSystem\Message\ProjectConfig $task) use ($model) {
-            $this->debugLogger->message("Task received: ".json_encode($task));
+        $model->readProjectConfig(false, function (\RdsSystem\Message\ProjectConfig $task) use ($model) {
+            $this->debugLogger->message("Task received: " . json_encode($task));
             $project = $task->project;
-            $config = $task->config;
-            $filename = "/etc/$project/config.local.php";
 
-            if (false === file_put_contents($filename, $task->config)) {
-                $this->debugLogger->dump()->message("an", "cant_save_project_config", false, [
-                    'project' => $project,
-                    'filename' => $filename,
-                    'config' => $config,
-                ])->critical()->save();
+            $files = glob("/etc/$project/*");
+            foreach ($files as $file) {
+                if (!unlink($file)) {
+                    $this->debugLogger->dump()->message("an", "cant_remove_old_project_config", false, [
+                        'project' => $project,
+                        'filename' => $file,
+                    ])->critical()->save();
 
-                return;
+                    return;
+                }
+            }
+
+            foreach ($task->configs as $filename => $content) {
+                if (false === file_put_contents("/etc/$project/" . $filename, $content)) {
+                    $this->debugLogger->dump()->message("an", "cant_save_project_config", false, [
+                        'project' => $project,
+                        'filename' => "/etc/$project/" . $filename,
+                        'content' => $content,
+                    ])->critical()->save();
+
+                    return;
+                }
             }
 
             $commandExecutor = new CommandExecutor($this->debugLogger);
 
             if (Config::getInstance()->debug) {
-                $command = "sleep 1 # $project";
+                $command = "sleep 1 #$project";
             } else {
                 $command = "bash bash/cmd.sh sync-conf $project 2>&1";
             }
