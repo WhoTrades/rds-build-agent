@@ -52,6 +52,10 @@ class Cronjob_Tool_PDev_Manager extends RdsSystem\Cron\RabbitDaemon
             }
 
             $commandExecutor = new CommandExecutor($this->debugLogger);
+
+            $command = "(cd $path && git fetch)";
+            $commandExecutor->executeCommand($command);
+
             $command = "(cd $path && git reset .)";
             $commandExecutor->executeCommand($command);
 
