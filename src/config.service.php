@@ -3,7 +3,7 @@ $this->rdsDomain = "rds.whotrades.net";
 $this->workerName = 'debian';
 $this->debug = false;
 $this->createTag = 0;
-$this->environment = 'main';
+$this->environment = 'prod';
 $this->mergePoolDir = '/home/release/mergePool/';
 $this->mergeDryRun = false;
 
