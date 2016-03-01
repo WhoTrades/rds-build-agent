@@ -27,6 +27,7 @@ class ServiceDeployProdTL1
             new CronCommand(\Cronjob_Tool_Deploy_GarbageCollector::getToolCommand([], $verbosity=3), '12 20 0 * * *', 'DeployGarbageCollector'),
             new CronCommand(\Cronjob_Tool_Maintenance_ToolRunner::getToolCommand(['--max-duration=60'], $verbosity=3), '* * * * * *', 'deploy_maintenance_runner'),
             new CronCommand(\Cronjob_Tool_Git_RemoveBranches::getToolCommand(['--max-duration=60 --instance=1'], $verbosity=3), '* * * * * *', 'deploy_remove_branches'),
+            new CronCommand(\Cronjob_Tool_PDev_Manager::getToolCommand([], $verbosity = 3), '* * * * * *', 'deploy_switch_branches'),
 
             new Comment("Git merge"),
             new CronCommand(\Cronjob_Tool_Git_Merge::getToolCommand(['--max-duration=60', '--instance=0'], $verbosity=2),'* * * * * *', 'deploy_git_merge'),
