@@ -56,6 +56,9 @@ class Cronjob_Tool_PDev_Manager extends RdsSystem\Cron\RabbitDaemon
             $command = "(cd $path && git fetch)";
             $commandExecutor->executeCommand($command);
 
+            $command = "(cd $path && git checkout .)";
+            $commandExecutor->executeCommand($command);
+
             $command = "(cd $path && git reset .)";
             $commandExecutor->executeCommand($command);
 
