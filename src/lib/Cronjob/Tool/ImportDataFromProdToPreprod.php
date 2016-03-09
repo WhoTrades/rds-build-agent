@@ -49,9 +49,7 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends RdsSystem\Cron\RabbitDaem
 
         $this->bashDir = dirname(dirname(dirname(__DIR__)))."/misc/tools/bash/";
 
-        $globalLock = \Cronjob\Factory::getGlobalLock($this->debugLogger);
         $this->debugLogger->info("action=tools_work, status=stop");
-        $globalLock->acquireLock();
 
         try {
             //an: Кто за минуту завершиться не успел - я не виноват :)
@@ -83,13 +81,11 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends RdsSystem\Cron\RabbitDaem
             $this->fixPostgresData();
             //an: на самом деле releaseLock не нужен, так как мемкеш мы почистили, а флаг блокировки лежит там. Но для целостности логики я оставил тут этот оператор
             $this->debugLogger->info("action=tools_work, status=start");
-            $globalLock->releaseLock();
         } catch (Exception $e) {
             $this->debugLogger->error("Unknown error occurred: ".$e->getMessage());
             $this->debugLogger->message($e->getTraceAsString());
             $this->openStorageAccess();
             $this->debugLogger->info("action=tools_work, status=start");
-            $globalLock->releaseLock();
 
             $model->sendPreProdUp(new \RdsSystem\Message\PreProd\Up());
             $this->debugLogger->message("Preprod marked as online");
