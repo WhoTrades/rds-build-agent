@@ -193,7 +193,7 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends RdsSystem\Cron\RabbitDaem
 
         $this->debugLogger->info("action=fix_bfs, status='fix read/write units'");
         if (!\Config::getInstance()->debug) {
-            $db = new \DbFunc\ConnectionManager(
+            $db = new \creole\ConnectionManager(
                 $this->debugLogger,
                 ['dsn' => \Config::getInstance()->DSN_DB1,]
             );
@@ -222,9 +222,9 @@ class Cronjob_Tool_ImportDataFromProdToPreprod extends RdsSystem\Cron\RabbitDaem
 
     private function getConnection($dnsAlias)
     {
-        return (new \DbFunc\ConnectionManager(
-                $this->debugLogger,
-                ['dsn' => \Config::getInstance()->$dnsAlias,]
+        return (new \creole\ConnectionManager(
+            $this->debugLogger,
+            ['dsn' => \Config::getInstance()->$dnsAlias]
         ))->getDbConnection();
     }
 }
