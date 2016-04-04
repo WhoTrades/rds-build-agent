@@ -10,6 +10,7 @@
     ],
     "minimum-stability": "dev",
     "require": {
-        "php": ">=5.3.3"
+        "php": ">=5.3.3",
+        "raven/raven": "^0.13.0"
     }
 }
