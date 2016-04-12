@@ -26,7 +26,7 @@ install() {
 
   package="$packagename-$packageversion"
 
-  execute_concurrent $groupname "apt-get update; apt-get -y --force-yes install $package" || errx "install() failed!"
+  execute_concurrent $groupname "sudo apt-get update; sudo apt-get -y --force-yes install $package" || errx "install() failed!"
 }
 
 use() {
@@ -44,68 +44,8 @@ use() {
   execute_concurrent $groupname \
   "
   cd $PKGDIR;
-  [ -d ${package} ] && ln -nsf ${package} $packagename
+  [ -d ${package} ] && sudo ln -nsf ${package} $packagename
   " || errx "use() failed!"
-}
-
-# gracefully reload nginx if it's running
-nginx_reload() {
-  local groupname=$1
-  local packagename=$2
-  local packageversion=$3
-
-  if isnull $groupname || isnull $packagename; then
-    echo "$0  ${GREEN}reload${NORMAL} packagename packageversion"
-    exitf
-  fi
-
-  execute_concurrent $groupname \
-  "
-  /etc/init.d/nginx status >/dev/null 2>&1;
-  if [ \$? -eq 0 ]; then
-    /etc/init.d/nginx reload >/dev/null
-  else
-    # We should exit correctly if nginx is not present or is not running
-    exit 0
-  fi
-  " || errx "nginx reload failed!"
-}
-
-fpm_reload() {
-  local groupname=$1
-  local packagename=$2
-  local packageversion=$3
-
-  if isnull $groupname || isnull $packagename; then
-    echo "$0  ${GREEN}reload fpm${NORMAL} packagename packageversion"
-    exitf
-  fi
-
-  execute_concurrent $groupname \
-  "
-  /etc/init.d/php5-fpm status >/dev/null 2>&1;
-  if [ \$? -eq 0 ]; then
-    /etc/init.d/php5-fpm reload >/dev/null
-  else
-    # We should exit correctly if nginx is not present or is not running
-    exit 0
-  fi
-  " || errx "php5-fpm reload failed!"
-}
-
-deploy() {
-  local groupname=$1
-  local packagename=$2
-  local packageversion=$3
-
-  if isnull $groupname || isnull $packagename || isnull $packageversion; then
-    echo "$0  ${GREEN}deploy${NORMAL}  packagename packageversion"
-    exitf
-  fi
-
-  install      $groupname $packagename $packageversion
-  use          $groupname $packagename $packageversion
-  fpm_reload   $groupname $packagename $packageversion
 }
 
 remove() {
@@ -129,7 +69,7 @@ remove() {
     echo ERROR: version $packageversion of package $packagename is being used...skipped
     exit 1
   fi
-  apt-get -y --force-yes purge ${package}
+  sudo apt-get -y --force-yes purge ${package}
   "
 }
 
@@ -142,21 +82,13 @@ status() {
     exitf
   fi
 
-#  package="$packagename-$packageversion"
   package="$packagename"
-#  echo $package
 
   execute_concurrent $groupname \
   "
   cd $PKGDIR;
   ls -ld $packagename | awk '{ print \$NF }'
   " || errx "status() failed!"
-
-#  execute_concurrent $groupname \
-#  "
-#  cd $PKGDIR;
-#  [ -e ${package} ] && ls -ld $packagename | awk '{ print \$NF }'
-#  " || errx "status() failed!"
 }
 
 groupname=
