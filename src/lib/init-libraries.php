@@ -13,8 +13,9 @@ set_include_path(join(PATH_SEPARATOR, array_merge($includePaths, array(
 	dirname(__FILE__) . '/../main/',
 	// developer's
 	dirname(__FILE__) . '/../../../lib/',
-	dirname(__FILE__) . '/../../../lib/pear',
 	dirname(__FILE__) . '/../../../lib/libcore/',
 ))));
+
+require_once(__DIR__ . "/../vendor/autoload.php");
 
 require_once 'Autoload.php';

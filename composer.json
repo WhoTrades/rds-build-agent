@@ -5,9 +5,19 @@
     "repositories": [
         {
             "type": "composer",
-            "url": "http://git.whotrades.net/packages.json"
+            "url": "https://git.whotrades.net/external/packages.json"
+        },
+        {
+            "packagist": false
         }
     ],
+
+    "autoload": {
+        "psr-4": {
+            "RavenSystem\\": "../lib/RavenSystem/"
+        }
+    },
+
     "minimum-stability": "dev",
     "require": {
         "php": ">=5.3.3",
