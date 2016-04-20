@@ -40,6 +40,10 @@ syncconf() {
       confbody=`cat $file`
       execute_concurrent $packageName \
       "
+      if [ ! -d /etc/$packageName ]; then
+        sudo mkdir /etc/$packageName
+        sudo chown release:release /etc/$packageName
+      fi
       cat<<'EOF' | tee ${file}.sync-conf.new > /dev/null
 $confbody
 EOF
