@@ -15,3 +15,6 @@ $this->installToPreprod = true;
 $this->hardMigration = [
     'autoStartEnvironments' => ['preprod'],
 ];
+
+// an: хак, пока не выпилим phplogs изо-всех сервисов
+unset($this->phpLogsSystem);

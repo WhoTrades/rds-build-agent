@@ -26,20 +26,12 @@ class Config
     {
         $path = dirname(__FILE__) . '/../../';
         foreach (array(
-                 'config/config.db.php', // vdm: подключил т.к. он используется внутри config.pgq
-                 'config/config.comon.php',
-                 'config/config.taskssystem.php',
                  'config/config.servicebase.php',
-                 'config/config.stm.php', // vdm: подключаем сразу после config.services.php
-                 'config/config.services.php',
-                 'config/config.pgq.php', // vdm: NB: см config.pgq.php
-                 'config/config.cronjob.php', // ad: #WTS-855
+                 'config/config.cronjob.php',
                  'config.service.php',
                  'config.local.php',
                  ) as $configLocation) {
-            if (file_exists($path . $configLocation)) {
-                require $path . $configLocation;
-            }
+            require $path . $configLocation;
         }
         $this->cache_dir = '/var/tmp/deploy/cache/';
         $this->pid_dir = '/var/tmp/deploy/pid/';

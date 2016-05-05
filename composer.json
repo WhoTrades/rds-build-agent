@@ -21,6 +21,6 @@
     "minimum-stability": "dev",
     "require": {
         "php": ">=5.3.3",
-        "raven/raven": "^0.13.0"
+        "sentry/sentry": "0.16.0"
     }
 }
