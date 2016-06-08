@@ -70,6 +70,7 @@ remove() {
     exit 1
   fi
   sudo apt-get -y --force-yes purge ${package}
+  sudo apt-get -y --force-yes clean
   "
 }
 
