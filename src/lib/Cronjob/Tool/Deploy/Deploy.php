@@ -295,17 +295,14 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
             if ($message->version != $version || $message->project != $project || $message->worker != $worker) {
                 $this->debugLogger->message("Skip used message as $message->version != $version || $message->project != $project || $message->worker != $worker");
                 $message->accepted();
+
                 return;
             }
 
             $message->accepted();
-            if ($message->status == 'used') {
-                $this->debugLogger->message("Sending migration task to preprod: project=$project, version=$version");
-                $model->sendTaskStatusChanged(new Message\TaskStatusChanged($taskId, 'preprod_migrations'));
-                $this->preprodModel->sendMigrationTask(new Message\MigrationTask($project, $version, 'pre'));
-            } else {
-                throw new Exception("Failed to use $project-$version on preprod " . json_encode($message));
-            }
+            $this->debugLogger->message("Sending migration task to preprod: project=$project, version=$version");
+            $model->sendTaskStatusChanged(new Message\TaskStatusChanged($taskId, 'preprod_migrations'));
+            $this->preprodModel->sendMigrationTask(new Message\MigrationTask($project, $version, 'pre'));
         });
 
         $this->preprodModel->readUseError(false, function (Message\ReleaseRequestUseError $message) use ($releaseRequestId, $model, $taskId) {

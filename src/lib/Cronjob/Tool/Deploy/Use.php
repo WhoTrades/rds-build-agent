@@ -34,7 +34,7 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
             $project = $task->project;
             $releaseRequestId = $task->releaseRequestId;
             $version = $task->version;
-            $useStatus = $task->useStatus;
+            $initiatorUserName = $task->initiatorUserName;
 
             $commandExecutor = new CommandExecutor($this->debugLogger);
             $this->debugLogger->message("Using $project:$version, task_id=$releaseRequestId");
@@ -103,7 +103,7 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
                 try {
                     $this->debugLogger->message("Used version: $version");
                     $model->sendUsedVersion(
-                        new Message\ReleaseRequestUsedVersion($workerName, $project, $version, $useStatus)
+                        new Message\ReleaseRequestUsedVersion($workerName, $project, $version, $initiatorUserName)
                     );
                 } catch (\Exception $e) {
                     $this->debugLogger->message("Can't send to server real used version, reverting\n");
@@ -113,35 +113,8 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
                     }
                     $commandExecutor->executeCommand($command);
                     $model->sendUsedVersion(
-                        new Message\ReleaseRequestUsedVersion($workerName, $project, $version, 'used')
+                        new Message\ReleaseRequestUsedVersion($workerName, $project, $version, $initiatorUserName)
                     );
-                }
-
-                if ($useStatus == 'used_attempt') {
-                    $this->debugLogger->message("Sleeping 15 seconds");
-                    sleep(15);
-
-                    $this->debugLogger->message("Sended release request status request");
-
-                    $model->sendCurrentStatusRequest(new Message\ReleaseRequestCurrentStatusRequest($task->releaseRequestId, $id = uniqid()));
-
-                    $statusMessage = $model->getReleaseRequestStatus($task->releaseRequestId);
-                    $this->debugLogger->message("Status of release request: '" . $statusMessage->status . "'");
-                    if ($statusMessage->status != 'used') {
-                        $this->debugLogger->message("Reverting $project back to v.$oldVersion, task_id=$task->releaseRequestId");
-                        $command = "bash bash/deploy.sh use $project $oldVersion 2>&1";
-                        if (Config::getInstance()->debug) {
-                            $command = "php bash/fakeUse.php $project $oldVersion $workerName";
-                        }
-                        $commandExecutor->executeCommand($command);
-                        $model->sendUsedVersion(
-                            new Message\ReleaseRequestUsedVersion($workerName, $project, $oldVersion, 'used')
-                        );
-                    } else {
-                        $this->debugLogger->message("Project $project v.$task->version marked as stable, skip reverting, task_id=$task->releaseRequestId");
-                    }
-
-                    $this->debugLogger->message("Processed revert logic");
                 }
 
                 $task->accepted();
