@@ -22,6 +22,6 @@
     "require": {
         "php": ">=5.3.3",
         "php-amqplib/php-amqplib": "~2.6",
-        "sentry/sentry": "0.16.0"
+        "sentry/sentry": "1.1.0"
     }
 }
