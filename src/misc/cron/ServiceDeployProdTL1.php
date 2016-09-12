@@ -30,7 +30,7 @@ class ServiceDeployProdTL1
             new CronCommand(\Cronjob_Tool_Git_RemoveBranches::getToolCommand(['--max-duration=60 --instance=1'], $verbosity = 3), '* * * * * *', 'deploy_remove_branches'),
 
             new Comment("Git merge"),
-            new CronCommand(\Cronjob_Tool_Git_Merge::getToolCommand(['--max-duration=60', '--instance=0'], $verbosity = 2),'* * * * * *', 'deploy_git_merge'),
+            new CronCommand(\Cronjob_Tool_Git_Merge::getToolCommand(['--max-duration=60', '--instance=0'], $verbosity = 2), '* * * * * *', 'deploy_git_merge'),
         ];
 
         $allCommands = new MultiCronCommand($allCommands);
