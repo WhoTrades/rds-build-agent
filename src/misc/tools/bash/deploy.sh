@@ -15,18 +15,8 @@ usage() {
 }
 
 install() {
-  local groupname=$1
-  local packagename=$2
-  local packageversion=$3
-
-  if isnull $groupname || isnull $packagename || isnull $packageversion; then
-    echo "$0  ${GREEN}install${NORMAL}  packagename packageversion"
-    exitf
-  fi
-
-  package="$packagename-$packageversion"
-
-  execute_concurrent $groupname "sudo apt-get update; sudo apt-get -y --force-yes install $package" || errx "install() failed!"
+  echo "$0 ${RED}DEPRECATED${NORMAL} Use deb/publish.sh instead OR rpm/publish.sh instead"
+  exitf;
 }
 
 use() {
@@ -49,29 +39,8 @@ use() {
 }
 
 remove() {
-  local groupname=$1
-  local packagename=$2
-  local packageversion=$3
-
-  if isnull $groupname || isnull $packagename || isnull $packageversion; then
-    echo "$0  ${GREEN}remove${NORMAL}  packagename packageversion"
-    exitf
-  fi
-
-  package="$packagename-$packageversion"
-
-  execute_concurrent $groupname \
-  "
-  cd $PKGDIR;
-  [ -e ${package} ] || exit 1
-  currversion=\`ls -ld $packagename | awk '{ print \$NF }'\`
-  if [ \$currversion = ${packagename}-${packageversion} ]; then
-    echo ERROR: version $packageversion of package $packagename is being used...skipped
-    exit 1
-  fi
-  sudo apt-get -y --force-yes purge ${package}
-  sudo apt-get -y --force-yes clean
-  "
+    echo "$0 ${RED}DEPRECATED${NORMAL} Use deb/remove.sh instead OR rpm/remove.sh instead"
+    exitf;
 }
 
 status() {

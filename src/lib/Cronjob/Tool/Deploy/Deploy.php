@@ -8,17 +8,12 @@ use RdsSystem\lib\CommandExecutorException;
  */
 class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
 {
-    const PREPROD_TIMEOUT = 300;
-
     private $gid;
     private $taskId;
     private $version;
 
     /** @var \RdsSystem\Model\Rabbit\MessagingRdsMs */
     private $model;
-
-    /** @var \RdsSystem\Model\Rabbit\MessagingRdsMs */
-    private $preprodModel;
 
     /** @var \RdsSystem\Message\BuildTask */
     private $currentTask;
@@ -33,22 +28,18 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
     }
 
     /**
-     * Performs actual work
+     * @param \Cronjob\ICronjob $cronJob
      */
     public function run(\Cronjob\ICronjob $cronJob)
     {
         $workerName = \Config::getInstance()->workerName;
+        $driver = \Config::getInstance()->driver;
         $this->model  = $this->getMessagingModel($cronJob);
-
-        $rdsSystem = new RdsSystem\Factory($this->debugLogger);
-        $this->preprodModel = $rdsSystem->getMessagingRdsMsModel('preprod');
-
         $this->gid = posix_getpgid(posix_getpid());
 
-        $this->model->getBuildTask($workerName, false, function(\RdsSystem\Message\BuildTask $task) use ($workerName) {
-            sleep(3);
+        $this->model->getBuildTask($workerName, false, function (\RdsSystem\Message\BuildTask $task) use ($workerName, $driver) {
             $this->currentTask = $task;
-            $this->debugLogger->message("Task received: ".json_encode($task));
+            $this->debugLogger->message("Task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
             posix_setpgid(posix_getpid(), posix_getpid());
             $commandExecutor = new CommandExecutor($this->debugLogger);
@@ -58,13 +49,11 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
             $release = $task->release;
             $lastBuildTag = $task->lastBuildTag;
 
-            $semaphore = new \Semaphore($this->debugLogger, \Config::getInstance()->semaphore_dir."/merge_deploy.smp");
-
-            $basePidFilename = \Config::getInstance()->pid_dir."/{$workerName}_deploy_$taskId.php";
+            $basePidFilename = \Config::getInstance()->pid_dir . "/{$workerName}_deploy_$taskId.php";
             file_put_contents("$basePidFilename.pid", posix_getpid());
             file_put_contents("$basePidFilename.pgid", posix_getpgid(posix_getpid()));
 
-            register_shutdown_function(function() use ($basePidFilename){
+            register_shutdown_function(function () use ($basePidFilename) {
                 unlink("$basePidFilename.pid");
                 unlink("$basePidFilename.pgid");
             });
@@ -77,12 +66,16 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
 
             $currentOperation = "none";
             try {
-                //an: Сигнализируем о начале работы
+                // an: Сигнализируем о начале работы
                 $currentOperation = "send status 'building'";
                 $this->sendStatus('building');
 
-                //an: Собираем проект
-                $command = "env VERBOSE=y bash bash/rebuild-package.sh $project $version $release $taskId ".Config::getInstance()->rdsDomain." ".Config::getInstance()->createTag." $lastBuildTag 2>&1";
+                $buildDir = "/home/release/build/";
+                $buildTmp = "/home/release/buildtmp/";
+                $buildRoot = "/home/release/buildroot/$project-$version";
+                // an: Собираем проект
+                $command = "env VERBOSE=y bash bash/rebuild-package.sh $project $version $release $taskId " .
+                    Config::getInstance()->rdsDomain . " " . Config::getInstance()->createTag . " $buildDir $buildTmp $buildRoot 2>&1";
 
                 if (Config::getInstance()->debug) {
                     $command = "php bash/fakeRebuild.php $project $version";
@@ -90,19 +83,22 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
 
                 $currentOperation = "building";
 
-                $this->debugLogger->message("Locking semaphore");
-                $semaphore->lock();
-                $this->debugLogger->message("Locked semaphore");
                 $text = $commandExecutor->executeCommand($command);
-                $semaphore->unlock();
-                $this->debugLogger->message("Unlocked semaphore");
+
+                // an: Упаковываем проект в deb/rpm пакет
+                $command = "bash bash/$driver/build.sh $project $version $buildTmp $buildRoot 2>&1";
+
+                if (Config::getInstance()->debug) {
+                    $command = "php bash/fakeRebuild.php $project $version";
+                }
+                $text .= $commandExecutor->executeCommand($command);
 
                 $output = '';
-                //an: хак, для словаря мы ничего не тегаем и патч не отправляем, пока что
+                // an: хак, для словаря мы ничего не тегаем и патч не отправляем, пока что
                 if ($project != 'dictionary') {
-                    //an: Отправляем на сервер какие тикеты были в этом билде
+                    // an: Отправляем на сервер какие тикеты были в этом билде
                     $currentOperation = "getting_build_patch";
-                    $srcDir="/home/release/build/$project";
+                    $srcDir = "/home/release/build/$project";
 
                     $mapFilename = "$srcDir/lib/map.txt";
 
@@ -120,7 +116,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                         try {
                             $output = $commandExecutor->executeCommand($command);
                         } catch (CommandExecutorException $e) {
-                            //an: 128 - это когда нет какого-то тега в прошлом.
+                            // an: 128 - это когда нет какого-то тега в прошлом.
                             //@todo подумать как это корректо обрабатывать такую ситуацию и реализовать
                             $output = $e->output;
                             if ($e->getCode() != 128) {
@@ -130,25 +126,23 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                     } else {
                         $this->debugLogger->message("No map.txt found, skip patch sending");
                     }
-
                 }
 
                 $currentOperation = "sending_build_patch";
 
-                $this->debugLogger->message("Sending building patch, length=".strlen($output));
+                $this->debugLogger->message("Sending building patch, length=" . strlen($output));
                 $this->model->sendBuildPatch(
                     new Message\ReleaseRequestBuildPatch($project, $version, $output)
                 );
 
-                //an: Сигнализируем все что собрали и начинаем раскладывать по серверам
+                // an: Сигнализируем все что собрали и начинаем раскладывать по серверам
                 $this->sendStatus('built', $version, $text);
 
                 $currentOperation = "get_migrations_list";
-                //an: Должно быть такое же, как в rebuild-package.sh
+                // an: Должно быть такое же, как в rebuild-package.sh
                 $filename = "$projectDir/misc/tools/migration.php";
-                $migrations = array();
                 if (file_exists($filename)) {
-                    //an: Проект с миграциями
+                    // an: Проект с миграциями
                     foreach (array('pre', 'post', 'hard') as $type) {
                         $command = "php $filename migration --type=$type --project=$project new 100000 --interactive=0 2>&1";
                         $text = $commandExecutor->executeCommand($command);
@@ -156,7 +150,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                             continue;
                         }
 
-                        //an: Текст, начиная с Found (\d+) new migration
+                        // an: Текст, начиная с Found (\d+) new migration
                         $subtext = substr($text, strpos($text, $ans[0]));
                         $subtext = str_replace('\\', '/', $subtext);
                         $lines = explode("\n", str_replace("\r", "", $subtext));
@@ -170,7 +164,12 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                 }
 
                 if (\Config::getInstance()->debug) {
-                    $migrations = ["Y2014_2/m140905_090321_add_new_func_get_trade_transaction_list_by_account_and_operation_types","Y2014_2/m140908_193018_add_col__trade_repeater__payment__status","Y2014_2/m140908_194447_new_sp__trade_repeater__add_payment","Y2014_2/m140908_195905_new_sp__trade_repeater__update_payment_transfer_status"];
+                    $migrations = [
+                        "Y2014_2/m140905_090321_add_new_func_get_trade_transaction_list_by_account_and_operation_types",
+                        "Y2014_2/m140908_193018_add_col__trade_repeater__payment__status",
+                        "Y2014_2/m140908_194447_new_sp__trade_repeater__add_payment",
+                        "Y2014_2/m140908_195905_new_sp__trade_repeater__update_payment_transfer_status",
+                    ];
                     $this->model->sendMigrations(
                         new Message\ReleaseRequestMigrations($project, $version, $migrations, 'pre')
                     );
@@ -182,28 +181,23 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
 
 
                 $currentOperation = "installing";
-                //an: Раскладываем собранный проект по серверам
-                $command = "bash bash/deploy.sh install $project $version 2>&1";
+                // an: Раскладываем собранный проект по серверам
+                $command = "bash bash/$driver/publish.sh $project $version 2>&1";
 
                 if (Config::getInstance()->debug) {
                     $command = "php bash/fakeRebuild.php $project $version";
                 }
                 $text = $commandExecutor->executeCommand($command);
 
-                if (\Config::getInstance()->installToPreprod && $task->installToPreProd) {
-                    $this->installToPreprod($this->model, $taskId, $version, $project);
-                } else {
-                    $this->debugLogger->message("Skip installing to preprod");
-                }
-
-                //an: Отправляем новые сгенерированные /etc/cron.d конфиги
+                // an: Отправляем новые сгенерированные /etc/cron.d конфиги
                 $cronConfig = "";
                 if (Config::getInstance()->debug && $project != 'dictionary') {
-
-                    $command = "php $projectDir/misc/tools/runner.php --tool=CodeGenerate_CronjobGenerator --project=$project --env=dev --server=1 --package=$project-$version > $projectDir/misc/cronjobs/cronjob-$project-tl1";
+                    $command = "php $projectDir/misc/tools/runner.php --tool=CodeGenerate_CronjobGenerator --project=$project " .
+                        "--env=dev --server=1 --package=$project-$version > $projectDir/misc/cronjobs/cronjob-$project-tl1";
                     $commandExecutor->executeCommand($command);
 
-                    $command = "php $projectDir/misc/tools/runner.php --tool=CodeGenerate_CronjobGenerator --project=$project --env=dev --server=2 --package=$project-$version > $projectDir/misc/cronjobs/cronjob-$project-tl2";
+                    $command = "php $projectDir/misc/tools/runner.php --tool=CodeGenerate_CronjobGenerator --project=$project " .
+                        "--env=dev --server=2 --package=$project-$version > $projectDir/misc/cronjobs/cronjob-$project-tl2";
                     $commandExecutor->executeCommand($command);
                 }
 
@@ -216,7 +210,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                 $this->model->sendCronConfig(
                     new Message\ReleaseRequestCronConfig($taskId, $cronConfig)
                 );
-                //an: Сигнализируем все что сделали
+                // an: Сигнализируем все что сделали
                 $this->sendStatus('installed', $version, $text);
             } catch (CommandExecutorException $e) {
                 $text = $e->output;
@@ -226,7 +220,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
 
                 $this->sendStatus('failed', $version, $text);
             } catch (Exception $e) {
-                $this->debugLogger->error("Unknown error: ".$e->getMessage());
+                $this->debugLogger->error("Unknown error: " . $e->getMessage());
                 $this->sendStatus('failed', $version, $e->getMessage());
             }
 
@@ -249,15 +243,19 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
      */
     private function sendStatus($status, $version = null, $attach = null)
     {
-        $this->debugLogger->message("Task status changed: status=$status, version=$version, attach_length=".strlen($attach));
+        $this->debugLogger->message("Task status changed: status=$status, version=$version, attach_length=" . strlen($attach));
         $this->model->sendTaskStatusChanged(
             new Message\TaskStatusChanged($this->taskId, $status, $version, $attach)
         );
     }
 
+    /**
+     * @param int $signo
+     * @return int
+     */
     public function onTerm($signo)
     {
-        $this->debugLogger->message("Caught signal $signo");;
+        $this->debugLogger->message("Caught signal $signo");
         if ($signo == SIGTERM || $signo == SIGINT) {
             $this->currentTask->accepted();
 
@@ -268,89 +266,10 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
 
             CoreLight::getInstance()->getFatalWatcher()->stop();
 
-            //an: выходим со статусом 0, что бы periodic не останавливался
+            // an: выходим со статусом 0, что бы periodic не останавливался
             exit(0);
         }
 
-        return parent::onTerm($signo);
-    }
-
-    private function installToPreprod($model, $taskId, $version, $project)
-    {
-        $this->debugLogger->message("Installing to preprod");
-        //an: хардкод, тут нужно перебрать всех воркеров preprod контура
-        $worker = 'debian';
-
-        //an: генерируем рамдомную строчку, нам главное проверить что ответ пришел на нужным нам запрос
-        $releaseRequestId = uniqid();
-
-        $model->sendTaskStatusChanged(new Message\TaskStatusChanged($taskId, 'preprod_using'));
-
-
-        $this->debugLogger->message("Sending use task to preprod: project=$project, version=$version");
-
-        $this->preprodModel->sendUseTask($worker, new Message\UseTask($project, $releaseRequestId, $version, 'used'));
-
-        $this->preprodModel->readUsedVersion(false, function (Message\ReleaseRequestUsedVersion $message) use ($project, $version, $worker, $model, $taskId) {
-            if ($message->version != $version || $message->project != $project || $message->worker != $worker) {
-                $this->debugLogger->message("Skip used message as $message->version != $version || $message->project != $project || $message->worker != $worker");
-                $message->accepted();
-
-                return;
-            }
-
-            $message->accepted();
-            $this->debugLogger->message("Sending migration task to preprod: project=$project, version=$version");
-            $model->sendTaskStatusChanged(new Message\TaskStatusChanged($taskId, 'preprod_migrations'));
-            $this->preprodModel->sendMigrationTask(new Message\MigrationTask($project, $version, 'pre'));
-        });
-
-        $this->preprodModel->readUseError(false, function (Message\ReleaseRequestUseError $message) use ($releaseRequestId, $model, $taskId) {
-            if ($message->releaseRequestId != $releaseRequestId) {
-                $this->debugLogger->message("Skip use error message as $message->releaseRequestId != $releaseRequestId");
-                $message->accepted();
-                return;
-            }
-
-            $message->accepted();
-
-            $model->sendTaskStatusChanged(new Message\TaskStatusChanged($taskId, 'failed'));
-            $this->debugLogger->error("Failed to use version on preprod, " . json_decode($message));
-            $this->preprodModel->stopReceivingMessages();
-
-            throw new \Exception("Failed to use version on preprod, " . json_decode($message));
-        });
-
-        $this->preprodModel->readOldVersion(false, function (Message\ReleaseRequestOldVersion $message) use ($releaseRequestId, $model, $taskId) {
-            if ($message->releaseRequestId != $releaseRequestId) {
-                $this->debugLogger->message("Skip readOldVersion message as $message->releaseRequestId != $releaseRequestId");
-                $message->accepted();
-                return;
-            }
-
-            //an: Просто вычитываем очередь, что бы вообщения не скапливались
-            $message->accepted();
-        });
-
-        $this->preprodModel->readMigrationStatus(false, function (Message\ReleaseRequestMigrationStatus $message) use ($project, $version, $worker) {
-            $message->accepted();
-            if ($message->version == $version && $message->project == $project && $message->type == 'pre') {
-                if ($message->status == 'up') {
-                    $this->debugLogger->message("Migrations are up to date, exiting");
-                    $this->preprodModel->stopReceivingMessages();
-                } else {
-                    throw new Exception("Failed to migrate on preprod " . json_encode($message->errorText));
-                }
-            }
-        });
-
-
-        try {
-            $this->preprodModel->waitForMessages(null, null, self::PREPROD_TIMEOUT);
-        } catch (\PhpAmqpLib\Exception\AMQPTimeoutException $e) {
-            $this->debugLogger->error("Failed to use version on preprod as timeout");
-            $model->sendTaskStatusChanged(new Message\TaskStatusChanged($taskId, 'failed'));
-            throw $e;
-        }
+        parent::onTerm($signo);
     }
 }

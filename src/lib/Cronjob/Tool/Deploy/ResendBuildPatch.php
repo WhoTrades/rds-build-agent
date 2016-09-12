@@ -9,6 +9,9 @@ use RdsSystem\lib\CommandExecutorException;
 
 class Cronjob_Tool_Deploy_ResendBuildPatch extends RdsSystem\Cron\RabbitDaemon
 {
+    /**
+     * @return array
+     */
     public static function getCommandLineSpec()
     {
         return [
@@ -33,6 +36,11 @@ class Cronjob_Tool_Deploy_ResendBuildPatch extends RdsSystem\Cron\RabbitDaemon
         ] + parent::getCommandLineSpec();
     }
 
+    /**
+     * @param \Cronjob\ICronjob $cronJob
+     *
+     * @throws CommandExecutorException
+     */
     public function run(\Cronjob\ICronjob $cronJob)
     {
         $model  = $this->getMessagingModel($cronJob);
@@ -43,8 +51,8 @@ class Cronjob_Tool_Deploy_ResendBuildPatch extends RdsSystem\Cron\RabbitDaemon
         $lastBuildTag = $cronJob->getOption('lastBuildTag');
 
 
-        //an: Сигнализируем о начале работы
-        $srcDir="/home/release/build/$project";
+        // an: Сигнализируем о начале работы
+        $srcDir = "/home/release/build/$project";
 
         if ($lastBuildTag) {
             $command = "(cd $srcDir/lib; node /home/release/git-tools/alias/git-all.js \"git log $lastBuildTag..$project-$version --pretty='%H|%s|/%an/'\")";
@@ -59,7 +67,7 @@ class Cronjob_Tool_Deploy_ResendBuildPatch extends RdsSystem\Cron\RabbitDaemon
         try {
             $output = $commandExecutor->executeCommand($command);
         } catch (CommandExecutorException $e) {
-            //an: 128 - это когда нет какого-то тега в прошлом.
+            // an: 128 - это когда нет какого-то тега в прошлом.
             //@todo подумать как это корректо обрабатывать такую ситуацию и реализовать
             if ($e->getCode() != 128) {
                 throw $e;
@@ -68,7 +76,7 @@ class Cronjob_Tool_Deploy_ResendBuildPatch extends RdsSystem\Cron\RabbitDaemon
             }
         }
 
-        $this->debugLogger->message("Sending building patch, length=".strlen($output));
+        $this->debugLogger->message("Sending building patch, length=" . strlen($output));
 
         if ($cronJob->getOption('dry-run')) {
             $this->debugLogger->message("Output: $output");

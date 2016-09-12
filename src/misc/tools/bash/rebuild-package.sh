@@ -16,6 +16,9 @@ unset GIT_WORK_DIR
 : ${taskId=$4}
 : ${rdsDomain=$5}
 : ${createTag=$6}
+: ${BUILD=$7}
+: ${BUILDTMP=$8}
+: ${BUILDTMP=$9}
 
 NAME=`basename $NAME`
 
@@ -24,19 +27,18 @@ if isnull $NAME; then
   exitf
 fi
 
-BUILD="/home/release/build"
-#rm -rf $BUILD/*
+SRCDIR=$BUILD/$NAME
 
-BUILDTMP="/home/release/buildtmp"
 rm -rf $BUILDTMP/*
-
-BUILDROOT="/home/release/buildroot/${NAME}-${VERSION}"
 rm -rf $BUILDROOT/*
-
-SRCDIR=/home/release/build/$NAME
 rm -rf $SRCDIR/phing-task
 
+if [ ! -d $SRCDIR ]; then
+    mkdir $SRCDIR
+fi
+
 cd $BUILDTMP
+
 git archive --format tar --remote ssh://git.whotrades.net/srv/git/sparta master services/phing-task|tar -xv > phing-task.log
 code=$?
 if [ $code -ne 0 ]; then
@@ -50,41 +52,22 @@ ln -sf $BUILDTMP/services/phing-task/build/$NAME/build.xml $SRCDIR/build.xml
 ln -s $BUILDTMP/services/phing-task/ $SRCDIR/phing-task
 
 mkdir -p $BUILDROOT/var/pkg/${NAME}-${VERSION}
-phing -Dname=$NAME -Ddestdir=$BUILDROOT/var/pkg/${NAME}-${VERSION} -DtaskId=${taskId} -DrdsDomain=${rdsDomain} -Drepository.createtag=${createTag} -Dversion=${VERSION} -Dproject=${NAME} -Ddictionary.sqlite.update=true -Drelease=$release  -Drepositories.update=true -f $SRCDIR/build.xml build
+phing \
+    -Dname=$NAME \
+    -Ddestdir=$BUILDROOT/var/pkg/${NAME}-${VERSION} \
+    -DtaskId=${taskId} \
+    -DrdsDomain=${rdsDomain} \
+    -Drepository.createtag=${createTag} \
+    -Dversion=${VERSION} \
+    -Dproject=${NAME} \
+    -Drelease=$release  \
+    -Drepositories.update=true \
+    -f $SRCDIR/build.xml \
+    build
+
 code=$?
 if [ $code -ne 0 ]; then
     echo "Build failed"
     exit 12
 fi
 
-# Create deb-package
-echo "2.0" > $BUILDTMP/debian-binary
-
-echo "TAR directory $BUILDROOT"
-cd $BUILDROOT
-tar -cf - * | gzip > $BUILDTMP/data.tar.gz
-
-cd $BUILDTMP
-echo "Package: ${NAME}-${VERSION}" > ./control
-echo "Architecture: all" >> ./control
-echo "Version: ${VERSION}" >> ./control
-echo "Maintainer: Package Builder <vdm+release@whotrades.net>" >> ./control
-echo "Priority: optional" >> ./control
-echo "Description: WhoTrades.com ${NAME} sources" >> ./control
-echo " WhoTrades.com ${NAME} sources" >> ./control
-tar -cf - ./control | gzip > ./control.tar.gz
-
-ar -qS "${NAME}-${VERSION}_all.deb" debian-binary control.tar.gz data.tar.gz
-
-cd /var/www/whotrades_repo
-reprepro export
-reprepro createsymlinks
-reprepro -S admin -C non-free -P extra includedeb wheezy $BUILDTMP/${NAME}-${VERSION}_all.deb
-RETVAL=$?
-
-if [ $RETVAL -eq 0 ]; then
-  echo ${GREEN}$NAME-$VERSION${NORMAL}
-fi
-
-cd $SCRIPT_PATH
-exit $RETVAL

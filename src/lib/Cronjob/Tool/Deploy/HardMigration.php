@@ -8,19 +8,25 @@ use RdsSystem\lib\CommandExecutorException;
 class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
 {
     const MAX_LOG_LENGTH = 100000;
-    const LOG_LAG_TIME = 0.1; //an: в секундах
+    const LOG_LAG_TIME = 0.1; // an: в секундах
 
+    /**
+     * @return array
+     */
     public static function getCommandLineSpec()
     {
         return [] + parent::getCommandLineSpec();
     }
 
+    /**
+     * @param \Cronjob\ICronjob $cronJob
+     */
     public function run(\Cronjob\ICronjob $cronJob)
     {
         $model  = $this->getMessagingModel($cronJob);
         $workerName = \Config::getInstance()->workerName;
 
-        $model->getHardMigrationTask(false, function(\RdsSystem\Message\HardMigrationTask $task) use ($workerName, $model) {
+        $model->getHardMigrationTask($workerName, false, function (\RdsSystem\Message\HardMigrationTask $task) use ($workerName, $model) {
             try {
                 //an: Должно быть такое же, как в rebuild-package.sh
                 $filename = "/home/release/buildroot/$task->project-$task->version/var/pkg/$task->project-$task->version/misc/tools/migration.php";
@@ -32,9 +38,9 @@ class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
 
                 if (Config::getInstance()->debug) {
                     if ($task->project == 'comon') {
-                        $filename = __DIR__."/../../../../../../comon/misc/tools/migration.php";
+                        $filename = __DIR__ . "/../../../../../../comon/misc/tools/migration.php";
                     } else {
-                        $filename = __DIR__."/../../../../../$task->project/misc/tools/migration.php";
+                        $filename = __DIR__ . "/../../../../../$task->project/misc/tools/migration.php";
                     }
                 }
 
@@ -49,9 +55,9 @@ class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
                 $output = "";
                 $t = microtime(true);
                 $chunk = "";
-                ob_start(function($string) use ($model, $task, &$t, &$chunk, &$output) {
+                ob_start(function ($string) use ($model, $task, &$t, &$chunk, &$output) {
                     $chunk .= $string;
-                    $output = substr($output.$string, -self::MAX_LOG_LENGTH);
+                    $output = substr($output . $string, -self::MAX_LOG_LENGTH);
 
                     fwrite(STDOUT, $string);
 
@@ -72,12 +78,12 @@ class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
                 }
 
                 if ($returnVar) {
-                    throw new CommandExecutorException("Return var is non-zero, code=".$returnVar.", command=$command", $returnVar, $output);
+                    throw new CommandExecutorException("Return var is non-zero, code=" . $returnVar . ", command=$command", $returnVar, $output);
                 }
 
                 $model->sendHardMigrationStatus(new \RdsSystem\Message\HardMigrationStatus($task->migration, 'done'));
             } catch (CommandExecutorException $e) {
-                //an: 66 - это остановка миграции из RDS
+                // an: 66 - это остановка миграции из RDS
                 if ($e->getCode() == 66) {
                     $this->debugLogger->message("Stopped migration via RDS signal");
                     $model->sendHardMigrationStatus(new \RdsSystem\Message\HardMigrationStatus($task->migration, 'stopped'));

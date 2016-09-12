@@ -42,7 +42,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
     }
 
     /**
-     * Performs actual work
+     * @param \Cronjob\ICronjob $cronJob
      */
     public function run(\Cronjob\ICronjob $cronJob)
     {
@@ -52,13 +52,16 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
         $this->allowedBranches = array_filter(explode(",", $cronJob->getOption('allowed-branches')));
         $this->disallowedBranches = array_filter(explode(",", $cronJob->getOption('disallowed-branches')));
 
-        $model->readMergeTask(false, function(\RdsSystem\Message\Merge\Task $task) use ($model, $instance) {
+        $workerName = \Config::getInstance()->workerName;
+
+        $model->readMergeTask($workerName, false, function (\RdsSystem\Message\Merge\Task $task) use ($model, $instance) {
             $sourceBranch = $task->sourceBranch;
             $targetBranch = $task->targetBranch;
 
             if (!$this->isBranchAllowed($targetBranch)) {
                 $this->debugLogger->message("[!] Skip merge task to branch $targetBranch as it is not allowed");
                 $task->retry();
+
                 return;
             }
 
@@ -74,14 +77,14 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
             $this->commandExecutor = new CommandExecutor($this->debugLogger);
 
-            $bashDir = dirname(dirname(dirname(dirname(__DIR__))))."/misc/tools/bash/";
+            $bashDir = dirname(dirname(dirname(dirname(__DIR__)))) . "/misc/tools/bash/";
             $errors = [];
-            try {
 
+            try {
                 $cmd = "(cd $dir; node git-tools/alias/git-all.js git fetch)";
                 $this->commandExecutor->executeCommand($cmd);
 
-                //an: clean up
+                // an: clean up
                 $cmd = "(cd $dir; node git-tools/alias/git-all.js rm -fr .git/rebase-apply)";
                 $this->commandExecutor->executeCommand($cmd);
 
@@ -98,7 +101,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                 $this->commandExecutor->executeCommand($cmd);
 
                 if ($autoConflictResolveEnabled) {
-                    //an: Учимся разрешать конфликты
+                    // an: Учимся разрешать конфликты
                     $branch = 'develop';
                     $file = ".git/rerere-$branch";
                     $cmd = "(cd $dir; node git-tools/alias/git-all.js 'if [ -f $file ]; then start=`cat $file`; bash $bashDir/rerere-train.sh \$start..origin/$branch; else bash $bashDir/rerere-train.sh --max-count=100 $branch; fi; git log origin/$branch -1 --pretty=%H > $file;')";
@@ -110,7 +113,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                     $this->commandExecutor->executeCommand($cmd);
                 }
 
-                //an: source branch
+                // an: source branch
                 $cmd = "(cd $dir; node git-tools/alias/git-all.js \"git checkout $task->sourceBranch || git checkout -b $task->sourceBranch\")";
                 $this->commandExecutor->executeCommand($cmd);
 
@@ -139,10 +142,10 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                 $this->commandExecutor->executeCommand($cmd);
 
                 if ($autoConflictResolveEnabled) {
-                    //an: Мержим с использованием http://git-scm.com/blog/2010/03/08/rerere.html. Это позволяет автоматически разрешать конфликты, разрешенные ранее
+                    // an: Мержим с использованием http://git-scm.com/blog/2010/03/08/rerere.html. Это позволяет автоматически разрешать конфликты, разрешенные ранее
                     $cmd = "(cd $dir; node git-tools/alias/git-all.js 'git merge $task->sourceBranch || (if [ `git status --porcelain|grep -vE \"^(M|E|A|D|C|R) \"|wc -l` -eq 0 ]; then git commit -m \"auto resolve conflict using previous resolution\"; exit $?; else exit 1; fi;)')";
                 } else {
-                    //an: обычный мерж
+                    // an: обычный мерж
                     $cmd = "(cd $dir; node git-tools/alias/git-all.js git merge $task->sourceBranch)";
                 }
 
@@ -150,13 +153,13 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                     $output = $this->commandExecutor->executeCommand($cmd);
 
                     if ($autoConflictResolveEnabled) {
-                        $this->debugLogger->message("Output: ".json_encode($output));
+                        $this->debugLogger->message("Output: " . json_encode($output));
                     }
                 } catch (\RdsSystem\lib\CommandExecutorException $e) {
                     if ($e->getCode() == 1) {
-                        //an: Ошибка мержа
+                        // an: Ошибка мержа
                         $this->debugLogger->message("Conflict detected, $e->output");
-                        $errors[] = "Conflicts detected: \n".$this->parseMergeOutput($e->output);
+                        $errors[] = "Conflicts detected: \n" . $this->parseMergeOutput($e->output);
                     } else {
                         throw $e;
                     }
@@ -171,12 +174,6 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                 try {
                     $this->debugLogger->message("No errors during merge, pushing changes");
 
-                    if ($targetBranch == "master") {
-                        $semaphore = new \Semaphore($this->debugLogger, \Config::getInstance()->semaphore_dir."/merge_deploy.smp");
-                        $this->debugLogger->message("Locking semaphore");
-                        $semaphore->lock();
-                        $this->debugLogger->message("Locked semaphore");
-                    }
                     $cmd = "(cd $dir; node git-tools/alias/git-all.js git push)";
                     if (!\Config::getInstance()->mergeDryRun) {
                         $this->commandExecutor->executeCommand($cmd);
@@ -188,24 +185,21 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                     $this->debugLogger->message("Unknown error during pushing merge: $e->output");
                     $errors[] = "Unknown error during pushing merge: $e->output";
                 }
-                if (!empty($semaphore)) {
-                    $semaphore->unlock();
-                    $this->debugLogger->message("Unlocking semaphore");
-                    unset($semaphore);
-                    $this->debugLogger->message("Unlocked semaphore");
-                }
             } else {
                 $this->debugLogger->message("Merge errors detected, skip pushing");
             }
 
             $this->debugLogger->debug("Sending reply with id=$task->featureId...");
-            $model->sendMergeTaskResult(new Message\Merge\TaskResult($task->featureId, $task->sourceBranch, $task->targetBranch, empty($errors), $errors, $task->type));
+            $model->sendMergeTaskResult(
+                \Yii::app()->modules['Wtflow']['workerName'],
+                new Message\Merge\TaskResult($task->featureId, $task->sourceBranch, $task->targetBranch, empty($errors), $errors, $task->type)
+            );
 
             $this->debugLogger->message("Task accepted");
             $task->accepted();
         });
 
-        $model->readMergeCreateBranch(false, function(Message\Merge\CreateBranch $task) use ($instance) {
+        $model->readMergeCreateBranch($workerName, false, function (Message\Merge\CreateBranch $task) use ($instance) {
             $this->debugLogger->message("Creating branch $task->branch from $task->source");
 
             if (empty($task->source)) {
@@ -229,7 +223,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
             $this->commandExecutor->executeCommand($cmd);
 
             if (!\Config::getInstance()->mergeDryRun) {
-                $cmd = "(cd $dir; node git-tools/alias/git-all.js git push origin $task->source:$task->branch".($task->force ? " --force" : "").")";
+                $cmd = "(cd $dir; node git-tools/alias/git-all.js git push origin $task->source:$task->branch" . ($task->force ? " --force" : "") . ")";
                 $this->commandExecutor->executeCommand($cmd);
             } else {
                 sleep(3);
@@ -245,17 +239,17 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
     private function isBranchAllowed($branch)
     {
-        //an: Если наша ветка в списке запрещенных - она запрещена
+        // an: Если наша ветка в списке запрещенных - она запрещена
         if (!empty($this->disallowedBranches) && in_array($branch, $this->disallowedBranches)) {
             return false;
         }
 
-        //an: Если нашей ветке нет в списке разрешенных - она запрещена
+        // an: Если нашей ветке нет в списке разрешенных - она запрещена
         if (!empty($this->allowedBranches) && !in_array($branch, $this->allowedBranches)) {
             return false;
         }
 
-        //an: Если оба списка пустые - ветка разрешена
+        // an: Если оба списка пустые - ветка разрешена
         return true;
     }
 
@@ -266,17 +260,17 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
      */
     private function parseMergeOutput($text)
     {
-        $text = str_replace("script worked", ">>>", $text);;
-        $text = preg_replace('~>>>\s+'.realpath(\Config::getInstance()->mergePoolDir).'~', "$0\n$0", $text);;
+        $text = str_replace("script worked", ">>>", $text);
+        $text = preg_replace('~>>>\s+' . realpath(\Config::getInstance()->mergePoolDir) . '~', "$0\n$0", $text);
 
-        $regex = '~>>>\s+'.realpath(\Config::getInstance()->mergePoolDir).'/\d+/([\w-]+)\s*(.*?)\s*\n>>>~sui';
+        $regex = '~>>>\s+' . realpath(\Config::getInstance()->mergePoolDir) . '/\d+/([\w-]+)\s*(.*?)\s*\n>>>~sui';
         $result = [];
-        preg_replace_callback($regex, function($ans) use (&$result){
-                    if ($ans[2] == 'Already up-to-date.') {
-                        return;
-                    }
-                    $result[$ans[1]] = $ans[2];
-                }, $text.">>>");
+        preg_replace_callback($regex, function ($ans) use (&$result) {
+            if ($ans[2] == 'Already up-to-date.') {
+                return;
+            }
+            $result[$ans[1]] = $ans[2];
+        }, $text . ">>>");
 
         ksort($result);
 
@@ -313,9 +307,17 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
         return $result;
     }
 
+    /**
+     * @param ServiceBase_IDebugLogger $debugLogger
+     * @param int                      $instance
+     *
+     * @return string
+     * @throws ApplicationException
+     * @throws \RdsSystem\lib\CommandExecutorException
+     */
     public static function fetchRepositories(\ServiceBase_IDebugLogger $debugLogger, $instance = 0)
     {
-        $dir = Config::getInstance()->mergePoolDir.$instance;
+        $dir = Config::getInstance()->mergePoolDir . $instance;
 
         $debugLogger->message("Pool dir: $dir");
         if (!is_dir($dir)) {

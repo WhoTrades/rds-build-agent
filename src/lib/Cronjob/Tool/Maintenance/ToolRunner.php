@@ -28,7 +28,7 @@ class Cronjob_Tool_Maintenance_ToolRunner extends RdsSystem\Cron\RabbitDaemon
     }
 
     /**
-     * Performs actual work
+     * @param \Cronjob\ICronjob $cronJob
      */
     public function run(\Cronjob\ICronjob $cronJob)
     {
@@ -36,7 +36,9 @@ class Cronjob_Tool_Maintenance_ToolRunner extends RdsSystem\Cron\RabbitDaemon
 
         $this->gid = posix_getpgid(posix_getpid());
 
-        $this->model->readMaintenanceToolStart(false, function(\RdsSystem\Message\MaintenanceTool\Start $task) {
+        $workerName = \Config::getInstance()->workerName;
+
+        $this->model->readMaintenanceToolStart($workerName, false, function (\RdsSystem\Message\MaintenanceTool\Start $task) {
             $this->currentTask = $task;
             $task->accepted();
             $this->debugLogger->message("Task started");
@@ -51,7 +53,7 @@ class Cronjob_Tool_Maintenance_ToolRunner extends RdsSystem\Cron\RabbitDaemon
             $output = "";
             $t = microtime(true);
             $chunk = "";
-            ob_start(function($string) use ($task, &$t, &$chunk, &$output) {
+            ob_start(function ($string) use ($task, &$t, &$chunk, &$output) {
                 $chunk .= $string;
                 $output .= $string;
                 fwrite(STDOUT, $string);
@@ -65,7 +67,7 @@ class Cronjob_Tool_Maintenance_ToolRunner extends RdsSystem\Cron\RabbitDaemon
                 }
             }, 10);
 
-            system($task->command." 2>&1", $returnVar);
+            system($task->command . " 2>&1", $returnVar);
 
             $output = $chunk . ob_get_clean();
 
@@ -88,11 +90,13 @@ class Cronjob_Tool_Maintenance_ToolRunner extends RdsSystem\Cron\RabbitDaemon
         $this->waitForMessages($this->model, $cronJob);
     }
 
+    /**
+     * @param int $signo
+     */
     public function onTerm($signo)
     {
-        $this->debugLogger->message("Caught signal $signo");;
+        $this->debugLogger->message("Caught signal $signo");
         if ($signo == SIGTERM || $signo == SIGINT) {
-
             $this->debugLogger->message("Cancelling...");
             $this->model->sendMaintenanceToolChangeStatus(new \RdsSystem\Message\MaintenanceTool\ChangeStatus($this->currentTask->id, 'failed', $this->pid));
             $this->debugLogger->message("Cancelled...");

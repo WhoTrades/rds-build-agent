@@ -17,24 +17,24 @@ class Cronjob_Tool_Deploy_Killer extends \RdsSystem\Cron\RabbitDaemon
         return [] + parent::getCommandLineSpec();
     }
 
-
     /**
-     * Performs actual work
+     * @param \Cronjob\ICronjob $cronJob
      */
     public function run(\Cronjob\ICronjob $cronJob)
     {
         $model  = $this->getMessagingModel($cronJob);
         $workerName = \Config::getInstance()->workerName;
 
-        $model->getKillTask($workerName, false, function(\RdsSystem\Message\KillTask $task) use ($model, $workerName) {
+        $model->getKillTask($workerName, false, function (\RdsSystem\Message\KillTask $task) use ($model, $workerName) {
             $commandExecutor = new CommandExecutor($this->debugLogger);
 
             $this->debugLogger->message("Killing $task->project, task_id=$task->taskId");
 
-            $filename = \Config::getInstance()->pid_dir."/{$workerName}_deploy_$task->taskId.php.pid";
+            $filename = \Config::getInstance()->pid_dir . "/{$workerName}_deploy_$task->taskId.php.pid";
             if (!file_exists($filename)) {
                 $this->debugLogger->message("No pid file $filename, may be process already finished");
                 $task->accepted();
+
                 return;
             }
             $pid = file_get_contents($filename);
@@ -49,7 +49,7 @@ class Cronjob_Tool_Deploy_Killer extends \RdsSystem\Cron\RabbitDaemon
             $task->accepted();
         });
 
-        $model->readUnixSignals(false, function(\RdsSystem\Message\UnixSignal $message) use ($model, $workerName) {
+        $model->readUnixSignals($workerName, false, function (\RdsSystem\Message\UnixSignal $message) use ($model, $workerName) {
             $commandExecutor = new CommandExecutor($this->debugLogger);
 
             $this->debugLogger->message("Sending signal $message->signal to PID=$message->pid");
@@ -63,7 +63,7 @@ class Cronjob_Tool_Deploy_Killer extends \RdsSystem\Cron\RabbitDaemon
             $message->accepted();
         });
 
-        $model->readUnixSignalsToGroup(false, function(\RdsSystem\Message\UnixSignalToGroup $message) use ($model, $workerName) {
+        $model->readUnixSignalsToGroup($workerName, false, function (\RdsSystem\Message\UnixSignalToGroup $message) use ($model, $workerName) {
             $commandExecutor = new CommandExecutor($this->debugLogger);
 
             $this->debugLogger->message("Sending signal to PGID=$message->pgid");

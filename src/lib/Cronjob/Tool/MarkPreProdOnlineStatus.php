@@ -5,6 +5,9 @@
 
 class Cronjob_Tool_MarkPreProdOnlineStatus extends RdsSystem\Cron\RabbitDaemon
 {
+    /**
+     * @return array
+     */
     public static function getCommandLineSpec()
     {
         return array(
@@ -16,6 +19,9 @@ class Cronjob_Tool_MarkPreProdOnlineStatus extends RdsSystem\Cron\RabbitDaemon
         ) + parent::getCommandLineSpec();
     }
 
+    /**
+     * @param \Cronjob\ICronjob $cronJob
+     */
     public function run(\Cronjob\ICronjob $cronJob)
     {
         $model = $this->getMessagingModel($cronJob);
@@ -30,4 +36,3 @@ class Cronjob_Tool_MarkPreProdOnlineStatus extends RdsSystem\Cron\RabbitDaemon
         $this->debugLogger->message("Message sent, finished");
     }
 }
-

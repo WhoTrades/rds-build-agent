@@ -8,10 +8,12 @@ use \Cronjob\ConfigGenerator\MultiCommandToCron;
 
 class ServiceDeployProdTL2
 {
+    /**
+     * @return array
+     */
     public function getCronConfigRows()
     {
-        $allCommands = [
-        ];
+        $allCommands = [];
 
         $allCommands = new MultiCronCommand($allCommands);
 

@@ -4,8 +4,8 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "30cc62fda6eeefa5a39ef18c65f2bef5",
-    "content-hash": "905fcacc43c50c4b46561ed364f65829",
+    "hash": "430c27be0ed10c0393b7b2f2f5d4ffec",
+    "content-hash": "27ab4bf97ca1034c1e17f77348973e7d",
     "packages": [
         {
             "name": "monolog/monolog",
@@ -13,13 +13,13 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Seldaek/monolog.git",
-                "reference": "55841909e2bcde01b5318c35f2b74f8ecc86e037"
+                "reference": "f42fbdfd53e306bda545845e4dbfd3e72edb4952"
             },
             "dist": {
                 "type": "tar",
-                "url": "https://git.whotrades.net/external/dist/monolog-monolog-1.x-dev-1c9cd7.tar",
-                "reference": "55841909e2bcde01b5318c35f2b74f8ecc86e037",
-                "shasum": "6a1368a55bba6ca8764380ac62683756c6ad6184"
+                "url": "https://git.whotrades.net/external/dist/monolog-monolog-1.x-dev-73aaf0.tar",
+                "reference": "f42fbdfd53e306bda545845e4dbfd3e72edb4952",
+                "shasum": "dd6ec1eadc87f08daaf46b5fde8474a699131c7f"
             },
             "require": {
                 "php": ">=5.3.0",
@@ -93,7 +93,7 @@
                 "logging",
                 "psr-3"
             ],
-            "time": "2016-07-02 14:02:10"
+            "time": "2016-07-29 03:23:52"
         },
         {
             "name": "php-amqplib/php-amqplib",
@@ -218,25 +218,28 @@
         },
         {
             "name": "sentry/sentry",
-            "version": "0.16.0",
+            "version": "1.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/getsentry/sentry-php.git",
-                "reference": "4f0c25064f9c50f67a810d1891bfd161bd906250"
+                "reference": "33fbf98955cdfe34e99fe43ef8bdd874253675dd"
             },
             "dist": {
                 "type": "tar",
-                "url": "https://git.whotrades.net/external/dist/sentry-sentry-0.16.0-af33f6.tar",
-                "reference": "4f0c25064f9c50f67a810d1891bfd161bd906250",
-                "shasum": "2db33661ee444bf3ca3b080520404b8e02915d9b"
+                "url": "https://git.whotrades.net/external/dist/sentry-sentry-1.1.0-918240.tar",
+                "reference": "33fbf98955cdfe34e99fe43ef8bdd874253675dd",
+                "shasum": "3e7fc033e295f612cad40a98b7e732fbce08779a"
             },
             "require": {
                 "ext-curl": "*",
                 "monolog/monolog": "*",
                 "php": ">=5.2.4"
             },
+            "conflict": {
+                "raven/raven": "*"
+            },
             "require-dev": {
-                "fabpot/php-cs-fixer": "^1.8.0",
+                "friendsofphp/php-cs-fixer": "^1.8.0",
                 "phpunit/phpunit": "^4.6.6"
             },
             "bin": [
@@ -245,7 +248,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "0.16.x-dev"
+                    "dev-master": "1.1.x-dev"
                 }
             },
             "autoload": {
@@ -268,7 +271,7 @@
                 "log",
                 "logging"
             ],
-            "time": "2016-05-03 20:11:27"
+            "time": "2016-07-30 18:28:24"
         }
     ],
     "packages-dev": [],

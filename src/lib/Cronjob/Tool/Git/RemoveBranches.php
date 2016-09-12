@@ -30,14 +30,16 @@ class Cronjob_Tool_Git_RemoveBranches extends RdsSystem\Cron\RabbitDaemon
     }
 
     /**
-     * Performs actual work
+     * @param \Cronjob\ICronjob $cronJob
      */
     public function run(\Cronjob\ICronjob $cronJob)
     {
         ini_set('memory_limit', '1G');
         $model  = $this->getMessagingModel($cronJob);
         $instance = $cronJob->getOption('instance');
-        $model->readDropBranches(false, function(\RdsSystem\Message\Merge\DropBranches $task) use ($model ,$instance) {
+        $workerName = \Config::getInstance()->workerName;
+
+        $model->readDropBranches($workerName, false, function (\RdsSystem\Message\Merge\DropBranches $task) use ($model, $instance) {
             $branch = $task->branch;
 
             $this->debugLogger->message("Removing $branch");
@@ -61,7 +63,7 @@ class Cronjob_Tool_Git_RemoveBranches extends RdsSystem\Cron\RabbitDaemon
                     $this->commandExecutor->executeCommand($cmd);
                 } catch (\RdsSystem\lib\CommandExecutorException $e) {
                     if ($e->getCode() == 2) {
-                        //an: ветка уже была удалена или не была создана, игнорируем такую ситуацию
+                        // an: ветка уже была удалена или не была создана, игнорируем такую ситуацию
                         $this->debugLogger->info("Branch $branch not exists at $repoDir, skip it");
                         continue;
                     }
@@ -72,13 +74,14 @@ class Cronjob_Tool_Git_RemoveBranches extends RdsSystem\Cron\RabbitDaemon
                 $output = trim($this->commandExecutor->executeCommand($cmd));
                 if (!$output) {
                     $this->debugLogger->info("Removing branch $branch as $repoDir, all commits exists at master branch");
-                    //an: Удаляем ветку, все комиты есть в мастере
+                    // an: Удаляем ветку, все комиты есть в мастере
                     $cmd = "(cd $repoDir; git push origin :$branch)";
                     $this->commandExecutor->executeCommand($cmd);
                 } else {
-                    //an: есть комиты, не смерженные в мастер. Такие ветки мы не удаляем, но оповещаем RDS о них
+                    // an: есть комиты, не смерженные в мастер. Такие ветки мы не удаляем, но оповещаем RDS о них
                     $this->debugLogger->info("Skip removing branch $branch as $repoDir, some commits not at master: $output");
-                    $skippedRepositories[preg_replace('~^.*/~' ,'', $repoDir)] = $output;
+
+                    $skippedRepositories[preg_replace('~^.*/~', '', $repoDir)] = $output;
                 }
             }
 

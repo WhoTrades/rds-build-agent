@@ -23,9 +23,8 @@ class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
         ) + parent::getCommandLineSpec();
     }
 
-
     /**
-     * Performs actual work
+     * @param \Cronjob\ICronjob $cronJob
      */
     public function run(\Cronjob\ICronjob $cronJob)
     {
@@ -33,15 +32,15 @@ class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
         $model->sendGetProjectsRequest(new Message\ProjectsRequest());
         $commandExecutor = new CommandExecutor($this->debugLogger);
 
-        $model->readGetProjectsReply(false, function(Message\ProjectsReply $message) use ($model, $cronJob, $commandExecutor) {
+        $model->readGetProjectsReply(false, function (Message\ProjectsReply $message) use ($model, $cronJob, $commandExecutor) {
             $toTest = array();
             foreach ($message->projects as $project) {
                 $command = Config::getInstance()->debug ? "cat bash/whotrades_repo.txt" : "reprepro -b /var/www/whotrades_repo/ listmatched wheezy '{$project['name']}-*'";
                 $text = $commandExecutor->executeCommand($command);
-                if (preg_match_all('~'.$project['name'].'-([\d.]+)~', $text, $ans)) {
+                if (preg_match_all('~' . $project['name'] . '-([\d.]+)~', $text, $ans)) {
                     $versions = $ans[1];
                     foreach ($versions as $version) {
-                        $toTest[$project['name']."-".$version] = array(
+                        $toTest[$project['name'] . "-" . $version] = array(
                             'project' => $project['name'],
                             'version' => $version,
                         );
@@ -71,12 +70,17 @@ class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
             $message->accepted();
         });
 
-        $model->readGetProjectBuildsToDeleteReply(false, function(Message\ProjectBuildsToDeleteReply $buildsReply) use ($model, $cronJob, $commandExecutor) {
+        $model->readGetProjectBuildsToDeleteReply(false, function (Message\ProjectBuildsToDeleteReply $buildsReply) use ($model, $cronJob, $commandExecutor) {
+            $driver = \Config::getInstance()->driver;
             foreach ($buildsReply->buildToDelete as $val) {
                 $project = $val['project'];
                 $version = $val['version'];
-                if (strlen($project) < 3) continue;
-                if (strlen($version) < 3) continue;
+                if (strlen($project) < 3) {
+                    continue;
+                }
+                if (strlen($version) < 3) {
+                    continue;
+                }
                 if ($cronJob->getOption('dry-run')) {
                     $this->debugLogger->message("Fake removing $project-$version");
                 } else {
@@ -85,10 +89,10 @@ class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
                         $commandExecutor->executeCommand("rm -rf /home/release/buildroot/$project-$version");
                     }
                     try {
-                        $commandExecutor->executeCommand("bash bash/deploy.sh remove $project $version");
+                        $commandExecutor->executeCommand("bash bash/$driver/remove.sh $project $version");
                     } catch (CommandExecutorException $e) {
                         if ($e->getCode() != 1) {
-                            //an: Код 1 - допустим, его игнорируем, значит просто не на всех серверах была установлена эта сборка
+                            // an: Код 1 - допустим, его игнорируем, значит просто не на всех серверах была установлена эта сборка
                             throw new CommandExecutorException($e->getMessage(), $e->getCode(), $e->output, $e);
                         }
                     }
@@ -103,7 +107,7 @@ class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
         try {
             $model->waitForMessages(null, null, 30);
         } catch (PhpAmqpLib\Exception\AMQPTimeoutException $e) {
-
+            //skip
         }
     }
 }

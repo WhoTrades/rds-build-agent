@@ -13,50 +13,58 @@ if (!empty($matches[1])) {
     $_SERVER['HTTP_HOST'] = $matches[1];
 }
 
-require_once __DIR__ . '/../../lib/init-libraries.php';
+require_once __DIR__ . '/../../vendor/autoload.php';
 
-//$Core = Cronjob\RequestHandler\Core::getInstance(__DIR__ . "/../../")->init(array());
 $Core = Cronjob\RequestHandler\Core::getInstance(__DIR__ . "/../../")->init(array());
 
 class Config
 {
     protected static $instance;
 
-    function __construct($configLocations)
+    /**
+     * Config constructor.
+     *
+     * @param array $configLocations
+     */
+    public function __construct($configLocations)
     {
         $path = dirname(__FILE__) . '/../../';
-        foreach (array(
-                 'config/config.servicebase.php',
-                 'config/config.cronjob.php',
-                 'config.service.php',
-                 'config.local.php',
-                 ) as $configLocation) {
-            require $path . $configLocation;
-        }
+        require($path . 'config.service.php');
+        require($path . 'config.local.php');
         $this->cache_dir = '/var/tmp/deploy/cache/';
         $this->pid_dir = '/var/tmp/deploy/pid/';
-        $this->semaphore_dir = '/var/tmp/deploy/semaphore/';
         $this->project = 'deploy';
 
         chdir(dirname(__FILE__));
 
-        foreach ([$this->cache_dir, $this->pid_dir, $this->semaphore_dir] as $dir) {
+        foreach ([$this->cache_dir, $this->pid_dir] as $dir) {
             if (!is_dir($dir)) {
                 mkdir($dir, 0777, true);
             }
         }
     }
 
+    /**
+     * @param array $config
+     *
+     * @return Config
+     */
     public static function createInstance($config = array())
     {
         return self::getInstance($config);
     }
 
+    /**
+     * @param array $config
+     *
+     * @return Config
+     */
     public static function getInstance($config = array())
     {
         if (null === self::$instance) {
             self::$instance = new self($config);
         }
+
         return self::$instance;
     }
 }

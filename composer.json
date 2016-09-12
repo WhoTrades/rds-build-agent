@@ -1,26 +1,27 @@
 {
-    "name": "whotrades.com/deploy",
+    "name": "whotrades/deploy",
     "type": "service",
     "description": "Deploy scripts of whotrades.com",
-    "repositories": [
-        {
-            "type": "composer",
-            "url": "https://git.whotrades.net/external/packages.json"
-        },
-        {
-            "packagist": false
-        }
-    ],
-
     "autoload": {
         "psr-4": {
-            "RavenSystem\\": "../../lib/RavenSystem/"
-        }
+            "RavenSystem\\": "../../lib/RavenSystem/",
+            "RdsSystem\\": "../../lib/RdsSystem/",
+            "Cronjob\\": "../../lib/Cronjob/",
+            "ServiceBase\\": "../../lib/libcore/"
+        },
+        "psr-0": {
+            "RequestHandler_": "../../lib/libcore/",
+            "Monitoring_": "../../lib/libcore/",
+            "CoreLight": "../../lib/libcore/",
+            "FatalWatcher": "../../lib/libcore/",
+            "Utils_": "../../lib/libcore/",
+            "": "lib"
+        },
+        "classmap": ["misc/cron"]
     },
-
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "require": {
-        "php": ">=5.3.3",
+        "php": ">=5.6",
         "php-amqplib/php-amqplib": "~2.6",
         "sentry/sentry": "1.1.0"
     }
