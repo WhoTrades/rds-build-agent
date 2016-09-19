@@ -54,7 +54,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
         $workerName = \Config::getInstance()->workerName;
 
-        $model->readMergeTask($workerName, false, function (\RdsSystem\Message\Merge\Task $task) use ($model, $instance) {
+        $model->readMergeTask($workerName, false, function (\RdsSystem\Message\Merge\Task $task) use ($model, $instance, $workerName) {
             $sourceBranch = $task->sourceBranch;
             $targetBranch = $task->targetBranch;
 
@@ -191,7 +191,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
             $this->debugLogger->debug("Sending reply with id=$task->featureId...");
             $model->sendMergeTaskResult(
-                \Yii::app()->modules['Wtflow']['workerName'],
+                $workerName,
                 new Message\Merge\TaskResult($task->featureId, $task->sourceBranch, $task->targetBranch, empty($errors), $errors, $task->type)
             );
 

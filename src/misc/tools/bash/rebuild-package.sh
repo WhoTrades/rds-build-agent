@@ -18,13 +18,23 @@ unset GIT_WORK_DIR
 : ${createTag=$6}
 : ${BUILD=$7}
 : ${BUILDTMP=$8}
-: ${BUILDTMP=$9}
+: ${BUILDROOT=$9}
 
 NAME=`basename $NAME`
 
 if isnull $NAME; then
   echo "$0 packagename version"
   exitf
+fi
+
+if [ "$BUILDTMP" = "" ]; then
+    echo "Empty BUILDTMP specified, exiting..."
+    exitf
+fi
+
+if [ "$BUILDROOT" = "" ]; then
+    echo "Empty BUILDROOT specified, exiting..."
+    exitf
 fi
 
 SRCDIR=$BUILD/$NAME

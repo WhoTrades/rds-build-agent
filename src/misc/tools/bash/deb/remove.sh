@@ -14,7 +14,7 @@ fi
 
 package="$packagename-$packageversion"
 
-execute_concurrent packagename \
+execute_concurrent $packagename \
 "
 cd $PKGDIR;
 [ -e ${package} ] || exit 1

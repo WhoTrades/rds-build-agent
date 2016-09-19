@@ -14,5 +14,5 @@ if isnull $packagename || isnull $packageversion; then
     exitf
 fi
 
-execute_concurrent packagename "sudo apt-get update; sudo apt-get -y --force-yes install $package" || errx "install() failed!"
+execute_concurrent $packagename "sudo apt-get update; sudo apt-get -y --force-yes install $package" || errx "install() failed!"
 
