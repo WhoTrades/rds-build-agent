@@ -4,22 +4,22 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "430c27be0ed10c0393b7b2f2f5d4ffec",
-    "content-hash": "27ab4bf97ca1034c1e17f77348973e7d",
+    "hash": "1772ee8cbb402b478beb682e1f0064f3",
+    "content-hash": "68684e385c788da094ee6443cafc7f94",
     "packages": [
         {
             "name": "monolog/monolog",
-            "version": "1.x-dev",
+            "version": "1.21.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Seldaek/monolog.git",
                 "reference": "f42fbdfd53e306bda545845e4dbfd3e72edb4952"
             },
             "dist": {
-                "type": "tar",
-                "url": "https://git.whotrades.net/external/dist/monolog-monolog-1.x-dev-73aaf0.tar",
+                "type": "zip",
+                "url": "https://api.github.com/repos/Seldaek/monolog/zipball/f42fbdfd53e306bda545845e4dbfd3e72edb4952",
                 "reference": "f42fbdfd53e306bda545845e4dbfd3e72edb4952",
-                "shasum": "dd6ec1eadc87f08daaf46b5fde8474a699131c7f"
+                "shasum": ""
             },
             "require": {
                 "php": ">=5.3.0",
@@ -65,17 +65,7 @@
                     "Monolog\\": "src/Monolog"
                 }
             },
-            "autoload-dev": {
-                "psr-4": {
-                    "Monolog\\": "tests/Monolog"
-                }
-            },
-            "scripts": {
-                "test": [
-                    "parallel-lint . --exclude vendor",
-                    "phpunit"
-                ]
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -97,17 +87,17 @@
         },
         {
             "name": "php-amqplib/php-amqplib",
-            "version": "dev-master",
+            "version": "v2.6.3",
             "source": {
                 "type": "git",
-                "url": "https://github.com/videlalvaro/php-amqplib.git",
-                "reference": "b7b677d046a9735e0ad940d649feaf38d58c866c"
+                "url": "https://github.com/php-amqplib/php-amqplib.git",
+                "reference": "fa2f0d4410a11008cb36b379177291be7ee9e4f6"
             },
             "dist": {
-                "type": "tar",
-                "url": "https://git.whotrades.net/external/dist/php-amqplib-php-amqplib-dev-master-295608.tar",
-                "reference": "b7b677d046a9735e0ad940d649feaf38d58c866c",
-                "shasum": "a789aed17e9ab7a80617eff245260169b4e8eadc"
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-amqplib/php-amqplib/zipball/fa2f0d4410a11008cb36b379177291be7ee9e4f6",
+                "reference": "fa2f0d4410a11008cb36b379177291be7ee9e4f6",
+                "shasum": ""
             },
             "require": {
                 "ext-bcmath": "*",
@@ -136,12 +126,7 @@
                     "PhpAmqpLib\\": "PhpAmqpLib/"
                 }
             },
-            "autoload-dev": {
-                "psr-4": {
-                    "PhpAmqpLib\\Tests\\Functional\\": "tests/Functional",
-                    "PhpAmqpLib\\Tests\\Unit\\": "tests/Unit"
-                }
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "LGPL-2.1"
             ],
@@ -168,21 +153,21 @@
                 "queue",
                 "rabbitmq"
             ],
-            "time": "2016-07-01 23:37:24"
+            "time": "2016-04-11 14:30:01"
         },
         {
             "name": "psr/log",
-            "version": "dev-master",
+            "version": "1.0.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/php-fig/log.git",
-                "reference": "d8e60a5619fff77f9669da8997697443ef1a1d7e"
+                "reference": "4ebe3a8bf773a19edfe0a84b6585ba3d401b724d"
             },
             "dist": {
-                "type": "tar",
-                "url": "https://git.whotrades.net/external/dist/psr-log-dev-master-e53d6f.tar",
-                "reference": "d8e60a5619fff77f9669da8997697443ef1a1d7e",
-                "shasum": "f09dec85082fd9afb18256d09dc06bd97fda7252"
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-fig/log/zipball/4ebe3a8bf773a19edfe0a84b6585ba3d401b724d",
+                "reference": "4ebe3a8bf773a19edfe0a84b6585ba3d401b724d",
+                "shasum": ""
             },
             "require": {
                 "php": ">=5.3.0"
@@ -198,6 +183,7 @@
                     "Psr\\Log\\": "Psr/Log/"
                 }
             },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -214,7 +200,7 @@
                 "psr",
                 "psr-3"
             ],
-            "time": "2016-01-06 21:40:42"
+            "time": "2016-10-10 12:19:37"
         },
         {
             "name": "sentry/sentry",
@@ -225,10 +211,10 @@
                 "reference": "33fbf98955cdfe34e99fe43ef8bdd874253675dd"
             },
             "dist": {
-                "type": "tar",
-                "url": "https://git.whotrades.net/external/dist/sentry-sentry-1.1.0-918240.tar",
+                "type": "zip",
+                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/33fbf98955cdfe34e99fe43ef8bdd874253675dd",
                 "reference": "33fbf98955cdfe34e99fe43ef8bdd874253675dd",
-                "shasum": "3e7fc033e295f612cad40a98b7e732fbce08779a"
+                "shasum": ""
             },
             "require": {
                 "ext-curl": "*",
@@ -256,6 +242,7 @@
                     "Raven_": "lib/"
                 }
             },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "BSD-3-Clause"
             ],
@@ -276,12 +263,12 @@
     ],
     "packages-dev": [],
     "aliases": [],
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
-        "php": ">=5.3.3"
+        "php": ">=7.0"
     },
     "platform-dev": []
 }
