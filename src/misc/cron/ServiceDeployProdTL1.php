@@ -48,13 +48,33 @@ class ServiceDeployProdTL1
     {
         $commands = [
             new Comment("Сборка $workerName"),
-            new CronCommand(\Cronjob_Tool_Deploy_Deploy::getToolCommand(['--max-duration=60'], $verbosity = 3), '* * * * * *', "deploy_deploy_$workerName"),
-            new CronCommand(\Cronjob_Tool_Deploy_Use::getToolCommand(['--max-duration=60'], $verbosity = 3), '* * * * * *', "deploy_use_$workerName"),
-            new CronCommand(\Cronjob_Tool_Deploy_Killer::getToolCommand(['--max-duration=60'], $verbosity = 3), '* * * * * *', "deploy_killer_$workerName"),
+            new CronCommand(
+                \Cronjob_Tool_Deploy_Deploy::getToolCommand(['--max-duration=60', "--workerName=$workerName"], $verbosity = 3),
+                '* * * * * *',
+                "deploy_deploy_$workerName"
+            ),
+            new CronCommand(
+                \Cronjob_Tool_Deploy_Use::getToolCommand(['--max-duration=60', "--workerName=$workerName"], $verbosity = 3),
+                '* * * * * *',
+                "deploy_use_$workerName"
+            ),
+            new CronCommand(
+                \Cronjob_Tool_Deploy_Killer::getToolCommand(['--max-duration=60', "--workerName=$workerName"], $verbosity = 3),
+                '* * * * * *',
+                "deploy_killer_$workerName"
+            ),
 
             new Comment("Миграции $workerName"),
-            new CronCommand(\Cronjob_Tool_Deploy_Migration::getToolCommand(['--max-duration=60'], $verbosity = 3), '* * * * * *', "deploy_migration_$workerName"),
-            new CronCommand(\Cronjob_Tool_Deploy_HardMigration::getToolCommand(['--max-duration=60'], $verbosity = 3), '* * * * * *', "deploy_hard_migration_$workerName"),
+            new CronCommand(
+                \Cronjob_Tool_Deploy_Migration::getToolCommand(['--max-duration=60', "--workerName=$workerName"], $verbosity = 3),
+                '* * * * * *',
+                "deploy_migration_$workerName"
+            ),
+            new CronCommand(
+                \Cronjob_Tool_Deploy_HardMigration::getToolCommand(['--max-duration=60', "--workerName=$workerName"], $verbosity = 3),
+                '* * * * * *',
+                "deploy_hard_migration_$workerName"
+            ),
         ];
 
         return $commands;
