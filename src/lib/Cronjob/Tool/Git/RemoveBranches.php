@@ -26,7 +26,7 @@ class Cronjob_Tool_Git_RemoveBranches extends RdsSystem\Cron\RabbitDaemon
                 'useForBaseName' => true,
                 'default' => 1,
             ],
-            'workerName' => [
+            'worker-name' => [
                 'desc' => 'Name of worker',
                 'required' => true,
                 'valueRequired' => true,
@@ -43,7 +43,7 @@ class Cronjob_Tool_Git_RemoveBranches extends RdsSystem\Cron\RabbitDaemon
         ini_set('memory_limit', '1G');
         $model  = $this->getMessagingModel($cronJob);
         $instance = $cronJob->getOption('instance');
-        $workerName = $cronJob->getOption('workerName');
+        $workerName = $cronJob->getOption('worker-name');
 
         $model->readDropBranches($workerName, false, function (\RdsSystem\Message\Merge\DropBranches $task) use ($model, $instance) {
             $branch = $task->branch;

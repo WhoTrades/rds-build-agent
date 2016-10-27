@@ -14,7 +14,7 @@ class Cronjob_Tool_Deploy_Migration extends \RdsSystem\Cron\RabbitDaemon
     public static function getCommandLineSpec()
     {
         return [
-            'workerName' => [
+            'worker-name' => [
                 'desc' => 'Name of worker',
                 'required' => true,
                 'valueRequired' => true,
@@ -29,7 +29,7 @@ class Cronjob_Tool_Deploy_Migration extends \RdsSystem\Cron\RabbitDaemon
     public function run(\Cronjob\ICronjob $cronJob)
     {
         $model  = $this->getMessagingModel($cronJob);
-        $workerName = $cronJob->getOption('workerName');
+        $workerName = $cronJob->getOption('worker-name');
 
         $model->getMigrationTask($workerName, false, function (\RdsSystem\Message\MigrationTask $task) use ($workerName, $model) {
             $commandExecutor = new CommandExecutor($this->debugLogger);

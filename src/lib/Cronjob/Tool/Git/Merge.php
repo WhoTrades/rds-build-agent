@@ -38,7 +38,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
                 'valueRequired' => true,
                 'required' => false,
             ],
-            'workerName' => [
+            'worker-name' => [
                 'desc' => 'Name of worker',
                 'required' => true,
                 'valueRequired' => true,
@@ -58,7 +58,7 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
         $this->allowedBranches = array_filter(explode(",", $cronJob->getOption('allowed-branches')));
         $this->disallowedBranches = array_filter(explode(",", $cronJob->getOption('disallowed-branches')));
 
-        $workerName = $cronJob->getOption('workerName');
+        $workerName = $cronJob->getOption('worker-name');
 
         $model->readMergeTask($workerName, false, function (\RdsSystem\Message\Merge\Task $task) use ($model, $instance, $workerName) {
             $sourceBranch = $task->sourceBranch;
