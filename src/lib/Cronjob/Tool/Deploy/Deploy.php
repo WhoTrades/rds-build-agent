@@ -24,7 +24,14 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
      */
     public static function getCommandLineSpec()
     {
-        return [] + parent::getCommandLineSpec();
+        return [
+            'workerName' => [
+                'desc' => 'Name of worker',
+                'required' => true,
+                'valueRequired' => true,
+                'useForBaseName' => true,
+            ],
+        ] + parent::getCommandLineSpec();
     }
 
     /**
@@ -32,7 +39,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
      */
     public function run(\Cronjob\ICronjob $cronJob)
     {
-        $workerName = \Config::getInstance()->workerName;
+        $workerName = $cronJob->getOption('workerName');
         $driver = \Config::getInstance()->driver;
         $this->model  = $this->getMessagingModel($cronJob);
         $this->gid = posix_getpgid(posix_getpid());

@@ -1,6 +1,5 @@
 <?php
 $this->rdsDomain = "rds.whotrades.net";
-$this->workerName = 'debian';
 $this->driver = 'deb';
 $this->debug = false;
 $this->DEBUG_MODE = $this->debug;

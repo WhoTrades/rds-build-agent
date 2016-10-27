@@ -24,7 +24,14 @@ class Cronjob_Tool_Maintenance_ToolRunner extends RdsSystem\Cron\RabbitDaemon
      */
     public static function getCommandLineSpec()
     {
-        return [] + parent::getCommandLineSpec();
+        return [
+            'workerName' => [
+                'desc' => 'Name of worker',
+                'required' => true,
+                'valueRequired' => true,
+                'useForBaseName' => true,
+            ],
+        ] + parent::getCommandLineSpec();
     }
 
     /**
@@ -35,8 +42,7 @@ class Cronjob_Tool_Maintenance_ToolRunner extends RdsSystem\Cron\RabbitDaemon
         $this->model = $this->getMessagingModel($cronJob);
 
         $this->gid = posix_getpgid(posix_getpid());
-
-        $workerName = \Config::getInstance()->workerName;
+        $workerName = $cronJob->getOption('workerName');
 
         $this->model->readMaintenanceToolStart($workerName, false, function (\RdsSystem\Message\MaintenanceTool\Start $task) {
             $this->currentTask = $task;
