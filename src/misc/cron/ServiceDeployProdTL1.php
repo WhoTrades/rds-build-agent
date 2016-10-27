@@ -31,7 +31,11 @@ class ServiceDeployProdTL1
                 '* * * * * *',
                 'deploy_git_merge'
             ),
-        ] + $this->getDeployCommands('debian') + $this->getDeployCommands('just2trade') + $this->getDeployCommands('debian-fasts');
+        ];
+
+        $allCommands = array_merge($allCommands, $this->getDeployCommands('debian'));
+        $allCommands = array_merge($allCommands, $this->getDeployCommands('just2trade'));
+        $allCommands = array_merge($allCommands, $this->getDeployCommands('debian-fast'));
 
         $allCommands = new MultiCronCommand($allCommands);
 
