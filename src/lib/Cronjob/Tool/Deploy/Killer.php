@@ -14,7 +14,14 @@ class Cronjob_Tool_Deploy_Killer extends \RdsSystem\Cron\RabbitDaemon
      */
     public static function getCommandLineSpec()
     {
-        return [] + parent::getCommandLineSpec();
+        return [
+            'worker-name' => [
+                'desc' => 'Name of worker',
+                'required' => true,
+                'valueRequired' => true,
+                'useForBaseName' => true,
+            ],
+        ] + parent::getCommandLineSpec();
     }
 
     /**
@@ -23,7 +30,7 @@ class Cronjob_Tool_Deploy_Killer extends \RdsSystem\Cron\RabbitDaemon
     public function run(\Cronjob\ICronjob $cronJob)
     {
         $model  = $this->getMessagingModel($cronJob);
-        $workerName = \Config::getInstance()->workerName;
+        $workerName = $cronJob->getOption('worker-name');
 
         $model->getKillTask($workerName, false, function (\RdsSystem\Message\KillTask $task) use ($model, $workerName) {
             $commandExecutor = new CommandExecutor($this->debugLogger);

@@ -18,7 +18,14 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
      */
     public static function getCommandLineSpec()
     {
-        return [] + parent::getCommandLineSpec();
+        return [
+            'worker-name' => [
+                'desc' => 'Name of worker',
+                'required' => true,
+                'valueRequired' => true,
+                'useForBaseName' => true,
+            ],
+        ] + parent::getCommandLineSpec();
     }
 
     /**
@@ -28,7 +35,7 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
     {
         $model = $this->getMessagingModel($cronJob);
 
-        $workerName = \Config::getInstance()->workerName;
+        $workerName = $cronJob->getOption('worker-name');
         $model->getUseTask($workerName, false, function (\RdsSystem\Message\UseTask $task) use ($workerName, $model) {
             $this->debugLogger->message("Task received: " . json_encode($task));
             $project = $task->project;

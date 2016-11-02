@@ -15,7 +15,14 @@ class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
      */
     public static function getCommandLineSpec()
     {
-        return [] + parent::getCommandLineSpec();
+        return [
+            'worker-name' => [
+                'desc' => 'Name of worker',
+                'required' => true,
+                'valueRequired' => true,
+                'useForBaseName' => true,
+            ],
+        ] + parent::getCommandLineSpec();
     }
 
     /**
@@ -24,14 +31,14 @@ class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
     public function run(\Cronjob\ICronjob $cronJob)
     {
         $model  = $this->getMessagingModel($cronJob);
-        $workerName = \Config::getInstance()->workerName;
+        $workerName = $cronJob->getOption('worker-name');
 
         $model->getHardMigrationTask($workerName, false, function (\RdsSystem\Message\HardMigrationTask $task) use ($workerName, $model) {
             try {
-                //an: Должно быть такое же, как в rebuild-package.sh
+                // an: Должно быть такое же, как в rebuild-package.sh
                 $filename = "/home/release/buildroot/$task->project-$task->version/var/pkg/$task->project-$task->version/misc/tools/migration.php";
 
-                //an: Это для препрода
+                // an: Это для препрода
                 if (!file_exists($filename)) {
                     $filename = "/var/pkg/$task->project-$task->version/misc/tools/migration.php";
                 }
