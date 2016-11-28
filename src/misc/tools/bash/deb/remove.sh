@@ -27,3 +27,12 @@ sudo apt-get -y --force-yes purge ${package}
 sudo apt-get -y --force-yes clean
 "
 
+package="$packagename-$packageversion"
+
+for server in $(execute_concurrent $packagename 'echo ""')
+do
+        # Trim ":" symbol
+        server=${server:0:-1}
+        echo -n "Removing from..." >> /var/tmp/remove.log
+        echo ssh $server "rm -rf /var/pkg/$package/" >> /var/tmp/remove.log
+done
