@@ -18,6 +18,9 @@ for server in $(execute_concurrent $packagename 'echo ""')
 do
         # Trim ":" symbol
         server=${server:0:-1}
-        echo -n "Removing from..."
-        echo ssh $server "rm -rf /var/pkg/$package/"
+        if [ -n "$package" ]; then
+            echo -n "Removing from..."
+            echo `date` "     " ssh $server "rm -rf /var/pkg/$package/" >> /var/tmp/remove.log
+            ssh $server "rm -rf /var/pkg/$package/" >> /var/tmp/remove.log
+        fi
 done
