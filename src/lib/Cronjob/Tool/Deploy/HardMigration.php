@@ -8,7 +8,7 @@ use RdsSystem\lib\CommandExecutorException;
 class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
 {
     const MAX_LOG_LENGTH = 100000;
-    const LOG_LAG_TIME = 0.1; // an: в секундах
+    const LOG_LAG_TIME = 0.5; // an: в секундах
 
     /**
      * @return array
