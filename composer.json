@@ -2,6 +2,15 @@
     "name": "whotrades/deploy",
     "type": "service",
     "description": "Deploy scripts of whotrades.com",
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://artifact.finam.ru/artifactory/api/composer/packagist-org"
+        },
+        {
+            "packagist": false
+        }
+    ],
     "autoload": {
         "psr-4": {
             "RavenSystem\\": "../../lib/RavenSystem/",
