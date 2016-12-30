@@ -4,7 +4,8 @@ use RdsSystem\lib\CommandExecutor;
 use RdsSystem\lib\CommandExecutorException;
 
 /**
- * @example dev/services/deploy/misc/tools/runner.php --tool=Deploy_Deploy -vv
+ * @example sphp dev/services/deploy/misc/tools/runner.php --tool=Deploy_Deploy --worker-name=debian -vv
+ * @example sphp dev/services/deploy/misc/tools/runner.php --tool=Deploy_Deploy --worker-name=debian-fast -vv
  */
 class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
 {
