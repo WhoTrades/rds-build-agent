@@ -17,11 +17,12 @@ fi
 
 execute_concurrent $packagename "sudo mkdir /var/pkg/$package/ && sudo chown release:release /var/pkg/$package/"
 
-for server in $(execute_concurrent $packagename 'echo ""')
+maxProcessCount=5
+(for server in $(execute_concurrent $packagename 'echo ""')
 do
         # Trim ":" symbol
         server=${server:0:-1}
-        echo "[" `date` "] Deploy to $server..."
-        rsync -rlpEAXogtz /home/release/buildroot/$package/var/pkg/$package/ $server:/var/pkg/$package || exit 1
-done
-echo -n "[" `date` "] finished"
+        echo $server
+done)|xargs -I {} -P $maxProcessCount bash publish-one.sh $package $server
+
+echo "[" `date` "] finished"

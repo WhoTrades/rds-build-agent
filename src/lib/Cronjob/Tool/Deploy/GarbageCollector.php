@@ -86,7 +86,7 @@ class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
                 } else {
                     $this->debugLogger->message("Removing $project-$version");
                     if (is_dir("/home/release/buildroot/$project-$version")) {
-                        $commandExecutor->executeCommand("rm -rf /home/release/buildroot/$project-$version");
+                        $commandExecutor->executeCommand("sudo rm -rf /home/release/buildroot/$project-$version");
                     }
                     try {
                         $commandExecutor->executeCommand("bash bash/$driver/remove.sh $project $version");
