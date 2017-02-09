@@ -23,6 +23,6 @@ do
         # Trim ":" symbol
         server=${server:0:-1}
         echo $server
-done)|xargs -I {} -P $maxProcessCount bash publish-one.sh $package $server
+done)|xargs -I {} -P $maxProcessCount bash $SCRIPT_PATH/publish-one.sh $package {}
 
 echo "[" `date` "] finished"
