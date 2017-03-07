@@ -291,6 +291,14 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
     private static function getAllRepositories(\ServiceBase_IDebugLogger $debugLogger)
     {
+        // an: Заглушка для разработки. Репозиторий находится тут - http://git.finam.ru/projects/WT/repos/git-merge-test/browse
+        // Открыт всему миру
+        if (\Config::getInstance()->debug) {
+            return [
+                '' => 'ssh://git@git.finam.ru:7999/wt/git-merge-test.git',
+            ];
+        }
+
         $url = "http://git.whotrades.net/packages.json";
         $httpSender = new \ServiceBase\HttpRequest\RequestSender($debugLogger);
         $json = $httpSender->getRequest($url, '', self::PACKAGES_TIMEOUT);
@@ -344,7 +352,9 @@ class Cronjob_Tool_Git_Merge extends RdsSystem\Cron\RabbitDaemon
 
             if (!is_dir($repoDir . "/.git")) {
                 $debugLogger->debug("Repository $key not exists as $repoDir, start cloning...");
-                mkdir($repoDir, 0777);
+                if (!is_dir($repoDir)) {
+                    mkdir($repoDir, 0777);
+                }
                 $cmd = "(cd $repoDir; git clone $url .)";
                 $commandExecutor->executeCommand($cmd);
             }

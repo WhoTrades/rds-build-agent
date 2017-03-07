@@ -1,7 +1,6 @@
 <?php
 define('SCRIPT_START_TIME', microtime(true));
 set_time_limit(0);
-error_reporting(E_ALL && ~E_STRICT);
 date_default_timezone_set('UTC');
 
 
