@@ -34,7 +34,7 @@ use() {
   execute_concurrent $groupname \
   "
   cd $PKGDIR;
-  [ -d ${package} ] && sudo ln -nsf ${package} $packagename && sudo touch /var/www/${package}
+  [ -d ${package} ] && sudo ln -nsf ${package} $packagename && sudo touch /var/www/${packagename}
   " || errx "use() failed!"
 }
 
