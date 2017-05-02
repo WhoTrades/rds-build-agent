@@ -34,7 +34,7 @@ use() {
   execute_concurrent $groupname \
   "
   cd $PKGDIR;
-  [ -d ${package} ] && sudo ln -nsf ${package} $packagename && sudo touch /var/www/${packagename} && ([ -d /etc/cron1-wt.d ] && touch /etc/cron-wt.d || true)
+  [ -d ${package} ] && sudo ln -nsf ${package} $packagename && sudo touch /var/www/${packagename} && ([ -d /etc/cron-wt.d ] && touch /etc/cron-wt.d || true)
   " || errx "use() failed!"
 }
 
