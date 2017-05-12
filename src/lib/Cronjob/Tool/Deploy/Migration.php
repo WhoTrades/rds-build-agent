@@ -49,7 +49,7 @@ class Cronjob_Tool_Deploy_Migration extends \RdsSystem\Cron\RabbitDaemon
 
                 // an: Если миграции существуют, то есть есть в проекте
                 if (file_exists($filename)) {
-                    $command = "php $filename migration --type=$task->type --project=$task->project up --interactive=0 2>&1";
+                    $command = "php $filename migration/up --type=$task->type --project=$task->project --interactive=0 2>&1";
                     $commandExecutor->executeCommand($command);
                     $model->sendMigrationStatus(new \RdsSystem\Message\ReleaseRequestMigrationStatus($task->project, $task->version, $task->type, 'up'));
                 } else {
