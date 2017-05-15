@@ -57,7 +57,7 @@ class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
 
                 $host = Cronjob_Tool_Deploy_HardMigrationProxy::LISTEN_HOST;
                 $port = Cronjob_Tool_Deploy_HardMigrationProxy::LISTEN_PORT;
-                $command = "php $filename migration/upOne --type=hard --project=$task->project --progressHost=$host --progressPort=$port ".str_replace("/", "\\\\", $task->migration)." -vv 2>&1";
+                $command = "php $filename migration --type=hard --project=$task->project --progressHost=$host --progressPort=$port upOne ".str_replace("/", "\\\\", $task->migration)." -vv 2>&1";
 
                 $output = "";
                 $t = microtime(true);
