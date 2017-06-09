@@ -85,7 +85,7 @@ class Cronjob_Tool_Deploy_HardMigration extends RdsSystem\Cron\RabbitDaemon
                 }
 
                 if ($returnVar) {
-                    throw new CommandExecutorException("Return var is non-zero, code=" . $returnVar . ", command=$command", $returnVar, $output);
+                    throw new CommandExecutorException($command, "Return var is non-zero, code=" . $returnVar . ", command=$command", $returnVar, $output);
                 }
 
                 $model->sendHardMigrationStatus(new \RdsSystem\Message\HardMigrationStatus($task->migration, 'done'));

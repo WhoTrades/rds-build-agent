@@ -93,7 +93,7 @@ class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
                     } catch (CommandExecutorException $e) {
                         if ($e->getCode() != 1) {
                             // an: Код 1 - допустим, его игнорируем, значит просто не на всех серверах была установлена эта сборка
-                            throw new CommandExecutorException($e->getMessage(), $e->getCode(), $e->output, $e);
+                            throw $e;
                         }
                     }
                     $commandExecutor->executeCommand("reprepro -b /var/www/whotrades_repo/ remove wheezy $project-$version");

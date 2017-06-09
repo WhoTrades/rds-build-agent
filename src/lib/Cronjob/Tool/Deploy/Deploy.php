@@ -47,6 +47,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
 
         $this->model->getBuildTask($workerName, false, function (\RdsSystem\Message\BuildTask $task) use ($workerName, $driver) {
             $this->currentTask = $task;
+
             $this->debugLogger->message("Task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
             posix_setpgid(posix_getpid(), posix_getpid());
@@ -69,7 +70,9 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
             $projectDir = "/home/release/buildroot/$project-$version/var/pkg/$project-$version/";
 
             if (Config::getInstance()->debug) {
-                $projectDir = $project == 'comon' ? "/home/an/dev/$project/" : "/home/an/dev/services/$project/";
+                $projectDir = $project == 'comon'
+                    ? "/home/dev/dev/$project/"
+                    : "/home/dev/dev/services/" . str_replace("service-", "", $project) . "/";
             }
 
             $currentOperation = "none";
@@ -147,46 +150,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                 $this->sendStatus('built', $version, $text);
 
                 $currentOperation = "get_migrations_list";
-                // an: Должно быть такое же, как в rebuild-package.sh
-                $filename = "$projectDir/misc/tools/migration.php";
-                if (file_exists($filename)) {
-                    // an: Проект с миграциями
-                    foreach (array('pre', 'post', 'hard') as $type) {
-                        $command = "php $filename migration/new --type=$type --project=$project 100000 --interactive=0 2>&1";
-                        $text = $commandExecutor->executeCommand($command);
-                        if (!preg_match('~Found (\d+) new migration~', $text, $ans)) {
-                            continue;
-                        }
-
-                        // an: Текст, начиная с Found (\d+) new migration
-                        $subtext = substr($text, strpos($text, $ans[0]));
-                        $subtext = str_replace('\\', '/', $subtext);
-                        $lines = explode("\n", str_replace("\r", "", $subtext));
-                        array_shift($lines);
-                        $migrations = array_slice($lines, 0, $ans[1]);
-                        $migrations = array_map('trim', $migrations);
-                        $this->model->sendMigrations(
-                            new Message\ReleaseRequestMigrations($project, $version, $migrations, $type)
-                        );
-                    }
-                }
-
-                if (\Config::getInstance()->debug) {
-                    $migrations = [
-                        "Y2014_2/m140905_090321_add_new_func_get_trade_transaction_list_by_account_and_operation_types",
-                        "Y2014_2/m140908_193018_add_col__trade_repeater__payment__status",
-                        "Y2014_2/m140908_194447_new_sp__trade_repeater__add_payment",
-                        "Y2014_2/m140908_195905_new_sp__trade_repeater__update_payment_transfer_status",
-                    ];
-                    $this->model->sendMigrations(
-                        new Message\ReleaseRequestMigrations($project, $version, $migrations, 'pre')
-                    );
-                    $migrations = ["Y2014_2/m140804_121502_rds_test #WTA-67"];
-                    $this->model->sendMigrations(
-                        new Message\ReleaseRequestMigrations($project, $version, $migrations, 'hard')
-                    );
-                }
-
+                $this->processMigrations($projectDir, $task->scriptMigrationNew, $project, $version);
 
                 $currentOperation = "installing";
                 // an: Раскладываем собранный проект по серверам
@@ -222,10 +186,8 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                 $this->sendStatus('installed', $version, $text);
             } catch (CommandExecutorException $e) {
                 $text = $e->output;
-                echo "\n=======================\n";
-                $title = "Failed to execute '$currentOperation'";
-                echo "$title\n";
-
+                $this->debugLogger->error("Last command: " . $e->getCommand());
+                $this->debugLogger->error("Failed to execute '$currentOperation'");
                 $this->sendStatus('failed', $version, $text);
             } catch (Exception $e) {
                 $this->debugLogger->error("Unknown error: " . $e->getMessage());
@@ -240,6 +202,33 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
         });
 
         $this->waitForMessages($this->model, $cronJob);
+    }
+
+    private function processMigrations(string $projectDir, string $scriptMigrationNew, string $project, string $version)
+    {
+        $commandExecutor = new CommandExecutor($this->debugLogger);
+
+        $this->debugLogger->message("projectDir=$projectDir");
+        $migrationNewScriptFilename = "/tmp/migration-new-script-" . uniqid() . ".sh";
+        file_put_contents($migrationNewScriptFilename, str_replace("\r", "", $scriptMigrationNew));
+        chmod($migrationNewScriptFilename, 0777);
+        // an: Проект с миграциями
+        foreach (array('pre', 'post', 'hard') as $type) {
+            $command = "(export projectName=" . escapeshellarg($project) . ";" .
+                        "export version=" . escapeshellarg($version) . ";" .
+                        "export type=$type;" .
+                        "export projectDir=" . escapeshellarg($projectDir) . ";" .
+                        "$migrationNewScriptFilename) 2>&1";
+            $text = $commandExecutor->executeCommand($command);
+            $lines = explode("\n", str_replace("\r", "", $text));
+            $migrations = array_filter($lines);
+            $migrations = array_map('trim', $migrations);
+            $this->model->sendMigrations(
+                new Message\ReleaseRequestMigrations($project, $version, $migrations, $type)
+            );
+        }
+
+        unlink($migrationNewScriptFilename);
     }
 
     /**
@@ -259,7 +248,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
 
     /**
      * @param int $signo
-     * @return int
+     * @void
      */
     public function onTerm($signo)
     {
