@@ -215,10 +215,10 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
         // an: Проект с миграциями
         foreach (array('pre', 'post', 'hard') as $type) {
             $command = "(export projectName=" . escapeshellarg($project) . ";" .
-                        "export version=" . escapeshellarg($version) . ";" .
-                        "export type=$type;" .
-                        "export projectDir=" . escapeshellarg($projectDir) . ";" .
-                        "$migrationNewScriptFilename) 2>&1";
+                        " export version=" . escapeshellarg($version) . ";" .
+                        " export type=$type;" .
+                        " export projectDir=" . escapeshellarg($projectDir) . ";" .
+                        " . $migrationNewScriptFilename) 2>&1";
             $text = $commandExecutor->executeCommand($command);
             $lines = explode("\n", str_replace("\r", "", $text));
             $migrations = array_filter($lines);

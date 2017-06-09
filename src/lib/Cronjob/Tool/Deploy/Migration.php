@@ -42,10 +42,10 @@ class Cronjob_Tool_Deploy_Migration extends \RdsSystem\Cron\RabbitDaemon
                 chmod($migrationUpScriptFilename, 0777);
 
                 $command = "(export projectName=" . escapeshellarg($task->project) . ";" .
-                    "export version=" . escapeshellarg($task->version) . ";" .
-                    "export type=$task->type;" .
-                    "export projectDir=" . escapeshellarg($projectDir) . ";" .
-                    "$migrationUpScriptFilename) 2>&1";
+                    " export version=" . escapeshellarg($task->version) . ";" .
+                    " export type=$task->type;" .
+                    " export projectDir=" . escapeshellarg($projectDir) . ";" .
+                    " . $migrationUpScriptFilename) 2>&1";
                 $commandExecutor->executeCommand($command);
 
                 $model->sendMigrationStatus(new \RdsSystem\Message\ReleaseRequestMigrationStatus($task->project, $task->version, $task->type, 'up'));
