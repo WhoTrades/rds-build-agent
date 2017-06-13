@@ -118,7 +118,7 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                         if ($lastBuildTag) {
                             $command = "(cd $srcDir/lib/sparta; echo -n '>>> '; git remote -v|tail -n 1; git log $lastBuildTag..$project-$version --pretty='%H|%s|/%an/' $dirs)";
                         } else {
-                            $command = "(cd $srcDir/lib/sparta; echo -n '>>> '; git remote -v|tail -n 1; git log $lastBuildTag --pretty='%H|%s|/%an/' $dirs)";
+                            $command = "(cd $srcDir/lib/sparta; echo -n '>>> '; git remote -v|tail -n 1; git log $project-$version..HEAD --pretty='%H|%s|/%an/' $dirs)";
                         }
                         if (Config::getInstance()->debug) {
                             $command = "cat /home/an/log.txt";
@@ -204,8 +204,13 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
         $this->waitForMessages($this->model, $cronJob);
     }
 
-    private function processMigrations(string $projectDir, string $scriptMigrationNew, string $project, string $version)
+    private function processMigrations(string $projectDir, $scriptMigrationNew, string $project, string $version)
     {
+        if (empty($scriptMigrationNew)) {
+            $this->debugLogger->message("No migration script detected - so no migrations");
+
+            return;
+        }
         $commandExecutor = new CommandExecutor($this->debugLogger);
 
         $this->debugLogger->message("projectDir=$projectDir");
