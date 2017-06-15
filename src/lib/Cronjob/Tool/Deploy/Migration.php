@@ -41,12 +41,12 @@ class Cronjob_Tool_Deploy_Migration extends \RdsSystem\Cron\RabbitDaemon
                 file_put_contents($migrationUpScriptFilename, str_replace("\r", "", $task->scriptMigrationUp));
                 chmod($migrationUpScriptFilename, 0777);
 
-                $command = "(export projectName=" . escapeshellarg($task->project) . ";" .
-                    " export version=" . escapeshellarg($task->version) . ";" .
-                    " export type=$task->type;" .
-                    " export projectDir=" . escapeshellarg($projectDir) . ";" .
-                    " . $migrationUpScriptFilename) 2>&1";
-                $commandExecutor->executeCommand($command);
+                $env = [
+                    'projectName' => $task->project,
+                    'type' => $task->type,
+                    'projectDir' => $projectDir,
+                ];
+                $commandExecutor->executeCommand("$migrationUpScriptFilename 2>&1", $env);
 
                 $model->sendMigrationStatus(new \RdsSystem\Message\ReleaseRequestMigrationStatus($task->project, $task->version, $task->type, 'up'));
             } catch (CommandExecutorException $e) {

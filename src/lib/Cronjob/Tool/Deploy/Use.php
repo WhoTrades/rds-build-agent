@@ -140,12 +140,19 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
             $this->debugLogger->message("Task received: " . json_encode($task));
             $project = $task->project;
 
-            $files = glob("/etc/$project/*");
-            foreach ($files as $file) {
-                if (!unlink($file)) {
-                    $this->debugLogger->dump()->message("an", "cant_remove_old_project_config", false, [
+            if (empty($task->scriptUploadConfigLocal)) {
+                $this->debugLogger->warning("Skip task, as scriptUploadConfigLocal is empty");
+                $task->accepted();
+
+                return;
+            }
+
+            $projectDir = "/tmp/config-local/$project-" . uniqid() . "/";
+            if (!is_dir($projectDir)) {
+                if (!mkdir($projectDir, 0777, true)) {
+                    $this->debugLogger->dump()->message("an", "cant_create_tmp_dir", false, [
                         'project' => $project,
-                        'filename' => $file,
+                        'projectDir' => $projectDir,
                     ])->critical()->save();
 
                     return;
@@ -153,10 +160,10 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
             }
 
             foreach ($task->configs as $filename => $content) {
-                if (false === file_put_contents("/etc/$project/" . $filename, $content)) {
+                if (false === file_put_contents($projectDir . $filename, $content)) {
                     $this->debugLogger->dump()->message("an", "cant_save_project_config", false, [
                         'project' => $project,
-                        'filename' => "/etc/$project/" . $filename,
+                        'filename' => $projectDir . $filename,
                         'content' => $content,
                     ])->critical()->save();
 
@@ -164,14 +171,33 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
                 }
             }
 
+            $tmpScriptFilename = "/tmp/config-local-$project-" . uniqid() . ".sh";
+            if (false === file_put_contents($tmpScriptFilename, str_replace("\r\n", "\n", $task->scriptUploadConfigLocal))) {
+                $this->debugLogger->dump()->message("an", "cant_save_tmp_shell_script", false, [
+                    'project' => $project,
+                    'filename' => $tmpScriptFilename,
+                    'content' => $task->scriptUploadConfigLocal,
+                ])->critical()->save();
+
+                return;
+            }
+
+            chmod($tmpScriptFilename, 0777);
+
+            $env = [
+                'projectName' => $project,
+                'servers' => 'debug test-server-a test-server-b',
+                'configDir' => $projectDir,
+            ];
+
             $commandExecutor = new CommandExecutor($this->debugLogger);
 
-            if (Config::getInstance()->debug) {
-                $command = "sleep 1 #$project";
-            } else {
-                $command = "bash bash/cmd.sh sync-conf $project 2>&1";
-            }
-            $commandExecutor->executeCommand($command);
+            $output = $commandExecutor->executeCommand("$tmpScriptFilename 2>&1", $env);
+
+            rmdir($projectDir);
+            unlink($tmpScriptFilename);
+
+            $this->debugLogger->debug("Output: " . $output);
 
             $task->accepted();
         });
