@@ -101,11 +101,7 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
                 if (Config::getInstance()->debug) {
                     $command = "php bash/fakeUse.php $project $version $workerName";
                 }
-                $text = $commandExecutor->executeCommand($command);
-
-                if (Config::getInstance()->debug) {
-                    $command = "php bash/fakeStatus_$project.php";
-                }
+                $commandExecutor->executeCommand($command);
 
                 try {
                     $this->debugLogger->message("Used version: $version");
@@ -125,6 +121,7 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
                 }
 
                 $task->accepted();
+
                 $this->debugLogger->message("Successful used $project-$version");
             } catch (CommandExecutorException $e) {
                 $model->sendUseError(
@@ -192,14 +189,37 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
 
             $commandExecutor = new CommandExecutor($this->debugLogger);
 
-            $output = $commandExecutor->executeCommand("$tmpScriptFilename 2>&1", $env);
+            try {
+                $output = $commandExecutor->executeCommand("$tmpScriptFilename 2>&1", $env);
+                $this->debugLogger->debug("Output: " . $output);
 
-            rmdir($projectDir);
-            unlink($tmpScriptFilename);
+                foreach (glob("$projectDir/*") as $file) {
+                    unlink($file);
+                }
+                rmdir($projectDir);
+                unlink($tmpScriptFilename);
 
-            $this->debugLogger->debug("Output: " . $output);
+                $this->debugLogger->message("Sync success");
 
-            $task->accepted();
+                $task->accepted();
+            } catch (CommandExecutorException $e) {
+                $this->debugLogger->dump()->message('an', 'error_synchronization_config_local_skip_message', false, [
+                    'command' => $e->getCommand(),
+                    'output' => $e->getOutput(),
+                    'projectDir' => $projectDir,
+                    'tmpScriptFilename' => $tmpScriptFilename,
+                    'task' => [
+                        'project' => $task->project,
+                        'scriptUploadConfigLocal' => $task->scriptUploadConfigLocal,
+                        'configs' => $task->configs,
+                        'timeCreated' => $task->timeCreated,
+                    ],
+                ]);
+
+                $this->debugLogger->error("Skip message");
+
+                $task->accepted();
+            }
         });
 
         $this->waitForMessages($model, $cronJob);
