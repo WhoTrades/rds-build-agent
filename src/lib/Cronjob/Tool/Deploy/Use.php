@@ -133,7 +133,7 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
             }
         });
 
-        $model->readProjectConfig(false, function (\RdsSystem\Message\ProjectConfig $task) use ($model) {
+        $model->readProjectConfig($workerName, false, function (\RdsSystem\Message\ProjectConfig $task) use ($model) {
             $this->debugLogger->message("Task received: " . json_encode($task));
             $project = $task->project;
 
