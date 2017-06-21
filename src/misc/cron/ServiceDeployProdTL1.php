@@ -18,11 +18,6 @@ class ServiceDeployProdTL1
             new Comment("Обслуживание, удаление мусора и т.д."),
             new CronCommand(\Cronjob_Tool_Deploy_GarbageCollector::getToolCommand([], $verbosity = 3), '12 20 0 * * *', 'DeployGarbageCollector'),
             new CronCommand(
-                \Cronjob_Tool_Maintenance_ToolRunner::getToolCommand(['--max-duration=60', '--worker-name=debian'], $verbosity = 3),
-                '* * * * * *',
-                'deploy_maintenance_runner'
-            ),
-            new CronCommand(
                 \Cronjob_Tool_Git_RemoveBranches::getToolCommand(['--max-duration=60', '--instance=1', '--worker-name=debian'], $verbosity = 3),
                 '* * * * * *',
                 'deploy_remove_branches'
