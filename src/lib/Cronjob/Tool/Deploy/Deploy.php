@@ -164,12 +164,12 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                 // an: Отправляем новые сгенерированные /etc/cron.d конфиги
                 $cronConfig = "";
                 if (Config::getInstance()->debug && $project != 'dictionary') {
-                    $command = "php $projectDir/misc/tools/runner.php --tool=CodeGenerate_CronjobGenerator --project=$project " .
-                        "--env=dev --server=1 --package=$project-$version > $projectDir/misc/cronjobs/cronjob-$project-tl1";
+                    $command = "(php $projectDir/misc/tools/runner.php --tool=CodeGenerate_CronjobGenerator --project=$project " .
+                        "--env=dev --server=1 --package=$project-$version > $projectDir/misc/cronjobs/cronjob-$project-tl1) 2>&1";
                     $commandExecutor->executeCommand($command);
 
-                    $command = "php $projectDir/misc/tools/runner.php --tool=CodeGenerate_CronjobGenerator --project=$project " .
-                        "--env=dev --server=2 --package=$project-$version > $projectDir/misc/cronjobs/cronjob-$project-tl2";
+                    $command = "(php $projectDir/misc/tools/runner.php --tool=CodeGenerate_CronjobGenerator --project=$project " .
+                        "--env=dev --server=2 --package=$project-$version > $projectDir/misc/cronjobs/cronjob-$project-tl2) 2>&1";
                     $commandExecutor->executeCommand($command);
                 }
 
@@ -188,7 +188,9 @@ class Cronjob_Tool_Deploy_Deploy extends RdsSystem\Cron\RabbitDaemon
                 $text = $e->output;
                 $this->debugLogger->error("Last command: " . $e->getCommand());
                 $this->debugLogger->error("Failed to execute '$currentOperation'");
-                $this->sendStatus('failed', $version, $text);
+                $buildLog = "Failed to execute " . $e->getCommand() . "\n";
+                $buildLog .= "Command output " . $text . "\n";
+                $this->sendStatus('failed', $version, $buildLog);
             } catch (Exception $e) {
                 $this->debugLogger->error("Unknown error: " . $e->getMessage());
                 $this->sendStatus('failed', $version, $e->getMessage());

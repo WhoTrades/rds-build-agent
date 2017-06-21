@@ -70,38 +70,43 @@ class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
             $message->accepted();
         });
 
-        $model->readGetProjectBuildsToDeleteReply(false, function (Message\ProjectBuildsToDeleteReply $buildsReply) use ($model, $cronJob, $commandExecutor) {
+        $model->readGetProjectBuildsToDeleteReply(false, function (Message\ProjectBuildsToDeleteReply $task) use ($model, $cronJob, $commandExecutor) {
             $driver = \Config::getInstance()->driver;
-            foreach ($buildsReply->buildToDelete as $val) {
-                $project = $val['project'];
-                $version = $val['version'];
-                if (strlen($project) < 3) {
-                    continue;
+
+            $this->debugLogger->message("Task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+            $project = $task->project;
+            $version = $task->version;
+
+            if (strlen($project) < 3) {
+                $task->accepted();
+
+                return;
+            }
+            if (strlen($version) < 3) {
+                $task->accepted();
+
+                return;
+            }
+            if ($cronJob->getOption('dry-run')) {
+                $this->debugLogger->message("Fake removing $project-$version");
+            } else {
+                $this->debugLogger->message("Removing $project-$version");
+                if (is_dir("/home/release/buildroot/$project-$version")) {
+                    $commandExecutor->executeCommand("sudo rm -rf /home/release/buildroot/$project-$version");
                 }
-                if (strlen($version) < 3) {
-                    continue;
-                }
-                if ($cronJob->getOption('dry-run')) {
-                    $this->debugLogger->message("Fake removing $project-$version");
-                } else {
-                    $this->debugLogger->message("Removing $project-$version");
-                    if (is_dir("/home/release/buildroot/$project-$version")) {
-                        $commandExecutor->executeCommand("sudo rm -rf /home/release/buildroot/$project-$version");
+                try {
+                    $commandExecutor->executeCommand("bash bash/$driver/remove.sh $project $version");
+                } catch (CommandExecutorException $e) {
+                    if ($e->getCode() != 1) {
+                        // an: Код 1 - допустим, его игнорируем, значит просто не на всех серверах была установлена эта сборка
+                        throw $e;
                     }
-                    try {
-                        $commandExecutor->executeCommand("bash bash/$driver/remove.sh $project $version");
-                    } catch (CommandExecutorException $e) {
-                        if ($e->getCode() != 1) {
-                            // an: Код 1 - допустим, его игнорируем, значит просто не на всех серверах была установлена эта сборка
-                            throw $e;
-                        }
-                    }
-                    $commandExecutor->executeCommand("reprepro -b /var/www/whotrades_repo/ remove wheezy $project-$version");
-                    $model->removeReleaseRequest(new Message\RemoveReleaseRequest($project, $version));
                 }
+                $commandExecutor->executeCommand("reprepro -b /var/www/whotrades_repo/ remove wheezy $project-$version");
+                $model->removeReleaseRequest(new Message\RemoveReleaseRequest($project, $version));
             }
 
-            $buildsReply->accepted();
+            $task->accepted();
         });
 
         try {

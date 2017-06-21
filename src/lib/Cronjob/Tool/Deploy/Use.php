@@ -183,7 +183,7 @@ class Cronjob_Tool_Deploy_Use extends \RdsSystem\Cron\RabbitDaemon
 
             $env = [
                 'projectName' => $project,
-                'servers' => 'debug test-server-a test-server-b',
+                'servers' => implode(" ", $task->getProjectServers()),
                 'configDir' => $projectDir,
             ];
 
