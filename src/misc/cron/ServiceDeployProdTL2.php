@@ -1,12 +1,7 @@
 <?php
-use \Cronjob\ConfigGenerator;
-use \Cronjob\ConfigGenerator\Comment;
 use \Cronjob\ConfigGenerator\MultiCronCommand;
-use \Cronjob\ConfigGenerator\CronCommand;
-use \Cronjob\ConfigGenerator\SimpleCommand;
-use \Cronjob\ConfigGenerator\MultiCommandToCron;
 
-class ServiceDeployProdTL2
+class ServiceDeployProdTL2 extends ServiceDeployProdTL1
 {
     /**
      * @return array
@@ -14,6 +9,8 @@ class ServiceDeployProdTL2
     public function getCronConfigRows()
     {
         $allCommands = [];
+
+        $allCommands = array_merge($allCommands, $this->getDeployCommands('just2trade'));
 
         $allCommands = new MultiCronCommand($allCommands);
 

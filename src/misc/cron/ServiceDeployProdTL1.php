@@ -1,5 +1,4 @@
 <?php
-use \Cronjob\ConfigGenerator;
 use \Cronjob\ConfigGenerator\Comment;
 use \Cronjob\ConfigGenerator\MultiCronCommand;
 use \Cronjob\ConfigGenerator\CronCommand;
@@ -38,7 +37,6 @@ class ServiceDeployProdTL1
         ];
 
         $allCommands = array_merge($allCommands, $this->getDeployCommands('debian'));
-        $allCommands = array_merge($allCommands, $this->getDeployCommands('just2trade'));
         $allCommands = array_merge($allCommands, $this->getDeployCommands('debian-fast'));
 
         $allCommands = new MultiCronCommand($allCommands);
@@ -48,7 +46,7 @@ class ServiceDeployProdTL1
         return array_merge($this->getEnv(), $rows);
     }
 
-    private function getDeployCommands($workerName)
+    protected function getDeployCommands($workerName)
     {
         $commands = [
             new Comment("Сборка $workerName"),
