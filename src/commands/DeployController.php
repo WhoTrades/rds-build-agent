@@ -85,7 +85,7 @@ class DeployController extends RabbitListener
             $buildRoot = "/home/release/buildroot/$project-$version";
             // an: Собираем проект
             $command = "env VERBOSE=y bash bash/rebuild-package.sh $project $version $release $taskId " .
-                Yii::$app->params['debug'] . " " . Yii::$app->params['createTag'] . " $buildDir $buildTmp $buildRoot 2>&1";
+                Yii::$app->params['rdsDomain'] . " " . Yii::$app->params['createTag'] . " $buildDir $buildTmp $buildRoot 2>&1";
 
             if (Yii::$app->params['debug']) {
                 $command = "php bash/fakeRebuild.php $project $version";
