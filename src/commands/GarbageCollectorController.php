@@ -1,41 +1,33 @@
 <?php
 /**
- * @example dev/services/deploy/misc/tools/runner.php --tool=Deploy_GarbageCollector -vv
+ * @author Artem Naumenko
  */
 
-use \RdsSystem\Message;
+namespace app\commands;
+
+use RdsSystem\Cron\RabbitListener;
 use RdsSystem\lib\CommandExecutor;
 use RdsSystem\lib\CommandExecutorException;
+use Yii;
+use PhpAmqpLib;
+use RdsSystem\Message;
 
-class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
+class GarbageCollectorController extends RabbitListener
 {
     /**
-     * Use this function to get command line spec for cronjob
-     * @return array
+     * @param bool $dryRun - remove packages or just print packages to remove
      */
-    public static function getCommandLineSpec()
+    public function actionIndex($dryRun = null)
     {
-        return array(
-            'dry-run' => array(
-                'desc' => 'do not remove any packages, only output information about them',
-                'default' => false,
-            ),
-        ) + parent::getCommandLineSpec();
-    }
-
-    /**
-     * @param \Cronjob\ICronjob $cronJob
-     */
-    public function run(\Cronjob\ICronjob $cronJob)
-    {
-        $model  = $this->getMessagingModel($cronJob);
+        $dryRun = $dryRun ?? false;
+        $model  = $this->getMessagingModel();
         $model->sendGetProjectsRequest(new Message\ProjectsRequest());
-        $commandExecutor = new CommandExecutor($this->debugLogger);
+        $commandExecutor = new CommandExecutor();
 
-        $model->readGetProjectsReply(false, function (Message\ProjectsReply $message) use ($model, $cronJob, $commandExecutor) {
+        $model->readGetProjectsReply(false, function (Message\ProjectsReply $message) use ($model, $commandExecutor) {
             $toTest = array();
             foreach ($message->projects as $project) {
-                $command = Config::getInstance()->debug ? "cat bash/whotrades_repo.txt" : "reprepro -b /var/www/whotrades_repo/ listmatched wheezy '{$project['name']}-*'";
+                $command = Yii::$app->params['debug'] ? "cat bash/whotrades_repo.txt" : "reprepro -b /var/www/whotrades_repo/ listmatched wheezy '{$project['name']}-*'";
                 $text = $commandExecutor->executeCommand($command);
                 if (preg_match_all('~' . $project['name'] . '-([\d.]+)~', $text, $ans)) {
                     $versions = $ans[1];
@@ -46,11 +38,11 @@ class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
                         );
                     }
                 } else {
-                    $this->debugLogger->message("No builds of {$project['name']} found");
+                    Yii::info("No builds of {$project['name']} found");
                 }
             }
 
-            $command = Config::getInstance()->debug ? "cat bash/whotrades_builds.txt" : "find /home/release/buildroot/ -maxdepth 1 -type d";
+            $command = Yii::$app->params['debug'] ? "cat bash/whotrades_builds.txt" : "find /home/release/buildroot/ -maxdepth 1 -type d";
             $text = $commandExecutor->executeCommand($command);
             if (preg_match_all('~([\w-]{5,})-([\d.]{5,})~', $text, $ans)) {
                 $versions = $ans[2];
@@ -62,7 +54,7 @@ class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
                     );
                 }
             } else {
-                $this->debugLogger->message("No builds at /home/release/buildroot/ found");
+                Yii::info("No builds at /home/release/buildroot/ found");
             }
 
             $model->sendGetProjectBuildsToDeleteRequest(new Message\ProjectBuildsToDeleteRequest($toTest));
@@ -70,10 +62,8 @@ class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
             $message->accepted();
         });
 
-        $model->readGetProjectBuildsToDeleteReply(false, function (Message\ProjectBuildsToDeleteReply $task) use ($model, $cronJob, $commandExecutor) {
-            $driver = \Config::getInstance()->driver;
-
-            $this->debugLogger->message("Task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        $model->readGetProjectBuildsToDeleteReply(false, function (Message\ProjectBuildsToDeleteReply $task) use ($model, $dryRun, $commandExecutor) {
+            Yii::info("Task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
             $project = $task->project;
             $version = $task->version;
 
@@ -87,15 +77,15 @@ class Cronjob_Tool_Deploy_GarbageCollector extends \RdsSystem\Cron\RabbitDaemon
 
                 return;
             }
-            if ($cronJob->getOption('dry-run')) {
-                $this->debugLogger->message("Fake removing $project-$version");
+            if ($dryRun) {
+                Yii::info("Fake removing $project-$version");
             } else {
-                $this->debugLogger->message("Removing $project-$version");
+                Yii::info("Removing $project-$version");
                 if (is_dir("/home/release/buildroot/$project-$version")) {
                     $commandExecutor->executeCommand("sudo rm -rf /home/release/buildroot/$project-$version");
                 }
                 try {
-                    $commandExecutor->executeCommand("bash bash/$driver/remove.sh $project $version");
+                    $commandExecutor->executeCommand("bash bash/rsync/remove.sh $project $version");
                 } catch (CommandExecutorException $e) {
                     if ($e->getCode() != 1) {
                         // an: Код 1 - допустим, его игнорируем, значит просто не на всех серверах была установлена эта сборка

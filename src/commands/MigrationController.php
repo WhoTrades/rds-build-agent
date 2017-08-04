@@ -1,38 +1,27 @@
 <?php
 /**
- * @example dev/services/deploy/misc/tools/runner.php --tool=Deploy_Migration -vv
+ * @author Artem Naumenko
  */
+
+namespace app\commands;
+
+use RdsSystem\Cron\RabbitListener;
 use RdsSystem\lib\CommandExecutor;
 use RdsSystem\lib\CommandExecutorException;
+use Yii;
+use RdsSystem\Message;
 
-class Cronjob_Tool_Deploy_Migration extends \RdsSystem\Cron\RabbitDaemon
+class MigrationController extends RabbitListener
 {
     /**
-     * Use this function to get command line spec for cronjob
-     * @return array
+     * @param string $workerName
      */
-    public static function getCommandLineSpec()
+    public function actionIndex($workerName)
     {
-        return [
-            'worker-name' => [
-                'desc' => 'Name of worker',
-                'required' => true,
-                'valueRequired' => true,
-                'useForBaseName' => true,
-            ],
-        ] + parent::getCommandLineSpec();
-    }
-
-    /**
-     * @param \Cronjob\ICronjob $cronJob
-     */
-    public function run(\Cronjob\ICronjob $cronJob)
-    {
-        $model  = $this->getMessagingModel($cronJob);
-        $workerName = $cronJob->getOption('worker-name');
+        $model  = $this->getMessagingModel();
 
         $model->getMigrationTask($workerName, false, function (\RdsSystem\Message\MigrationTask $task) use ($workerName, $model) {
-            $commandExecutor = new CommandExecutor($this->debugLogger);
+            $commandExecutor = new CommandExecutor();
 
             $projectDir = "/home/release/buildroot/$task->project-$task->version/var/pkg/$task->project-$task->version/";
             $migrationUpScriptFilename = "/tmp/migration-up-script-" . uniqid() . ".sh";
@@ -50,10 +39,10 @@ class Cronjob_Tool_Deploy_Migration extends \RdsSystem\Cron\RabbitDaemon
 
                 $model->sendMigrationStatus(new \RdsSystem\Message\ReleaseRequestMigrationStatus($task->project, $task->version, $task->type, 'up'));
             } catch (CommandExecutorException $e) {
-                $this->debugLogger->error($e->getMessage());
-                $this->debugLogger->info($e->output);
+                Yii::error($e->getMessage());
+                Yii::info($e->output);
                 $model->sendMigrationStatus(new \RdsSystem\Message\ReleaseRequestMigrationStatus($task->project, $task->version, $task->type, 'failed', $e->output));
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 $model->sendMigrationStatus(new \RdsSystem\Message\ReleaseRequestMigrationStatus($task->project, $task->version, $task->type, 'failed', $e->getMessage()));
             }
 
@@ -62,6 +51,6 @@ class Cronjob_Tool_Deploy_Migration extends \RdsSystem\Cron\RabbitDaemon
             $task->accepted();
         });
 
-        $this->waitForMessages($model, $cronJob);
+        $this->waitForMessages($model);
     }
 }
