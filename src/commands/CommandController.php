@@ -78,17 +78,21 @@ class CommandController extends SingleInstanceController
         $interval = $interval ?? '* * * * * *';
         $command = $this->convertCommandClassNameToCommandName($className);
 
-        if ($this->package) {
-            $params[] = '--sys__package=' . preg_replace('~-[\d.]+$~', '', $this->package);
-        }
-
         $params[] = '--sys__key=' . $this->getCommandKey($className, $params);
 
-        return "$interval $this->user cd $this->projectPath && php yii.php $command/$action " . implode(" ", $params) . " | logger -p local2.info  -t $tagName";
+        if ($this->package) {
+            $params[] = '--sys__package=' . $this->package;
+        }
+
+        return "$interval $this->user cd $this->projectPath && php yii.php $command/$action " . implode(" ", $params) . " | logger -p local2.info -t $tagName";
     }
 
     private function getCommandKey($className, $parameters)
     {
+        if ($this->package) {
+            $parameters[] = '--sys__package=' . preg_replace('~-[\d.]+$~', '', $this->package);
+        }
+
         return substr(md5($className . ":" . implode(", ", $parameters)), 0, 12);
     }
 
