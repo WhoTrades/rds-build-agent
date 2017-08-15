@@ -1,22 +1,13 @@
 {
     "name": "whotrades/deploy",
     "type": "service",
-    "description": "Deploy scripts of whotrades.com",
-    "repositories": [
-        {
-            "type": "composer",
-            "url": "https://artifact.finam.ru/artifactory/api/composer/packagist-org"
-        },
-        {
-            "packagist": false
-        }
-    ],
+    "author": "Artem Naumenko",
+    "description": "Build agent of RDS",
     "autoload": {
         "psr-4": {
             "RdsSystem\\": "../../lib/RdsSystem/",
             "app\\": "protected/"
-        },
-        "classmap": ["misc/cron"]
+        }
     },
     "minimum-stability": "stable",
     "require": {
@@ -24,7 +15,6 @@
         "yiisoft/yii2": "2.0.11",
         "php-amqplib/php-amqplib": "~2.6",
         "codemix/yii2-streamlog": "1.2.1",
-        "mito/yii2-sentry": "~1.0.0",
-        "sentry/sentry": "1.6.2"
+        "mito/yii2-sentry": "~1.0.0"
     }
 }

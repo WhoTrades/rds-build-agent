@@ -10,6 +10,7 @@ use RdsSystem\Cron\SingleInstanceController;
 class CommandController extends SingleInstanceController
 {
     public $user;
+    public $projectPath;
     public $package;
 
     /**
@@ -28,13 +29,13 @@ class CommandController extends SingleInstanceController
     public function actionIndex($user, $projectPath)
     {
         $this->user = $user;
+        $this->projectPath = $projectPath;
 
         if (realpath($projectPath) == false) {
             throw new \InvalidArgumentException("Path $projectPath not found");
         }
 
         $list = array_merge(
-            ['HOME=' . realpath($projectPath)],
             $this->getDeployCommands('debian'),
             $this->getDeployCommands('debian-fast'),
             $this->getDeployCommands('just2trade')
@@ -83,7 +84,7 @@ class CommandController extends SingleInstanceController
 
         $params[] = '--sys__key=' . $this->getCommandKey($className, $params);
 
-        return "$interval $this->user php yii $command/$action " . implode(" ", $params) . " | logger -p local2.info  -t $tagName";
+        return "$interval $this->user cd $this->projectPath && php yii.php $command/$action " . implode(" ", $params) . " | logger -p local2.info  -t $tagName";
     }
 
     private function getCommandKey($className, $parameters)

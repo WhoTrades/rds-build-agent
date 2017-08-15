@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "content-hash": "32663c4e10cf3914809ca44f03d25985",
+    "content-hash": "af3a91aac284f8534011dad88d6e811b",
     "packages": [
         {
             "name": "bower-asset/jquery",
@@ -201,7 +201,7 @@
             },
             "dist": {
                 "type": "zip",
-                "url": "https://artifact.finam.ru:443/artifactory/api/composer/packagist-org/vcs-dists/zip/cebe/markdown/25b28bae8a6f185b5030673af77b32e1163d5c6e",
+                "url": "https://api.github.com/repos/cebe/markdown/zipball/25b28bae8a6f185b5030673af77b32e1163d5c6e",
                 "reference": "25b28bae8a6f185b5030673af77b32e1163d5c6e",
                 "shasum": ""
             },
@@ -228,6 +228,7 @@
                     "cebe\\markdown\\": ""
                 }
             },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -260,7 +261,7 @@
             },
             "dist": {
                 "type": "zip",
-                "url": "https://artifact.finam.ru:443/artifactory/api/composer/packagist-org/vcs-dists/zip/codemix/yii2-streamlog/46717733b46a91dd323888349b323fb0bd989e2e",
+                "url": "https://api.github.com/repos/codemix/yii2-streamlog/zipball/46717733b46a91dd323888349b323fb0bd989e2e",
                 "reference": "46717733b46a91dd323888349b323fb0bd989e2e",
                 "shasum": ""
             },
@@ -270,6 +271,7 @@
                     "codemix\\streamlog\\": "src/"
                 }
             },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -298,7 +300,7 @@
             },
             "dist": {
                 "type": "zip",
-                "url": "https://artifact.finam.ru:443/artifactory/api/composer/packagist-org/vcs-dists/zip/ezyang/htmlpurifier/95e1bae3182efc0f3422896a3236e991049dac69",
+                "url": "https://api.github.com/repos/ezyang/htmlpurifier/zipball/95e1bae3182efc0f3422896a3236e991049dac69",
                 "reference": "95e1bae3182efc0f3422896a3236e991049dac69",
                 "shasum": ""
             },
@@ -317,6 +319,7 @@
                     "library/HTMLPurifier.composer.php"
                 ]
             },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "LGPL"
             ],
@@ -344,7 +347,7 @@
             },
             "dist": {
                 "type": "zip",
-                "url": "https://artifact.finam.ru:443/artifactory/api/composer/packagist-org/vcs-dists/zip/hellowearemito/yii2-sentry/a0676f0f99fc5fbac1b69752eb67e33730a8dc31",
+                "url": "https://api.github.com/repos/hellowearemito/yii2-sentry/zipball/a0676f0f99fc5fbac1b69752eb67e33730a8dc31",
                 "reference": "a0676f0f99fc5fbac1b69752eb67e33730a8dc31",
                 "shasum": ""
             },
@@ -374,6 +377,7 @@
                     "mito\\sentry\\tests\\": "tests/"
                 }
             },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -401,7 +405,7 @@
             },
             "dist": {
                 "type": "zip",
-                "url": "https://artifact.finam.ru:443/artifactory/api/composer/packagist-org/vcs-dists/zip/php-amqplib/php-amqplib/fa2f0d4410a11008cb36b379177291be7ee9e4f6",
+                "url": "https://api.github.com/repos/php-amqplib/php-amqplib/zipball/fa2f0d4410a11008cb36b379177291be7ee9e4f6",
                 "reference": "fa2f0d4410a11008cb36b379177291be7ee9e4f6",
                 "shasum": ""
             },
@@ -432,6 +436,7 @@
                     "PhpAmqpLib\\": "PhpAmqpLib/"
                 }
             },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "LGPL-2.1"
             ],
@@ -470,7 +475,7 @@
             },
             "dist": {
                 "type": "zip",
-                "url": "https://artifact.finam.ru:443/artifactory/api/composer/packagist-org/vcs-dists/zip/getsentry/sentry-php/5bee26136ab3fc166334cd972892bf71bd361558",
+                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/5bee26136ab3fc166334cd972892bf71bd361558",
                 "reference": "5bee26136ab3fc166334cd972892bf71bd361558",
                 "shasum": ""
             },
@@ -503,6 +508,7 @@
                     "Raven_": "lib/"
                 }
             },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "BSD-3-Clause"
             ],
@@ -530,7 +536,7 @@
             },
             "dist": {
                 "type": "zip",
-                "url": "https://artifact.finam.ru:443/artifactory/api/composer/packagist-org/vcs-dists/zip/yiisoft/yii2-framework/4144506d84b5c895e026be4d79ebbef7067ebcd3",
+                "url": "https://api.github.com/repos/yiisoft/yii2-framework/zipball/4144506d84b5c895e026be4d79ebbef7067ebcd3",
                 "reference": "4144506d84b5c895e026be4d79ebbef7067ebcd3",
                 "shasum": ""
             },
@@ -561,6 +567,7 @@
                     "yii\\": ""
                 }
             },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "BSD-3-Clause"
             ],
@@ -629,7 +636,7 @@
             },
             "dist": {
                 "type": "zip",
-                "url": "https://artifact.finam.ru:443/artifactory/api/composer/packagist-org/vcs-dists/zip/yiisoft/yii2-composer/3f4923c2bde6caf3f5b88cc22fdd5770f52f8df2",
+                "url": "https://api.github.com/repos/yiisoft/yii2-composer/zipball/3f4923c2bde6caf3f5b88cc22fdd5770f52f8df2",
                 "reference": "3f4923c2bde6caf3f5b88cc22fdd5770f52f8df2",
                 "shasum": ""
             },
@@ -651,6 +658,7 @@
                     "yii\\composer\\": ""
                 }
             },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "BSD-3-Clause"
             ],
