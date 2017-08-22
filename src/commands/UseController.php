@@ -1,6 +1,7 @@
 <?php
 /**
  * @author Artem Naumenko
+ * @example php yii.php use/index debian
  */
 
 namespace app\commands;
@@ -32,73 +33,16 @@ class UseController extends RabbitListener
             Yii::info("Using $project:$version, task_id=$releaseRequestId");
 
             try {
-                $command = "bash bash/deploy.sh status $project 2>&1";
-
-                if (Yii::$app->params['debug']) {
-                    $command = "php bash/fakeStatus_$project.php";
-                }
-                $text = $commandExecutor->executeCommand($command);
-                Yii::info($text);
-
-                $oldVersion = null;
-                foreach (array_filter(explode("\n", str_replace("\r", "", $text))) as $line) {
-                    if (false === strpos($line, ' ')) {
-                        $model->sendUseError(new Message\ReleaseRequestUseError($task->releaseRequestId, "Invalid output of status script:\n" . $text));
-                        $task->accepted();
-
-                        return;
-                    }
-                    list(, $sv) = explode(" ", $line);
-
-                    if ($oldVersion === null) {
-                        $oldVersion = $sv;
-                    } elseif ($oldVersion != $sv) {
-                        $model->sendUseError(new Message\ReleaseRequestUseError($task->releaseRequestId, "Versions of project different on servers:\n" . $text));
-                        $task->accepted();
-
-                        return;
-                    }
-                }
-
-                if ($oldVersion === null) {
-                    Yii::error("Use error as empty oldVersion");
-                    $model->sendUseError(
-                        new Message\ReleaseRequestUseError($task->releaseRequestId, "Empty oldVersion")
-                    );
-                    $task->accepted();
-
-                    return;
-                }
-
-                $oldVersion = str_replace("$project-", "", $oldVersion);
-                $oldVersion = preg_replace("~\-1$~", "", $oldVersion);
-
-                $model->sendOldVersion(
-                    new Message\ReleaseRequestOldVersion($task->releaseRequestId, $oldVersion)
-                );
-
                 $command = "bash bash/deploy.sh use $project $version 2>&1";
                 if (Yii::$app->params['debug']) {
                     $command = "php bash/fakeUse.php $project $version $workerName";
                 }
                 $commandExecutor->executeCommand($command);
 
-                try {
-                    Yii::info("Used version: $version");
-                    $model->sendUsedVersion(
-                        new Message\ReleaseRequestUsedVersion($workerName, $project, $version, $initiatorUserName)
-                    );
-                } catch (\Exception $e) {
-                    Yii::info("Can't send to server real used version, reverting\n");
-                    $command = "bash bash/deploy.sh use $project $oldVersion 2>&1";
-                    if (Yii::$app->params['debug']) {
-                        $command = "php bash/fakeUse.php $project $version $workerName";
-                    }
-                    $commandExecutor->executeCommand($command);
-                    $model->sendUsedVersion(
-                        new Message\ReleaseRequestUsedVersion($workerName, $project, $version, $initiatorUserName)
-                    );
-                }
+                Yii::info("Used version: $version");
+                $model->sendUsedVersion(
+                    new Message\ReleaseRequestUsedVersion($workerName, $project, $version, $initiatorUserName)
+                );
 
                 $task->accepted();
 
