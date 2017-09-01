@@ -15,16 +15,29 @@ use RdsSystem\Message;
 class GarbageCollectorController extends RabbitListener
 {
     /**
-     * @param string $receiverName - имя обработчика
      * @param bool $dryRun - remove packages or just print packages to remove
      */
-    public function actionIndex($receiverName, $dryRun = null)
+    public $dryRun = false;
+
+    /**
+     * @param string $actionID
+     * @return array
+     */
+    public function options($actionID)
     {
-        $dryRun = $dryRun ?? true;
+        return array_merge(parent::options($actionID), ['dryRun']);
+    }
+
+    /**
+     * @param string $receiverName - имя обработчика
+
+     */
+    public function actionIndex($receiverName)
+    {
         $model  = $this->getMessagingModel();
         $commandExecutor = new CommandExecutor();
 
-        $model->readDropReleaseRequest($receiverName, true, function (Message\DropReleaseRequest $task) use ($model, $dryRun, $commandExecutor) {
+        $model->readDropReleaseRequest($receiverName, true, function (Message\DropReleaseRequest $task) use ($model, $commandExecutor) {
             Yii::info("Task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
             $project = $task->project;
             $version = $task->version;
@@ -45,7 +58,7 @@ class GarbageCollectorController extends RabbitListener
             // an: принимаем задачу ещё до выполнения фактического удаления, так как даже если что-то пойдет не так RDS пришлет ещё такой же пакет
             $task->accepted();
 
-            if ($dryRun) {
+            if ($this->dryRun) {
                 Yii::info("Fake removing $project-$version");
             } else {
                 $env = [
@@ -55,10 +68,14 @@ class GarbageCollectorController extends RabbitListener
                 $removeNewScriptFilename = "/tmp/remove-release-request" . uniqid() . ".sh";
 
                 Yii::info("Removing $project-$version, scriptFileName=$removeNewScriptFilename, env=" . json_encode($env));
-                file_put_contents($removeNewScriptFilename, $removeNewScriptFilename);
+                file_put_contents($removeNewScriptFilename, $task->scriptRemove);
+                chmod($removeNewScriptFilename, 0777);
+
                 $commandExecutor->executeCommand("$removeNewScriptFilename 2>&1", $env);
                 $model->removeReleaseRequest(new Message\RemoveReleaseRequest($project, $version));
             }
+
+            Yii::info("Task finished");
         });
     }
 }
