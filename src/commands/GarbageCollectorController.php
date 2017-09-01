@@ -29,15 +29,14 @@ class GarbageCollectorController extends RabbitListener
     }
 
     /**
-     * @param string $receiverName - имя обработчика
-
+     * @param string $workerName - имя обработчика
      */
-    public function actionIndex($receiverName)
+    public function actionIndex($workerName)
     {
         $model  = $this->getMessagingModel();
         $commandExecutor = new CommandExecutor();
 
-        $model->readDropReleaseRequest($receiverName, true, function (Message\DropReleaseRequest $task) use ($model, $commandExecutor) {
+        $model->readDropReleaseRequest($workerName, true, function (Message\DropReleaseRequest $task) use ($model, $commandExecutor) {
             Yii::info("Task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
             $project = $task->project;
             $version = $task->version;
@@ -72,6 +71,7 @@ class GarbageCollectorController extends RabbitListener
                 chmod($removeNewScriptFilename, 0777);
 
                 $commandExecutor->executeCommand("$removeNewScriptFilename 2>&1", $env);
+                unlink($removeNewScriptFilename);
                 $model->removeReleaseRequest(new Message\RemoveReleaseRequest($project, $version));
             }
 

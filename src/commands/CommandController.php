@@ -35,7 +35,7 @@ class CommandController extends \RdsSystem\commands\CommandController
             $this->createCommand(KillerController::class, 'index', [$workerName], "deploy_killer_$workerName"),
 
             "# Обслуживание, удаление мусора и т.д.",
-            $this->createCommand(GarbageCollectorController::class, 'index', [$workerName, 1], "deploy_garbage_collector_$workerName", '12 20 * * * *'),
+            $this->createCommand(GarbageCollectorController::class, 'index', [$workerName], "deploy_garbage_collector_$workerName", '* * * * * *'),
 
             "# Миграции $workerName",
             $this->createCommand(MigrationController::class, 'index', [$workerName], "deploy_migration_$workerName"),
