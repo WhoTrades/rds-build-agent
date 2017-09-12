@@ -143,33 +143,13 @@ class DeployController extends RabbitListener
             $currentOperation = "get_migrations_list";
             $this->processMigrations($projectDir, $task->scriptMigrationNew, $project, $version);
 
-            $currentOperation = "installing";
             // an: Раскладываем собранный проект по серверам
-            $command = "bash bash/rsync/publish.sh $project $version 2>&1";
+            $currentOperation = "installing";
+            $text = $this->processDeploy($projectDir, $task->scriptDeploy, $project, $version, $task->getProjectServers());
 
-            if (Yii::$app->params['debug']) {
-                $command = "php bash/fakeRebuild.php $project $version";
-            }
-
-            $text = $commandExecutor->executeCommand($command);
-
-            // an: Отправляем новые сгенерированные /etc/cron.d конфиги
-            $cronConfig = "";
-            if (Yii::$app->params['debug'] && $project != 'dictionary') {
-                $command = "(php $projectDir/misc/tools/runner.php --tool=CodeGenerate_CronjobGenerator --project=$project " .
-                    "--env=dev --server=1 --package=$project-$version > $projectDir/misc/cronjobs/cronjob-$project-tl1) 2>&1";
-                $commandExecutor->executeCommand($command);
-
-                $command = "(php $projectDir/misc/tools/runner.php --tool=CodeGenerate_CronjobGenerator --project=$project " .
-                    "--env=dev --server=2 --package=$project-$version > $projectDir/misc/cronjobs/cronjob-$project-tl2) 2>&1";
-                $commandExecutor->executeCommand($command);
-            }
-
-            foreach (glob("$projectDir/misc/cronjobs/cronjob-*") as $file) {
-                $cronConfig .= "#       " . preg_replace('~^.*/~', '', $file) . "\n\n";
-                $cronConfig .= file_get_contents($file);
-                $cronConfig .= "\n\n";
-            }
+            // an: Отправляем новые сгенерированные cron.d конфиги
+            $currentOperation = "gen-cron-configs";
+            $cronConfig = $this->processGenCronConfis($task->scriptCron, $project, $version);
 
             $this->model->sendCronConfig(
                 new Message\ReleaseRequestCronConfig($taskId, $cronConfig)
@@ -195,6 +175,56 @@ class DeployController extends RabbitListener
 
         Yii::info("Restoring pgid");
         posix_setpgid(posix_getpid(), $this->gid);
+    }
+
+    private function processGenCronConfis($scriptCron, string $project, string $version)
+    {
+        if (empty($scriptCron)) {
+            Yii::info("No cron generate script detected - so no cron configs");
+
+            return "";
+        }
+        $commandExecutor = new CommandExecutor();
+        $env = [
+            'projectName' => $project,
+            'version' => $version,
+        ];
+
+        $cronScriptFilename = "/tmp/cron-script-" . uniqid() . ".sh";
+        file_put_contents($cronScriptFilename, str_replace("\r", "", $scriptCron));
+        chmod($cronScriptFilename, 0777);
+
+        $cronConfig = $commandExecutor->executeCommand("$cronScriptFilename 2>&1", $env);
+
+        unlink($cronScriptFilename);
+
+        return $cronConfig;
+    }
+
+    private function processDeploy(string $projectDir, $scriptDeploy, string $project, string $version, array $servers)
+    {
+        if (empty($scriptDeploy)) {
+            throw new \Exception("Can't package project without deployment script");
+        }
+
+        $commandExecutor = new CommandExecutor();
+        $env = [
+            'projectName' => $project,
+            'version' => $version,
+            'projectDir' => $projectDir,
+            'servers' => implode(" ", $servers),
+        ];
+
+        $deployScriptFilename = "/tmp/deploy-script-" . uniqid() . ".sh";
+        file_put_contents($deployScriptFilename, str_replace("\r", "", $scriptDeploy));
+        chmod($deployScriptFilename, 0777);
+
+        $command = "$deployScriptFilename 2>&1";
+        $text = $commandExecutor->executeCommand($command, $env);
+        
+        unlink($deployScriptFilename);
+
+        return $text;
     }
 
     private function processMigrations(string $projectDir, $scriptMigrationNew, string $project, string $version)
