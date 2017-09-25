@@ -25,7 +25,7 @@ class KillerController extends RabbitListener
 
             Yii::info("Killing $task->project, task_id=$task->taskId");
 
-            $filename = Yii::$app->params['pid_dir'] . "/{$workerName}_deploy_$task->taskId.php.pid";
+            $filename = Yii::$app->params['pidDir'] . "/{$workerName}_deploy_$task->taskId.php.pid";
             if (!file_exists($filename)) {
                 Yii::info("No pid file $filename, may be process already finished");
                 $task->accepted();
