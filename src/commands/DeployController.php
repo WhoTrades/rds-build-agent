@@ -49,12 +49,14 @@ class DeployController extends RabbitListener
     private function processBuildTask(Message\BuildTask $task, $workerName)
     {
         posix_setpgid(posix_getpid(), posix_getpid());
+        $commandExecutor = new CommandExecutor();
         $project = $task->project;
         $this->taskId = $taskId = $task->id;
         $this->version = $version = $task->version;
         $release = $task->release;
+        $lastBuildTag = $task->lastBuildTag;
 
-        $basePidFilename = Yii::$app->params['pidDir'] . "/{$workerName}_deploy_$taskId.php";
+        $basePidFilename = Yii::$app->params['pid_dir'] . "/{$workerName}_deploy_$taskId.php";
         $pid = posix_getpid();
         Yii::info("My pid: $pid");
         file_put_contents("$basePidFilename.pid", $pid);
@@ -65,11 +67,78 @@ class DeployController extends RabbitListener
             unlink("$basePidFilename.pgid");
         });
 
-        $projectDir = Yii::$app->params['buildDir'] . "/$project-$version";
+        $projectDir = "/home/release/buildroot/$project-$version/var/pkg/$project-$version/";
+
+        if (Yii::$app->params['debug']) {
+            $projectDir = $project == 'comon'
+                ? "/home/dev/dev/$project/"
+                : "/home/dev/dev/services/" . str_replace("service-", "", $project) . "/";
+        }
 
         try {
+            // an: Сигнализируем о начале работы
+            $currentOperation = "send status 'building'";
+            $this->sendStatus('building');
+
+            $buildDir = "/home/release/build/";
+            $buildTmp = "/home/release/buildtmp/";
+            $buildRoot = "/home/release/buildroot/$project-$version";
+            // an: Собираем проект
+            $command = "env VERBOSE=y bash bash/rebuild-package.sh $project $version $release $taskId " .
+                Yii::$app->params['rdsDomain'] . " " . Yii::$app->params['createTag'] . " $buildDir $buildTmp $buildRoot 2>&1";
+
+            if (Yii::$app->params['debug']) {
+                $command = "php bash/fakeRebuild.php $project $version";
+            }
+
             $currentOperation = "building";
-            $this->processBuildProject($projectDir, $task->scriptBuild, $project, $version, $release, $taskId);
+
+            $text = $commandExecutor->executeCommand($command);
+
+            $output = '';
+            // an: хак, для словаря мы ничего не тегаем и патч не отправляем, пока что
+            if ($project != 'dictionary') {
+                // an: Отправляем на сервер какие тикеты были в этом билде
+                $currentOperation = "getting_build_patch";
+                $srcDir = "/home/release/build/$project";
+
+                $mapFilename = "$srcDir/lib/map.txt";
+
+                if (file_exists($mapFilename)) {
+                    $dirs = preg_replace('~\s+~sui', ' ', file_get_contents($mapFilename));
+                    if ($lastBuildTag) {
+                        $command = "(cd $srcDir/lib/sparta; echo -n '>>> '; git remote -v|tail -n 1; git log $lastBuildTag..$project-$version --pretty='%H|%s|/%an/' $dirs)";
+                    } else {
+                        $command = "(cd $srcDir/lib/sparta; echo -n '>>> '; git remote -v|tail -n 1; git log $project-$version..HEAD --pretty='%H|%s|/%an/' $dirs)";
+                    }
+                    if (Yii::$app->params['debug']) {
+                        $command = "cat /home/an/log.txt";
+                    }
+
+                    try {
+                        $output = $commandExecutor->executeCommand($command);
+                    } catch (CommandExecutorException $e) {
+                        // an: 128 - это когда нет какого-то тега в прошлом.
+                        //@todo подумать как это корректо обрабатывать такую ситуацию и реализовать
+                        $output = $e->output;
+                        if ($e->getCode() != 128) {
+                            throw $e;
+                        }
+                    }
+                } else {
+                    Yii::info("No map.txt found, skip patch sending");
+                }
+            }
+
+            $currentOperation = "sending_build_patch";
+
+            Yii::info("Sending building patch, length=" . strlen($output));
+            $this->model->sendBuildPatch(
+                new Message\ReleaseRequestBuildPatch($project, $version, $output)
+            );
+
+            // an: Сигнализируем все что собрали и начинаем раскладывать по серверам
+            $this->sendStatus('built', $version, $text);
 
             $currentOperation = "get_migrations_list";
             $this->processMigrations($projectDir, $task->scriptMigrationNew, $project, $version);
@@ -135,7 +204,7 @@ class DeployController extends RabbitListener
     private function processDeploy(string $projectDir, $scriptDeploy, string $project, string $version, array $servers)
     {
         if (empty($scriptDeploy)) {
-            throw new \Exception("Can't deploy project without deployment script");
+            throw new \Exception("Can't package project without deployment script");
         }
 
         $commandExecutor = new CommandExecutor();
@@ -152,41 +221,10 @@ class DeployController extends RabbitListener
 
         $command = "$deployScriptFilename 2>&1";
         $text = $commandExecutor->executeCommand($command, $env);
-
+        
         unlink($deployScriptFilename);
 
         return $text;
-    }
-
-    private function processBuildProject(string $projectDir, $scriptBuild, string $project, string $version, $release, $taskId)
-    {
-        if (empty($scriptBuild)) {
-            throw new \Exception("No build script detected - can't build");
-        }
-
-        // an: Сигнализируем о начале работы
-        $this->sendStatus('building');
-
-        $commandExecutor = new CommandExecutor();
-
-        Yii::info("projectDir=$projectDir");
-        $buildScriptFilename = "/tmp/build-script-" . uniqid() . ".sh";
-        file_put_contents($buildScriptFilename, str_replace("\r", "", $scriptBuild));
-        chmod($buildScriptFilename, 0777);
-        $env = [
-            'projectName' => $project,
-            'version' => $version,
-            'projectDir' => $projectDir,
-            'release' => $release,
-            'taskId' => $taskId,
-        ];
-        $text = $commandExecutor->executeCommand("$buildScriptFilename 2>&1", $env);
-        Yii::trace("Output: $text");
-
-        unlink($buildScriptFilename);
-
-        // an: Сигнализируем все что собрали и начинаем раскладывать по серверам
-        $this->sendStatus('built', $version, $text);
     }
 
     private function processMigrations(string $projectDir, $scriptMigrationNew, string $project, string $version)
