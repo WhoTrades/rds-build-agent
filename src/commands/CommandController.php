@@ -46,7 +46,7 @@ class CommandController extends \RdsSystem\commands\CommandController
 
             "# Тяжелые миграции (WhoTrades)",
             $this->createCommand(HardMigrationController::class, 'index', [$workerName], "deploy_hard_migration_$workerName"),
-            $this->createCommand(HardMigrationProxyController::class, 'index', ['debian'], "deploy_hard_migration_proxy_$workerName"),
+            $this->createCommand(HardMigrationProxyController::class, 'index', ['--maxDuration=86400'], "deploy_hard_migration_proxy_$workerName"),
         ];
     }
 }
