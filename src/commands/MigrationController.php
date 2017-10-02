@@ -23,7 +23,7 @@ class MigrationController extends RabbitListener
         $model->getMigrationTask($workerName, false, function (\RdsSystem\Message\MigrationTask $task) use ($workerName, $model) {
             $commandExecutor = new CommandExecutor();
 
-            $projectDir = "/home/release/buildroot/$task->project-$task->version/var/pkg/$task->project-$task->version/";
+            $projectDir = "/home/release/builds/$task->project-$task->version/";
             $migrationUpScriptFilename = "/tmp/migration-up-script-" . uniqid() . ".sh";
 
             try {
