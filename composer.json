@@ -1,17 +1,17 @@
 {
-    "name": "whotrades/deploy",
+    "name": "whotrades/build-agent",
     "type": "service",
-    "author": "Artem Naumenko",
+    "author": "Artem Naumenko (entsupml@gmail.com)",
     "description": "Build agent of RDS",
     "autoload": {
         "psr-4": {
-            "RdsSystem\\": "../../lib/RdsSystem/",
             "app\\": "protected/"
         }
     },
     "minimum-stability": "stable",
     "require": {
         "php": ">=7.0",
+	"whotrades/rds-system": "dev-master",
         "yiisoft/yii2": "2.0.11",
         "php-amqplib/php-amqplib": "~2.6",
         "codemix/yii2-streamlog": "1.2.1",
