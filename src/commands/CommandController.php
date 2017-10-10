@@ -39,14 +39,6 @@ class CommandController extends \whotrades\RdsSystem\commands\CommandController
 
             "# Миграции $workerName",
             $this->createCommand(MigrationController::class, 'index', [$workerName], "deploy_migration_$workerName"),
-
-            "# Работа с git (Wtflow)",
-            $this->createCommand(GitDropBranchesController::class, 'index', ['debian'], 'deploy_remove_branches'),
-            $this->createCommand(GitMergeController::class, 'index', ['debian'], 'deploy_git_merge'),
-
-            "# Тяжелые миграции (WhoTrades)",
-            $this->createCommand(HardMigrationController::class, 'index', [$workerName], "deploy_hard_migration_$workerName"),
-            $this->createCommand(HardMigrationProxyController::class, 'index', ['--maxDuration=86400'], "deploy_hard_migration_proxy_$workerName"),
         ];
     }
 }
