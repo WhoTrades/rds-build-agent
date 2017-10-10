@@ -5,7 +5,7 @@
     "description": "Build agent of RDS",
     "autoload": {
         "psr-4": {
-            "app\\": "protected/"
+            "whotrades\\RdsBuildAgent\\": "src/"
         }
     },
     "minimum-stability": "stable",
