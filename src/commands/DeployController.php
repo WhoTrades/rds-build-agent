@@ -3,14 +3,14 @@
  * @author Artem Naumenko
  */
 
-namespace app\commands;
+namespace whotrades\RdsBuildAgent\commands;
 
-use app\commands\Exception\StopBuildTask;
-use RdsSystem\Cron\RabbitListener;
-use RdsSystem\lib\CommandExecutor;
-use RdsSystem\lib\CommandExecutorException;
+use whotrades\RdsBuildAgent\commands\Exception\StopBuildTask;
+use whotrades\RdsSystem\Cron\RabbitListener;
+use whotrades\RdsSystem\lib\CommandExecutor;
+use whotrades\RdsSystem\lib\CommandExecutorException;
 use Yii;
-use RdsSystem\Message;
+use whotrades\RdsSystem\Message;
 
 class DeployController extends RabbitListener
 {
@@ -18,10 +18,10 @@ class DeployController extends RabbitListener
     private $taskId;
     private $version;
 
-    /** @var \RdsSystem\Model\Rabbit\MessagingRdsMs */
+    /** @var \whotrades\RdsSystem\Model\Rabbit\MessagingRdsMs */
     private $model;
 
-    /** @var \RdsSystem\Message\BuildTask */
+    /** @var \whotrades\RdsSystem\Message\BuildTask */
     private $currentTask;
 
     /**

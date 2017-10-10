@@ -1,5 +1,5 @@
 <?php
-namespace app\commands\Exception;
+namespace whotrades\RdsBuildAgent\commands\Exception;
 
 class StopBuildTask extends \Exception
 {

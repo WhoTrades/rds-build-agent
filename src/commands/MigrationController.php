@@ -3,13 +3,13 @@
  * @author Artem Naumenko
  */
 
-namespace app\commands;
+namespace whotrades\RdsBuildAgent\commands;
 
-use RdsSystem\Cron\RabbitListener;
-use RdsSystem\lib\CommandExecutor;
-use RdsSystem\lib\CommandExecutorException;
+use whotrades\RdsSystem\Cron\RabbitListener;
+use whotrades\RdsSystem\lib\CommandExecutor;
+use whotrades\RdsSystem\lib\CommandExecutorException;
 use Yii;
-use RdsSystem\Message;
+use whotrades\RdsSystem\Message;
 
 class MigrationController extends RabbitListener
 {
@@ -20,7 +20,7 @@ class MigrationController extends RabbitListener
     {
         $model  = $this->getMessagingModel();
 
-        $model->getMigrationTask($workerName, false, function (\RdsSystem\Message\MigrationTask $task) use ($workerName, $model) {
+        $model->getMigrationTask($workerName, false, function (\whotrades\RdsSystem\Message\MigrationTask $task) use ($workerName, $model) {
             $commandExecutor = new CommandExecutor();
 
             $projectDir = "/home/release/builds/$task->project-$task->version/";
@@ -37,13 +37,13 @@ class MigrationController extends RabbitListener
                 ];
                 $commandExecutor->executeCommand("$migrationUpScriptFilename 2>&1", $env);
 
-                $model->sendMigrationStatus(new \RdsSystem\Message\ReleaseRequestMigrationStatus($task->project, $task->version, $task->type, 'up'));
+                $model->sendMigrationStatus(new \whotrades\RdsSystem\Message\ReleaseRequestMigrationStatus($task->project, $task->version, $task->type, 'up'));
             } catch (CommandExecutorException $e) {
                 Yii::error($e->getMessage());
                 Yii::info($e->output);
-                $model->sendMigrationStatus(new \RdsSystem\Message\ReleaseRequestMigrationStatus($task->project, $task->version, $task->type, 'failed', $e->output));
+                $model->sendMigrationStatus(new \whotrades\RdsSystem\Message\ReleaseRequestMigrationStatus($task->project, $task->version, $task->type, 'failed', $e->output));
             } catch (\Exception $e) {
-                $model->sendMigrationStatus(new \RdsSystem\Message\ReleaseRequestMigrationStatus($task->project, $task->version, $task->type, 'failed', $e->getMessage()));
+                $model->sendMigrationStatus(new \whotrades\RdsSystem\Message\ReleaseRequestMigrationStatus($task->project, $task->version, $task->type, 'failed', $e->getMessage()));
             }
 
             unlink($migrationUpScriptFilename);

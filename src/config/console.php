@@ -1,11 +1,11 @@
 <?php
-use RdsSystem\lib\ConsoleErrorHandler;
+use whotrades\RdsSystem\lib\ConsoleErrorHandler;
 
 $config = [
     'id' => 'service-deploy',
     'basePath' => dirname(__DIR__),
     'bootstrap' => ['log', 'sentry'],
-    'controllerNamespace' => 'app\commands',
+    'controllerNamespace' => 'whotrades\RdsBuildAgent\commands',
     'components' => [
         'cache' => [
             'class' => 'yii\caching\FileCache',

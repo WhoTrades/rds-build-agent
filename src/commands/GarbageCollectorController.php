@@ -3,14 +3,13 @@
  * @author Artem Naumenko
  */
 
-namespace app\commands;
+namespace whotrades\RdsBuildAgent\commands;
 
-use RdsSystem\Cron\RabbitListener;
-use RdsSystem\lib\CommandExecutor;
-use RdsSystem\lib\CommandExecutorException;
+use whotrades\RdsSystem\Cron\RabbitListener;
+use whotrades\RdsSystem\lib\CommandExecutor;
 use Yii;
 use PhpAmqpLib;
-use RdsSystem\Message;
+use whotrades\RdsSystem\Message;
 
 class GarbageCollectorController extends RabbitListener
 {

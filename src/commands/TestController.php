@@ -3,13 +3,13 @@
  * @author Artem Naumenko
  */
 
-namespace app\commands;
+namespace whotrades\RdsBuildAgent\commands;
 
-use app\modules\Wtflow\models\MergeTask;
-use RdsSystem\Cron\RabbitListener;
-use RdsSystem\Message\Merge\CreateBranch;
-use RdsSystem\Message\Merge\DropBranches;
-use RdsSystem\Message;
+use whotrades\RdsBuildAgent\modules\Wtflow\models\MergeTask;
+use whotrades\RdsSystem\Cron\RabbitListener;
+use whotrades\RdsSystem\Message\Merge\CreateBranch;
+use whotrades\RdsSystem\Message\Merge\DropBranches;
+use whotrades\RdsSystem\Message;
 use Yii;
 use yii\console\Controller;
 

@@ -3,13 +3,13 @@
  * @author Artem Naumenko
  */
 
-namespace app\commands;
+namespace whotrades\RdsBuildAgent\commands;
 
-use RdsSystem\Cron\RabbitListener;
-use RdsSystem\lib\CommandExecutor;
-use RdsSystem\lib\CommandExecutorException;
+use whotrades\RdsSystem\Cron\RabbitListener;
+use whotrades\RdsSystem\lib\CommandExecutor;
+use whotrades\RdsSystem\lib\CommandExecutorException;
 use Yii;
-use RdsSystem\Message;
+use whotrades\RdsSystem\Message;
 
 class KillerController extends RabbitListener
 {
@@ -20,7 +20,7 @@ class KillerController extends RabbitListener
     {
         $model  = $this->getMessagingModel();
 
-        $model->getKillTask($workerName, false, function (\RdsSystem\Message\KillTask $task) use ($model, $workerName) {
+        $model->getKillTask($workerName, false, function (\whotrades\RdsSystem\Message\KillTask $task) use ($model, $workerName) {
             $commandExecutor = new CommandExecutor();
 
             Yii::info("Killing $task->project, task_id=$task->taskId");
@@ -44,7 +44,7 @@ class KillerController extends RabbitListener
             $task->accepted();
         });
 
-        $model->readUnixSignals($workerName, false, function (\RdsSystem\Message\UnixSignal $message) use ($model, $workerName) {
+        $model->readUnixSignals($workerName, false, function (\whotrades\RdsSystem\Message\UnixSignal $message) use ($model, $workerName) {
             $commandExecutor = new CommandExecutor();
 
             Yii::info("Sending signal $message->signal to PID=$message->pid");
@@ -58,7 +58,7 @@ class KillerController extends RabbitListener
             $message->accepted();
         });
 
-        $model->readUnixSignalsToGroup($workerName, false, function (\RdsSystem\Message\UnixSignalToGroup $message) use ($model, $workerName) {
+        $model->readUnixSignalsToGroup($workerName, false, function (\whotrades\RdsSystem\Message\UnixSignalToGroup $message) use ($model, $workerName) {
             $commandExecutor = new CommandExecutor();
 
             Yii::info("Sending signal to PGID=$message->pgid");

@@ -3,9 +3,9 @@
  * @author Artem Naumenko
  */
 
-namespace app\commands;
+namespace whotrades\RdsBuildAgent\commands;
 
-class CommandController extends \RdsSystem\commands\CommandController
+class CommandController extends \whotrades\RdsSystem\commands\CommandController
 {
     public $user;
     public $projectPath;

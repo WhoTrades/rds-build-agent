@@ -4,14 +4,14 @@
  * @example php yii.php use/index debian
  */
 
-namespace app\commands;
+namespace whotrades\RdsBuildAgent\commands;
 
 use Raven_Client;
-use RdsSystem\Cron\RabbitListener;
-use RdsSystem\lib\CommandExecutor;
-use RdsSystem\lib\CommandExecutorException;
+use whotrades\RdsSystem\Cron\RabbitListener;
+use whotrades\RdsSystem\lib\CommandExecutor;
+use whotrades\RdsSystem\lib\CommandExecutorException;
 use Yii;
-use RdsSystem\Message;
+use whotrades\RdsSystem\Message;
 
 class UseController extends RabbitListener
 {
@@ -22,7 +22,7 @@ class UseController extends RabbitListener
     {
         $model = $this->getMessagingModel();
 
-        $model->getUseTask($workerName, false, function (\RdsSystem\Message\UseTask $task) use ($workerName, $model) {
+        $model->getUseTask($workerName, false, function (\whotrades\RdsSystem\Message\UseTask $task) use ($workerName, $model) {
             Yii::info("Task received: " . json_encode($task));
             $project = $task->project;
             $releaseRequestId = $task->releaseRequestId;
@@ -57,7 +57,7 @@ class UseController extends RabbitListener
             }
         });
 
-        $model->readProjectConfig($workerName, false, function (\RdsSystem\Message\ProjectConfig $task) use ($model) {
+        $model->readProjectConfig($workerName, false, function (\whotrades\RdsSystem\Message\ProjectConfig $task) use ($model) {
             Yii::info("Task received: " . json_encode($task));
             $project = $task->project;
 
