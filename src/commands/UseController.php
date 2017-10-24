@@ -33,11 +33,30 @@ class UseController extends RabbitListener
             Yii::info("Using $project:$version, task_id=$releaseRequestId");
 
             try {
-                $command = "bash bash/deploy.sh use $project $version 2>&1";
-                if (Yii::$app->params['debug']) {
-                    $command = "php bash/fakeUse.php $project $version $workerName";
+                if (empty($task->scriptUse)) {
+                    $model->sendUseError(
+                        new Message\ReleaseRequestUseError($task->releaseRequestId, $initiatorUserName, "Can't use project without use script")
+                    );
+                    Yii::error("Can't use project without use script");
+                    $task->accepted();
+                    return;
                 }
-                $commandExecutor->executeCommand($command);
+                $env = [
+                    'projectName' => $project,
+                    'version' => $version,
+                    'servers' => implode(" ", $task->projectServers),
+                ];
+
+                $useScriptFilename = "/tmp/deploy-use-" . uniqid() . ".sh";
+                file_put_contents($useScriptFilename, str_replace("\r", "", $task->scriptUse));
+                chmod($useScriptFilename, 0777);
+
+                $command = "$useScriptFilename 2>&1";
+                $text = $commandExecutor->executeCommand($command, $env);
+
+                Yii::info("Use command output: $text");
+
+                unlink($useScriptFilename);
 
                 Yii::info("Used version: $version");
                 $model->sendUsedVersion(
@@ -49,7 +68,7 @@ class UseController extends RabbitListener
                 Yii::info("Successful used $project-$version");
             } catch (CommandExecutorException $e) {
                 $model->sendUseError(
-                    new Message\ReleaseRequestUseError($task->releaseRequestId, $e->getMessage() . "\nOutput: " . $e->output)
+                    new Message\ReleaseRequestUseError($task->releaseRequestId, $initiatorUserName, $e->getMessage() . "\nOutput: " . $e->output)
                 );
                 Yii::error($e->getMessage());
 
