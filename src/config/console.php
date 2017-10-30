@@ -36,6 +36,13 @@ $config = [
         ),
     ],
     'params' => [
+        'messaging' => [
+            'host'  => 'localhost',
+            'port'  => 5672,
+            'user'  => 'rds',
+            'pass'  => 'rds',
+            'vhost' => '/',
+        ],
         'debug' => false,
         'pidDir' => '/tmp/rds-build-agent/pid/',
         'buildDir' => '/tmp/rds-build-agent/builds/',
