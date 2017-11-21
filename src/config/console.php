@@ -6,6 +6,9 @@ $config = [
     'basePath' => dirname(__DIR__),
     'bootstrap' => ['log', 'sentry'],
     'controllerNamespace' => 'whotrades\RdsBuildAgent\commands',
+    'aliases' => [
+        '@whotrades/RdsBuildAgent' => 'src',
+    ],
     'components' => [
         'cache' => [
             'class' => 'yii\caching\FileCache',
@@ -27,8 +30,9 @@ $config = [
             ],
         ],
         'sentry' => [
+            'enabled' => false,
             'class' => mito\sentry\Component::class,
-            'dsn' => '<<<your-sentry-dsn>>>', // private DSN
+            'dsn' => 'https://36096034f31943d5e183555b2de11221:431c23f004608d05993c8df0ef54e096@sentry.com/1', // private DSN
         ],
         'errorHandler' => array(
             'class' => ConsoleErrorHandler::class,
