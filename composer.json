@@ -10,8 +10,9 @@
     },
     "require": {
         "php": ">=7.0",
-	"whotrades/rds-system": "dev-master",
-        "yiisoft/yii2": "2.0.11",
+	    "whotrades/rds-system": "dev-master",
+        "fxp/composer-asset-plugin": "~1.0",
+        "yiisoft/yii2": "2.0.13",
         "php-amqplib/php-amqplib": "~2.6",
         "codemix/yii2-streamlog": "1.2.1",
         "mito/yii2-sentry": "~1.0.0"

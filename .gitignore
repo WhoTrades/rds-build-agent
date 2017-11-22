@@ -1,3 +1,4 @@
 config.local.php
 vendor/
 .idea
+composer.phar
