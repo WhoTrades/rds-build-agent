@@ -591,12 +591,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/WhoTrades/rds-system.git",
-                "reference": "5af67cd470c59c1924d7e8a788f473dc8a856070"
+                "reference": "a94cda188ee0df911e250b307603e801bffe7849"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/WhoTrades/rds-system/zipball/5af67cd470c59c1924d7e8a788f473dc8a856070",
-                "reference": "5af67cd470c59c1924d7e8a788f473dc8a856070",
+                "url": "https://api.github.com/repos/WhoTrades/rds-system/zipball/a94cda188ee0df911e250b307603e801bffe7849",
+                "reference": "a94cda188ee0df911e250b307603e801bffe7849",
                 "shasum": ""
             },
             "type": "library",
@@ -607,7 +607,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "description": "Core part of RDS service",
-            "time": "2018-05-07T09:29:32+00:00"
+            "time": "2018-08-23T17:04:19+00:00"
         },
         {
             "name": "yiisoft/yii2",
