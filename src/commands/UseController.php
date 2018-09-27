@@ -60,7 +60,7 @@ class UseController extends RabbitListener
 
                 Yii::info("Used version: $version");
                 $model->sendUsedVersion(
-                    new Message\ReleaseRequestUsedVersion($workerName, $project, $version, $initiatorUserName)
+                    new Message\ReleaseRequestUsedVersion($workerName, $project, $version, $initiatorUserName, $text)
                 );
 
                 $task->accepted();
@@ -161,6 +161,8 @@ class UseController extends RabbitListener
 
                 $task->accepted();
             } catch (CommandExecutorException $e) {
+                $output = $e->getMessage() . "\nOutput: " . $e->output;
+
                 Yii::$app->sentry->captureMessage(
                     "error_synchronization_config_local_skip_message",
                     [
@@ -183,6 +185,10 @@ class UseController extends RabbitListener
 
                 $task->accepted();
             }
+
+            $model->sendProjectConfigResult(
+                new Message\ProjectConfigResult($task->projectConfigHistoryId, $output)
+            );
         });
 
         $this->waitForMessages($model);
