@@ -76,5 +76,7 @@ class GarbageCollectorController extends RabbitListener
 
             Yii::info("Task finished");
         });
+
+        $this->waitForMessages($model);
     }
 }
