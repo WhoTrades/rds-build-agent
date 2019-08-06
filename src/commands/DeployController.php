@@ -34,10 +34,21 @@ class DeployController extends RabbitListener
 
         $this->model->getBuildTask($workerName, false, function (Message\BuildTask $task) use ($workerName) {
             $this->currentTask = $task;
-            Yii::info("Task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+            Yii::info("Build task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
             try {
-                $this->processBuildTask($task, $workerName);
+                $this->processTask($task, $workerName);
+            } catch (StopBuildTask $e) {
+                $this->currentTask->accepted();
+            }
+        });
+
+        $this->model->getInstallTask($workerName, false, function (Message\InstallTask $task) use ($workerName) {
+            $this->currentTask = $task;
+            Yii::info("Install task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+
+            try {
+                $this->processTask($task, $workerName);
             } catch (StopBuildTask $e) {
                 $this->currentTask->accepted();
             }
@@ -46,7 +57,13 @@ class DeployController extends RabbitListener
         $this->waitForMessages($this->model);
     }
 
-    private function processBuildTask(Message\BuildTask $task, $workerName)
+    /**
+     * @param Message\DeployTaskBase $task
+     * @param string $workerName
+     *
+     * @throws StopBuildTask
+     */
+    private function processTask(Message\DeployTaskBase $task, $workerName)
     {
         posix_setpgid(posix_getpid(), posix_getpid());
         $project = $task->project;
@@ -68,25 +85,47 @@ class DeployController extends RabbitListener
         $projectDir = Yii::$app->params['buildDir'] . "/$project-$version";
 
         try {
-            $currentOperation = "building";
-            $this->processBuildProject($projectDir, $task->scriptBuild, $project, $version, $release, $taskId);
+            switch (get_class($task)) {
+                case Message\BuildTask::class:
+                    /** @var Message\BuildTask $task */
+                    // an: Сигнализируем о начале работы
+                    $this->sendStatus('building');
 
-            $currentOperation = "get_migrations_list";
-            $this->processMigrations($projectDir, $task->scriptMigrationNew, $project, $version);
+                    $currentOperation = "building";
+                    $text = $this->processBuildProject($projectDir, $task->scriptBuild, $project, $version, $release, $taskId);
 
-            // an: Раскладываем собранный проект по серверам
-            $currentOperation = "installing";
-            $text = $this->processDeploy($projectDir, $task->scriptDeploy, $project, $version, $task->getProjectServers());
+                    $currentOperation = "get_migrations_list";
+                    $this->processMigrations($projectDir, $task->scriptMigrationNew, $project, $version);
 
-            // an: Отправляем новые сгенерированные cron.d конфиги
-            $currentOperation = "gen-cron-configs";
-            $cronConfig = $this->processGenCronConfis($task->scriptCron, $project, $version);
+                    // an: Отправляем новые сгенерированные cron.d конфиги
+                    $currentOperation = "gen-cron-configs";
+                    $cronConfig = $this->processGenCronConfis($task->scriptCron, $project, $version);
 
-            $this->model->sendCronConfig(
-                new Message\ReleaseRequestCronConfig($taskId, $cronConfig)
-            );
-            // an: Сигнализируем все что сделали
-            $this->sendStatus('installed', $version, $text);
+                    $this->model->sendCronConfig(
+                        new Message\ReleaseRequestCronConfig($taskId, $cronConfig)
+                    );
+
+                    // an: Сигнализируем что все сделали
+                    $this->sendStatus('built', $version, $text);
+
+                    break;
+                case Message\InstallTask::class:
+                    /** @var Message\InstallTask $task */
+                    // an: Сигнализируем о начале работы
+                    $this->sendStatus('installing');
+
+                    // an: Раскладываем собранный проект по серверам
+                    $currentOperation = "installing";
+                    $text = $this->processInstall($projectDir, $task->scriptInstall, $project, $version, $task->getProjectServers());
+
+                    // an: Сигнализируем что все сделали
+                    $this->sendStatus('installed', $version, $text);
+
+                    break;
+                default:
+                    Yii::error("Unknown deploy task: " . get_class($task));
+                    $this->sendStatus('failed', $version);
+            }
         } catch (CommandExecutorException $e) {
             $text = $e->output;
             Yii::error("Last command: " . $e->getCommand());
@@ -132,10 +171,21 @@ class DeployController extends RabbitListener
         return $cronConfig;
     }
 
-    private function processDeploy(string $projectDir, $scriptDeploy, string $project, string $version, array $servers)
+    /**
+     * @param string $projectDir
+     * @param string $scriptInstall
+     * @param string $project
+     * @param string $version
+     * @param array $servers
+     *
+     * @return string
+     *
+     * @throws CommandExecutorException
+     */
+    private function processInstall(string $projectDir, $scriptInstall, string $project, string $version, array $servers)
     {
-        if (empty($scriptDeploy)) {
-            throw new \Exception("Can't deploy project without deployment script");
+        if (empty($scriptInstall)) {
+            throw new \Exception("Can't install project without installation script");
         }
 
         $commandExecutor = new CommandExecutor();
@@ -146,14 +196,14 @@ class DeployController extends RabbitListener
             'servers' => implode(" ", $servers),
         ];
 
-        $deployScriptFilename = "/tmp/deploy-script-" . uniqid() . ".sh";
-        file_put_contents($deployScriptFilename, str_replace("\r", "", $scriptDeploy));
-        chmod($deployScriptFilename, 0777);
+        $installScriptFilename = "/tmp/install-script-" . uniqid() . ".sh";
+        file_put_contents($installScriptFilename, str_replace("\r", "", $scriptInstall));
+        chmod($installScriptFilename, 0777);
 
-        $command = "$deployScriptFilename 2>&1";
+        $command = "$installScriptFilename 2>&1";
         $text = $commandExecutor->executeCommand($command, $env);
 
-        unlink($deployScriptFilename);
+        unlink($installScriptFilename);
 
         return $text;
     }
@@ -163,9 +213,6 @@ class DeployController extends RabbitListener
         if (empty($scriptBuild)) {
             throw new \Exception("No build script detected - can't build");
         }
-
-        // an: Сигнализируем о начале работы
-        $this->sendStatus('building');
 
         $commandExecutor = new CommandExecutor();
 
@@ -185,8 +232,7 @@ class DeployController extends RabbitListener
 
         unlink($buildScriptFilename);
 
-        // an: Сигнализируем все что собрали и начинаем раскладывать по серверам
-        $this->sendStatus('built', $version, $text);
+        return $text;
     }
 
     private function processMigrations(string $projectDir, $scriptMigrationNew, string $project, string $version)
