@@ -71,6 +71,10 @@ class DeployController extends RabbitListener
         $this->version = $version = $task->version;
         $release = $task->release;
 
+        if (!file_exists(Yii::$app->params['pidDir'])) {
+            mkdir(Yii::$app->params['pidDir'], 0777, true);
+        }
+
         $basePidFilename = Yii::$app->params['pidDir'] . "/{$workerName}_deploy_$taskId.php";
         $pid = posix_getpid();
         Yii::info("My pid: $pid");
