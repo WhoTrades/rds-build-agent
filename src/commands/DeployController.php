@@ -36,25 +36,20 @@ class DeployController extends RabbitListener
             $this->currentTask = $task;
             Yii::info("Build task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
-            try {
-                $this->processTask($task, $workerName);
-            } catch (StopBuildTask $e) {
-                $this->currentTask->accepted();
-            }
+            $this->processTask($task, $workerName);
         });
 
         $this->model->getInstallTask($workerName, false, function (Message\InstallTask $task) use ($workerName) {
             $this->currentTask = $task;
             Yii::info("Install task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
-            try {
-                $this->processTask($task, $workerName);
-            } catch (StopBuildTask $e) {
-                $this->currentTask->accepted();
-            }
+            $this->processTask($task, $workerName);
         });
 
-        $this->waitForMessages($this->model);
+        try {
+            $this->waitForMessages($this->model);
+        } catch (StopBuildTask $e) {
+        }
     }
 
     /**
@@ -138,7 +133,9 @@ class DeployController extends RabbitListener
             $buildLog .= "Command output " . $text . "\n";
             $this->sendStatus('failed', $version, $buildLog);
         } catch (StopBuildTask $e) {
-            throw $e;
+            $sigName = $this->mapSigNoToName($e->getSigno());
+            Yii::error("Stop processing task with signal $sigName");
+            $this->sendStatus('failed', $version, "Processing of task was stopped with signal $sigName");
         } catch (\Exception $e) {
             Yii::error("Unknown error: " . $e->getMessage());
             $this->sendStatus('failed', $version, $e->getMessage());
@@ -290,21 +287,14 @@ class DeployController extends RabbitListener
 
     /**
      * @param int $signo
-     * @void
+     *
+     * @throws StopBuildTask
      */
     public function onTerm($signo)
     {
-        Yii::info("Caught signal $signo");
-        $this->getMessagingModel()->stopReceivingMessages();
+        Yii::info("Caught signal " . $this->mapSigNoToName($signo));
+        $this->stopReceivingMessages();
 
-        if ($signo == SIGTERM || $signo == SIGINT) {
-            Yii::info("Cancelling...");
-            $this->sendStatus('cancelled', $this->version);
-            Yii::info("Cancelled...");
-
-            throw new StopBuildTask();
-        }
-
-        parent::onTerm($signo);
+        throw new StopBuildTask($signo);
     }
 }
