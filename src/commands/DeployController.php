@@ -120,6 +120,12 @@ class DeployController extends RabbitListener
                     // an: Сигнализируем что все сделали
                     $this->sendStatus('installed', $version, $text);
 
+                    $currentOperation = "post_install_script";
+                    $text = $this->processPostInstall($projectDir, $task->scriptPostInstall, $project, $version);
+
+                    // ag: Сигнализируем что скрипт отработал
+                    $this->sendStatus('post_installed', $version, $text);
+
                     break;
                 default:
                     Yii::error("Unknown deploy task: " . get_class($task));
@@ -148,6 +154,21 @@ class DeployController extends RabbitListener
         posix_setpgid(posix_getpid(), $this->gid);
     }
 
+    private function processScript($script, $scriptPrefix, array $env)
+    {
+        $commandExecutor = new CommandExecutor();
+
+        $scriptFilename = $scriptPrefix . uniqid() . ".sh";
+        file_put_contents($scriptFilename, str_replace("\r", "", $script));
+        chmod($scriptFilename, 0777);
+
+        $result = $commandExecutor->executeCommand("$scriptFilename 2>&1", $env);
+
+        unlink($scriptFilename);
+
+        return $result;
+    }
+
     private function processGenCronConfis($scriptCron, string $project, string $version)
     {
         if (empty($scriptCron)) {
@@ -155,21 +176,15 @@ class DeployController extends RabbitListener
 
             return "";
         }
-        $commandExecutor = new CommandExecutor();
-        $env = [
-            'projectName' => $project,
-            'version' => $version,
-        ];
 
-        $cronScriptFilename = "/tmp/cron-script-" . uniqid() . ".sh";
-        file_put_contents($cronScriptFilename, str_replace("\r", "", $scriptCron));
-        chmod($cronScriptFilename, 0777);
-
-        $cronConfig = $commandExecutor->executeCommand("$cronScriptFilename 2>&1", $env);
-
-        unlink($cronScriptFilename);
-
-        return $cronConfig;
+        return $this->processScript(
+            $scriptCron,
+            '/tmp/cron-script-',
+            [
+                'projectName' => $project,
+                'version' => $version,
+            ]
+        );
     }
 
     /**
@@ -189,24 +204,48 @@ class DeployController extends RabbitListener
             throw new \Exception("Can't install project without installation script");
         }
 
-        $commandExecutor = new CommandExecutor();
-        $env = [
-            'projectName' => $project,
-            'version' => $version,
-            'projectDir' => $projectDir,
-            'servers' => implode(" ", $servers),
-        ];
+        return $this->processScript(
+            $scriptInstall,
+            '/tmp/install-script-',
+            [
+                'projectName' => $project,
+                'version' => $version,
+                'projectDir' => $projectDir,
+                'servers' => implode(" ", $servers),
+            ]
+        );
+    }
 
-        $installScriptFilename = "/tmp/install-script-" . uniqid() . ".sh";
-        file_put_contents($installScriptFilename, str_replace("\r", "", $scriptInstall));
-        chmod($installScriptFilename, 0777);
 
-        $command = "$installScriptFilename 2>&1";
-        $text = $commandExecutor->executeCommand($command, $env);
+    /**
+     * @param string $projectDir
+     * @param string $scriptPostInstall
+     * @param string $project
+     * @param string $version
+     *
+     * @return string
+     *
+     * @throws CommandExecutorException
+     */
+    private function processPostInstall(string $projectDir, $scriptPostInstall, string $project, string $version)
+    {
+        Yii::info("Start to process post install script");
 
-        unlink($installScriptFilename);
+        if (empty($scriptInstall)) {
+            Yii::info("Skip processing post install script. It is empty");
 
-        return $text;
+            return '';
+        }
+
+        return $this->processScript(
+            $scriptInstall,
+            '/tmp/post-install-script-',
+            [
+                'projectName' => $project,
+                'version' => $version,
+                'projectDir' => $projectDir,
+            ]
+        );
     }
 
     private function processBuildProject(string $projectDir, $scriptBuild, string $project, string $version, $release, $taskId)
@@ -215,25 +254,17 @@ class DeployController extends RabbitListener
             throw new \Exception("No build script detected - can't build");
         }
 
-        $commandExecutor = new CommandExecutor();
-
-        Yii::info("projectDir=$projectDir");
-        $buildScriptFilename = "/tmp/build-script-" . uniqid() . ".sh";
-        file_put_contents($buildScriptFilename, str_replace("\r", "", $scriptBuild));
-        chmod($buildScriptFilename, 0777);
-        $env = [
-            'projectName' => $project,
-            'version' => $version,
-            'projectDir' => $projectDir,
-            'release' => $release,
-            'taskId' => $taskId,
-        ];
-        $text = $commandExecutor->executeCommand("$buildScriptFilename 2>&1", $env);
-        Yii::trace("Output: $text");
-
-        unlink($buildScriptFilename);
-
-        return $text;
+        return $this->processScript(
+            $scriptBuild,
+            '/tmp/build-script-',
+            [
+                'projectName' => $project,
+                'version' => $version,
+                'projectDir' => $projectDir,
+                'release' => $release,
+                'taskId' => $taskId,
+            ]
+        );
     }
 
     private function processMigrations(string $projectDir, $scriptMigrationNew, string $project, string $version)
@@ -243,21 +274,21 @@ class DeployController extends RabbitListener
 
             return;
         }
-        $commandExecutor = new CommandExecutor();
 
         Yii::info("projectDir=$projectDir");
-        $migrationNewScriptFilename = "/tmp/migration-new-script-" . uniqid() . ".sh";
-        file_put_contents($migrationNewScriptFilename, str_replace("\r", "", $scriptMigrationNew));
-        chmod($migrationNewScriptFilename, 0777);
         // an: Проект с миграциями
         foreach (array('pre', 'post', 'hard') as $type) {
-            $env = [
-                'projectName' => $project,
-                'version' => $version,
-                'type' => $type,
-                'projectDir' => $projectDir,
-            ];
-            $text = $commandExecutor->executeCommand("$migrationNewScriptFilename 2>&1", $env);
+            $text = $this->processScript(
+                $scriptMigrationNew,
+                '/tmp/migration-new-script-',
+                [
+                    'projectName' => $project,
+                    'version' => $version,
+                    'type' => $type,
+                    'projectDir' => $projectDir,
+                ]
+            );
+
             Yii::trace("Output: $text");
             $lines = explode("\n", str_replace("\r", "", $text));
             $migrations = array_filter($lines);
@@ -266,8 +297,6 @@ class DeployController extends RabbitListener
                 new Message\ReleaseRequestMigrations($project, $version, $migrations, $type)
             );
         }
-
-        unlink($migrationNewScriptFilename);
     }
 
     /**
