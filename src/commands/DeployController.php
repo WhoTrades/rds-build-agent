@@ -14,6 +14,12 @@ use whotrades\RdsSystem\Message;
 
 class DeployController extends RabbitListener
 {
+    const CURRENT_OPERATION_BUILDING = 'building';
+    const CURRENT_OPERATION_GET_MIGRATIONS_LIST = 'get_migrations_list';
+    const CURRENT_OPERATION_GEN_CRON_CONFIGS = 'gen_cron_configs';
+    const CURRENT_OPERATION_INSTALLING = 'installing';
+    const CURRENT_OPERATION_POST_INSTALL_SCRIPT = 'post_install_script';
+
     private $gid;
     private $taskId;
     private $version;
@@ -90,14 +96,14 @@ class DeployController extends RabbitListener
                     // an: Сигнализируем о начале работы
                     $this->sendStatus('building');
 
-                    $currentOperation = "building";
+                    $currentOperation = self::CURRENT_OPERATION_BUILDING;
                     $text = $this->processBuildProject($projectDir, $task->scriptBuild, $project, $version, $release, $taskId);
 
-                    $currentOperation = "get_migrations_list";
+                    $currentOperation = self::CURRENT_OPERATION_GET_MIGRATIONS_LIST;
                     $this->processMigrations($projectDir, $task->scriptMigrationNew, $project, $version);
 
                     // an: Отправляем новые сгенерированные cron.d конфиги
-                    $currentOperation = "gen-cron-configs";
+                    $currentOperation = self::CURRENT_OPERATION_GEN_CRON_CONFIGS;
                     $cronConfig = $this->processGenCronConfis($task->scriptCron, $project, $version);
 
                     $this->model->sendCronConfig(
@@ -114,17 +120,21 @@ class DeployController extends RabbitListener
                     $this->sendStatus('installing');
 
                     // an: Раскладываем собранный проект по серверам
-                    $currentOperation = "installing";
+                    $currentOperation = self::CURRENT_OPERATION_INSTALLING;
                     $text = $this->processInstall($projectDir, $task->scriptInstall, $project, $version, $task->getProjectServers());
 
                     // an: Сигнализируем что все сделали
                     $this->sendStatus('installed', $version, $text);
 
-                    $currentOperation = "post_install_script";
-                    $text = $this->processPostInstall($projectDir, $task->scriptPostInstall, $project, $version);
+                    try {
+                        $currentOperation = self::CURRENT_OPERATION_POST_INSTALL_SCRIPT;
+                        $text = $this->processPostInstall($projectDir, $task->scriptPostInstall, $project, $version);
 
-                    // ag: Сигнализируем что скрипт отработал
-                    $this->sendStatus('post_installed', $version, $text);
+                        // ag: Сигнализируем что скрипт отработал
+                        $this->sendStatus('post_installed', $version, $text);
+                    } catch (CommandExecutorException $e) {
+                        $this->processCommandExecutorException($e, $currentOperation, $version, 'post_installed');
+                    }
 
                     break;
                 default:
@@ -132,12 +142,7 @@ class DeployController extends RabbitListener
                     $this->sendStatus('failed', $version);
             }
         } catch (CommandExecutorException $e) {
-            $text = $e->output;
-            Yii::error("Last command: " . $e->getCommand());
-            Yii::error("Failed to execute '$currentOperation'");
-            $buildLog = "Failed to execute " . $e->getCommand() . "\n";
-            $buildLog .= "Command output " . $text . "\n";
-            $this->sendStatus('failed', $version, $buildLog);
+            $this->processCommandExecutorException($e, $currentOperation, $version, 'failed');
         } catch (StopBuildTask $e) {
             $sigName = $this->mapSigNoToName($e->getSigno());
             Yii::error("Stop processing task with signal $sigName");
@@ -152,6 +157,22 @@ class DeployController extends RabbitListener
 
         Yii::info("Restoring pgid");
         posix_setpgid(posix_getpid(), $this->gid);
+    }
+
+    /**
+     * @param CommandExecutorException $e
+     * @param string $currentOperation
+     * @param string $version
+     * @param string $sendStatus
+     */
+    private function processCommandExecutorException(CommandExecutorException $e, $currentOperation, $version, $sendStatus)
+    {
+        $text = $e->output;
+        Yii::error("Last command: " . $e->getCommand());
+        Yii::error("Failed to execute '$currentOperation'");
+        $buildLog = "Failed to execute " . $e->getCommand() . "\n";
+        $buildLog .= "Command output " . $text . "\n";
+        $this->sendStatus($sendStatus, $version, $buildLog);
     }
 
     private function processScript($script, $scriptPrefix, array $env)
