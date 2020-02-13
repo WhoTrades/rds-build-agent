@@ -231,14 +231,14 @@ class DeployController extends RabbitListener
     {
         Yii::info("Start to process post install script");
 
-        if (empty($scriptInstall)) {
+        if (empty($scriptPostInstall)) {
             Yii::info("Skip processing post install script. It is empty");
 
             return '';
         }
 
         return $this->processScript(
-            $scriptInstall,
+            $scriptPostInstall,
             '/tmp/post-install-script-',
             [
                 'projectName' => $project,
