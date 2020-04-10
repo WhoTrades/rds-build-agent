@@ -14,6 +14,12 @@ use whotrades\RdsSystem\Message;
 
 class DeployController extends RabbitListener
 {
+    const MIGRATION_TYPE_PRE = 'pre';
+    const MIGRATION_TYPE_POST = 'post';
+    const MIGRATION_TYPE_HARD = 'hard';
+
+    const MIGRATION_COMMAND_NEW_ALL = 'new all';
+
     const CURRENT_OPERATION_BUILDING = 'building';
     const CURRENT_OPERATION_GET_MIGRATIONS_LIST = 'get_migrations_list';
     const CURRENT_OPERATION_GEN_CRON_CONFIGS = 'gen_cron_configs';
@@ -298,7 +304,8 @@ class DeployController extends RabbitListener
 
         Yii::info("projectDir=$projectDir");
         // an: Проект с миграциями
-        foreach (array('pre', 'post', 'hard') as $type) {
+        $command = self::MIGRATION_COMMAND_NEW_ALL;
+        foreach ([self::MIGRATION_TYPE_PRE, self::MIGRATION_TYPE_POST, self::MIGRATION_TYPE_HARD] as $type) {
             $text = $this->processScript(
                 $scriptMigrationNew,
                 '/tmp/migration-new-script-',
@@ -306,7 +313,7 @@ class DeployController extends RabbitListener
                     'projectName' => $project,
                     'version' => $version,
                     'type' => $type,
-                    'projectDir' => $projectDir,
+                    'command' => $command,
                 ]
             );
 
@@ -315,7 +322,7 @@ class DeployController extends RabbitListener
             $migrations = array_filter($lines);
             $migrations = array_map('trim', $migrations);
             $this->model->sendMigrations(
-                new Message\ReleaseRequestMigrations($project, $version, $migrations, $type)
+                new Message\ReleaseRequestMigrations($project, $version, $migrations, $type, $command)
             );
         }
     }
