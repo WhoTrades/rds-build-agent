@@ -310,7 +310,7 @@ class DeployController extends RabbitListener
                 $scriptMigrationNew,
                 '/tmp/migration-new-script-',
                 [
-                    'projectName' => $project,
+                    'project' => $project,
                     'version' => $version,
                     'type' => $type,
                     'command' => $command,
