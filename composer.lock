@@ -1965,17 +1965,24 @@
         },
         {
             "name": "whotrades/rds-system",
-            "version": "v1.0",
+            "version": "v1.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/WhoTrades/rds-system.git",
-                "reference": "5099916d7a84bc9d909973d98442e55008794421"
+                "reference": "f9823f058bafccd811936878cf57c4956e66746b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/WhoTrades/rds-system/zipball/5099916d7a84bc9d909973d98442e55008794421",
-                "reference": "5099916d7a84bc9d909973d98442e55008794421",
+                "url": "https://api.github.com/repos/WhoTrades/rds-system/zipball/f9823f058bafccd811936878cf57c4956e66746b",
+                "reference": "f9823f058bafccd811936878cf57c4956e66746b",
                 "shasum": ""
+            },
+            "require": {
+                "ext-pcntl": "*",
+                "fxp/composer-asset-plugin": "~1.0",
+                "php": ">=7.3",
+                "php-amqplib/php-amqplib": "~2.6",
+                "yiisoft/yii2": "2.0.15.1"
             },
             "type": "library",
             "autoload": {
@@ -1984,8 +1991,14 @@
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
+            "authors": [
+                {
+                    "name": "Artem Naumenko",
+                    "email": "entsupml@gmail.com"
+                }
+            ],
             "description": "Core part of RDS service",
-            "time": "2020-06-09T12:07:22+00:00"
+            "time": "2020-07-17T10:27:13+00:00"
         },
         {
             "name": "yiisoft/yii2",
@@ -3834,5 +3847,5 @@
         "php": ">=7.0"
     },
     "platform-dev": [],
-    "plugin-api-version": "2.0.0"
+    "plugin-api-version": "1.1.0"
 }
