@@ -1,18 +1,15 @@
 <?php
 use \yii\console\ErrorHandler;
-use \samdark\log\PsrTarget;
+use whotrades\RdsBuildAgent\lib\PsrTarget;
 use \whotrades\RdsBuildAgent\services\DeployService;
+use \Psr\Log\LoggerInterface;
+use \whotrades\MonologExtensions\LoggerWt;
+use \whotrades\MonologExtensions\Processor;
+use \whotrades\MonologExtensions\Formatter\LineFormatter;
+use Monolog\Handler\StreamHandler;
+use \Monolog\Processor\PsrLogMessageProcessor;
 
-$logger = new \whotrades\MonologExtensions\LoggerWt('main');
-$logger->pushProcessor(new \whotrades\MonologExtensions\Processor\TagCollectorProcessor());
-$logger->pushProcessor(new \whotrades\MonologExtensions\Processor\TagProcessProcessor());
-$logger->pushProcessor(new \whotrades\MonologExtensions\Processor\LoggerNameProcessor());
-$logger->pushProcessor(new \whotrades\MonologExtensions\Processor\OperationProcessor());
 
-$streamHandler = new \Monolog\Handler\StreamHandler("php://stdout", \Monolog\Logger::INFO);
-$streamHandler->pushProcessor(new \Monolog\Processor\PsrLogMessageProcessor());
-$streamHandler->setFormatter(new \whotrades\MonologExtensions\Formatter\LineFormatter(null, ''));
-$logger->pushHandler($streamHandler);
 /*
 $sentryOptions = [
     'dsn' => 'https://0e1f7a05e34544bd95a1ad42643bff95:edee09e6ecda434f9a896021d3a3459f@sentry-gw-int.dev.whotrades.net/13',
@@ -53,7 +50,6 @@ $config = [
             'targets' => [
                 [
                     'class' => PsrTarget::class,
-                    'logger' => $logger,
                 ]
             ],
         ],
@@ -67,6 +63,20 @@ $config = [
             DeployService::class => [
                 'class' => DeployService::class,
             ],
+            LoggerInterface::class => function () {
+                $logger = new LoggerWt('main');
+                $logger->pushProcessor(new Processor\TagCollectorProcessor());
+                $logger->pushProcessor(new Processor\TagProcessProcessor());
+                $logger->pushProcessor(new Processor\LoggerNameProcessor());
+                $logger->pushProcessor(new Processor\OperationProcessor());
+
+                $streamHandler = new StreamHandler("php://stdout", \Monolog\Logger::INFO);
+                $streamHandler->pushProcessor(new PsrLogMessageProcessor());
+                $streamHandler->setFormatter(new LineFormatter(null, ''));
+                $logger->pushHandler($streamHandler);
+
+                return $logger;
+            },
         ],
     ],
     'params' => [
