@@ -7,20 +7,21 @@
 
 namespace whotrades\RdsBuildAgent\commands;
 
-use whotrades\RdsBuildAgent\services\Deploy\Exceptions\UseConfigLocalErrorException;
-use whotrades\RdsBuildAgent\services\Deploy\Exceptions\UseProjectVersionErrorException;
 use whotrades\RdsBuildAgent\services\DeployService;
 use whotrades\RdsSystem\Cron\RabbitListener;
+use whotrades\RdsSystem\lib\Exception\CommandExecutorException;
+use whotrades\RdsSystem\lib\Exception\EmptyAttributeException;
+use whotrades\RdsSystem\lib\Exception\FilesystemException;
 use whotrades\RdsSystem\Message;
-use \whotrades\RdsSystem\Message\UseTask;
 
 class UseController extends RabbitListener
 {
     /** @var DeployService */
     private $deployService;
 
-    public function __construct($id, $module, $config = [], DeployService $deployService)
+    public function __construct($id, $module, DeployService $deployService, $config = null)
     {
+        $config = $config ?? [];
         $this->deployService = $deployService;
         parent::__construct($id, $module, $config);
     }
@@ -32,15 +33,15 @@ class UseController extends RabbitListener
     {
         $model = $this->getMessagingModel();
 
-        $model->getUseTask($workerName, false, function (UseTask $task) use ($workerName, $model) {
+        $model->getUseTask($workerName, false, function (Message\UseTask $task) use ($workerName, $model) {
             try {
                 $output = $this->deployService->useProjectVersion($task);
                 $model->sendUsedVersion(
                     new Message\ReleaseRequestUsedVersion($workerName, $task->project, $task->version, $task->initiatorUserName, $output)
                 );
-            } catch (UseProjectVersionErrorException $e) {
+            } catch (EmptyAttributeException | FilesystemException | CommandExecutorException $e) {
                 $model->sendUseError(
-                    new Message\ReleaseRequestUseError($e->getReleaseRequestId(), $e->getInitiatorUserName(), $e->getMessage())
+                    new Message\ReleaseRequestUseError($task->releaseRequestId, $task->initiatorUserName, $e->getMessage())
                 );
             }
 
@@ -49,7 +50,7 @@ class UseController extends RabbitListener
         $model->readProjectConfig($workerName, false, function (Message\ProjectConfig $task) use ($model) {
             try {
                 $output = $this->deployService->useProjectConfigLocal($task);
-            } catch (UseConfigLocalErrorException $e) {
+            } catch (EmptyAttributeException | FilesystemException | CommandExecutorException $e) {
                 $output = $e->getMessage();
             }
 

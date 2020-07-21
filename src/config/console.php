@@ -1,6 +1,7 @@
 <?php
 use \yii\console\ErrorHandler;
 use \samdark\log\PsrTarget;
+use \whotrades\RdsBuildAgent\services\DeployService;
 
 $logger = new \whotrades\MonologExtensions\LoggerWt('main');
 $logger->pushProcessor(new \whotrades\MonologExtensions\Processor\TagCollectorProcessor());
@@ -30,6 +31,7 @@ $sentryHandler = new \whotrades\MonologExtensions\Handler\SentryHandler($sentryH
 $sentryHandler->pushProcessor(new \Monolog\Processor\PsrLogMessageProcessor());
 $logger->pushHandler($sentryHandler);
 */
+
 $config = [
     'id' => 'service-deploy',
     'basePath' => dirname(__DIR__),
@@ -59,6 +61,13 @@ $config = [
             'class' => ErrorHandler::class,
             'discardExistingOutput' => false,
         ),
+    ],
+    'container' => [
+        'singletons' => [
+            DeployService::class => [
+                'class' => DeployService::class,
+            ],
+        ],
     ],
     'params' => [
         'messaging' => [

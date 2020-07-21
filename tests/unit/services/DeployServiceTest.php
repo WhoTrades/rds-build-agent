@@ -5,8 +5,9 @@
 declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
-use whotrades\RdsBuildAgent\services\Deploy\Exceptions\UseConfigLocalErrorException;
-use \whotrades\RdsBuildAgent\services\Deploy\Exceptions\UseProjectVersionErrorException;
+use \whotrades\RdsSystem\lib\Exception\EmptyAttributeException;
+use \whotrades\RdsSystem\lib\Exception\FilesystemException;
+use whotrades\RdsSystem\lib\Exception\CommandExecutorException;
 use \whotrades\RdsSystem\Message\ProjectConfig;
 use \whotrades\RdsSystem\Message\UseTask;
 use \whotrades\RdsBuildAgent\services\DeployService;
@@ -17,11 +18,12 @@ use \whotrades\RdsSystem\lib\CommandExecutor;
 
 class DeployServiceTest extends TestCase
 {
+    /** @var \org\bovigo\vfs\vfsStreamDirectory  */
     private $root;
 
     public function setUp(): void
     {
-        $this->root = \org\bovigo\vfs\vfsStream::setup();
+        $this->root = vfsStream::setup();
     }
 
     public function tearDown(): void
@@ -30,26 +32,30 @@ class DeployServiceTest extends TestCase
     }
 
     /**
-     * @throws UseConfigLocalErrorException
+     * @throws CommandExecutorException
+     * @throws EmptyAttributeException
+     * @throws FilesystemException
      */
     public function testUseProjectConfigLocal()
     {
+        /** @var ProjectConfig|MockObject $projectConfig */
         $projectConfig = $this->getProjectConfigMockBuilder()->getMock();
         $projectConfig->expects($this->once())->method('accepted');
 
         $deployService = $this->getDeployServiceMock();
         $deployService->method('getCommandExecutor')->willReturn($this->getCommandExecutorMock());
         $output = $deployService->useProjectConfigLocal($projectConfig);
-        $this->assertStringStartsWith($deployService->getTemporaryScriptPath($projectConfig), $output);
+        $this->assertStringStartsWith($deployService->getTemporaryScriptPath($projectConfig->project), $output);
     }
 
     /**
-     * @throws UseConfigLocalErrorException
+     * @throws CommandExecutorException
+     * @throws EmptyAttributeException
+     * @throws FilesystemException
      */
     public function testEmptyUploadScript()
     {
-        $this->expectException(UseConfigLocalErrorException::class);
-        $this->expectExceptionCode(UseConfigLocalErrorException::ERROR_EMPTY_UPLOAD_SCRIPT);
+        $this->expectException(EmptyAttributeException::class);
 
         $projectConfig = $this->getProjectConfigMockBuilder()
             ->setConstructorArgs([null, [], null, [], null])
@@ -60,12 +66,14 @@ class DeployServiceTest extends TestCase
     }
 
     /**
-     * @throws UseConfigLocalErrorException
+     * @throws CommandExecutorException
+     * @throws EmptyAttributeException
+     * @throws FilesystemException
      */
     public function testCreateDirectoryFailure()
     {
-        $this->expectException(UseConfigLocalErrorException::class);
-        $this->expectExceptionCode(UseConfigLocalErrorException::ERROR_CREATE_DIR);
+        $this->expectException(FilesystemException::class);
+        $this->expectExceptionCode(FilesystemException::ERROR_WRITE_DIRECTORY);
 
         $projectConfig = $this->getProjectConfigMockBuilder()->getMock();
         $projectConfig->expects($this->once())->method('accepted');
@@ -77,38 +85,44 @@ class DeployServiceTest extends TestCase
     }
 
     /**
-     * @throws UseConfigLocalErrorException
+     * @throws CommandExecutorException
+     * @throws EmptyAttributeException
+     * @throws FilesystemException
      */
     public function testWriteConfigFileFailure()
     {
-        $this->expectException(UseConfigLocalErrorException::class);
-        $this->expectExceptionCode(UseConfigLocalErrorException::ERROR_WRITE_FILE);
+        $this->expectException(FilesystemException::class);
+        $this->expectExceptionCode(FilesystemException::ERROR_WRITE_FILE);
 
+        /** @var ProjectConfig|MockObject $projectConfig */
         $projectConfig = $this->getProjectConfigMockBuilder()->getMock();
         $projectConfig->expects($this->once())->method('accepted');
 
         $deployService = $this->getDeployServiceMock();
 
-        $projectDir = $deployService->getProjectDirectoryPath($projectConfig);
+        $projectDir = $deployService->getProjectDirectoryPath($projectConfig->project);
         mkdir($projectDir, 0777, true);
         $this->root->getChild(vfsStream::path($projectDir))->chmod(0000);
         @$deployService->useProjectConfigLocal($projectConfig); // @ - ignore stream open failure warning
     }
 
     /**
-     * @throws UseConfigLocalErrorException
+     * @throws CommandExecutorException
+     * @throws EmptyAttributeException
+     * @throws FilesystemException
      */
     public function testWriteScriptFileFailure()
     {
-        $this->expectException(UseConfigLocalErrorException::class);
-        $this->expectExceptionCode(UseConfigLocalErrorException::ERROR_WRITE_FILE);
+        $this->expectException(FilesystemException::class);
+        $this->expectExceptionCode(FilesystemException::ERROR_WRITE_FILE);
 
+        /** @var ProjectConfig|MockObject $projectConfig */
         $projectConfig = $this->getProjectConfigMockBuilder()->getMock();
         $projectConfig->expects($this->once())->method('accepted');
 
         $deployService = $this->getDeployServiceMock();
 
-        $projectDir = $deployService->getProjectDirectoryPath($projectConfig);
+        $projectDir = $deployService->getProjectDirectoryPath($projectConfig->project);
         mkdir($projectDir, 0777, true);
         $this->root->getChild("config-local")->chmod(0000);
 
@@ -116,12 +130,13 @@ class DeployServiceTest extends TestCase
     }
 
     /**
-     * @throws UseConfigLocalErrorException
+     * @throws CommandExecutorException
+     * @throws EmptyAttributeException
+     * @throws FilesystemException
      */
     public function testCommandExecutorFailure()
     {
-        $this->expectException(UseConfigLocalErrorException::class);
-        $this->expectExceptionCode(UseConfigLocalErrorException::ERROR_COMMAND_EXECUTOR);
+        $this->expectException(CommandExecutorException::class);
 
         $projectConfig = $this->getProjectConfigMockBuilder()->getMock();
         $projectConfig->expects($this->once())->method('accepted');
@@ -130,7 +145,7 @@ class DeployServiceTest extends TestCase
         $deployService = $this->getDeployServiceMock();
 
         $commandExecutor = $this->createMock(\whotrades\RdsSystem\lib\CommandExecutor::class);
-        $e = new \whotrades\RdsSystem\lib\CommandExecutorException("command", "message", 0, "output");
+        $e = new CommandExecutorException("command", "message", 0, "output");
         $commandExecutor->method('executeCommand')->will($this->throwException($e));
         $deployService->method('getCommandExecutor')->willReturn($commandExecutor);
 
@@ -138,12 +153,13 @@ class DeployServiceTest extends TestCase
     }
 
     /**
-     * @throws UseProjectVersionErrorException
+     * @throws CommandExecutorException
+     * @throws EmptyAttributeException
+     * @throws FilesystemException
      */
     public function testUseVersionCommandExecutorFailure()
     {
-        $this->expectException(UseProjectVersionErrorException::class);
-        $this->expectExceptionCode(UseProjectVersionErrorException::ERROR_COMMAND_EXECUTOR);
+        $this->expectException(CommandExecutorException::class);
 
         $useTask = $this->getUseTaskMockBuilder()->getMock();
         $useTask->expects($this->once())->method('accepted');
@@ -152,7 +168,7 @@ class DeployServiceTest extends TestCase
         $deployService = $this->getDeployServiceMock();
 
         $commandExecutor = $this->createMock(\whotrades\RdsSystem\lib\CommandExecutor::class);
-        $e = new \whotrades\RdsSystem\lib\CommandExecutorException("command", "message", 0, "output");
+        $e = new CommandExecutorException("command", "message", 0, "output");
         $commandExecutor->method('executeCommand')->will($this->throwException($e));
         $deployService->method('getCommandExecutor')->willReturn($commandExecutor);
 
@@ -160,24 +176,14 @@ class DeployServiceTest extends TestCase
     }
 
     /**
-     * Test UseProjectVersionErrorException returns valid attributes
-     */
-    public function testUseVersionExceptionHasRelevantAttributes()
-    {
-        $releaseRequestId = 42;
-        $initiatorUserName = 'phpunit';
-        $e = new UseProjectVersionErrorException("message", 0, null, $releaseRequestId, $initiatorUserName);
-        $this->assertEquals($releaseRequestId, $e->getReleaseRequestId());
-        $this->assertEquals($initiatorUserName, $e->getInitiatorUserName());
-    }
-
-    /**
-     * @throws UseProjectVersionErrorException
+     * @throws CommandExecutorException
+     * @throws EmptyAttributeException
+     * @throws FilesystemException
      */
     public function testUseVersionWriteScriptFailure()
     {
-        $this->expectException(UseProjectVersionErrorException::class);
-        $this->expectExceptionCode(UseProjectVersionErrorException::ERROR_WRITE_FILE);
+        $this->expectException(FilesystemException::class);
+        $this->expectExceptionCode(FilesystemException::ERROR_WRITE_FILE);
 
         $useTask = $this->getUseTaskMockBuilder()->getMock();
         $useTask->expects($this->once())->method('accepted');
@@ -190,12 +196,13 @@ class DeployServiceTest extends TestCase
     }
 
     /**
-     * @throws UseProjectVersionErrorException
+     * @throws CommandExecutorException
+     * @throws EmptyAttributeException
+     * @throws FilesystemException
      */
     public function testUseVersionEmptyUseScript()
     {
-        $this->expectException(UseProjectVersionErrorException::class);
-        $this->expectExceptionCode(UseProjectVersionErrorException::ERROR_EMPTY_USE_SCRIPT);
+        $this->expectException(EmptyAttributeException::class);
 
         $useTask = $this->getUseTaskMockBuilder()
             ->setConstructorArgs([null, null, '', '', '', []])
@@ -206,7 +213,9 @@ class DeployServiceTest extends TestCase
     }
 
     /**
-     * @throws UseProjectVersionErrorException
+     * @throws CommandExecutorException
+     * @throws EmptyAttributeException
+     * @throws FilesystemException
      */
     public function testUseVersion()
     {

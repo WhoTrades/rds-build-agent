@@ -7,34 +7,24 @@ declare(strict_types=1);
 namespace whotrades\RdsBuildAgent\services;
 
 use samdark\log\PsrMessage;
-use whotrades\RdsBuildAgent\services\Deploy\Exceptions\UseConfigLocalErrorException;
-use whotrades\RdsBuildAgent\services\Deploy\Exceptions\UseProjectVersionErrorException;
 use whotrades\RdsSystem\lib\CommandExecutor;
-use whotrades\RdsSystem\lib\CommandExecutorException;
+use whotrades\RdsSystem\lib\Exception\CommandExecutorException;
+use whotrades\RdsSystem\lib\Exception\EmptyAttributeException;
+use whotrades\RdsSystem\lib\Exception\FilesystemException;
 use whotrades\RdsSystem\Message\ProjectConfig;
 use whotrades\RdsSystem\Message\UseTask;
 use yii\base\BaseObject;
 
 class DeployService extends BaseObject
 {
-
-    /**
-     * DeployService constructor.
-     *
-     * @param null $config
-     */
-    public function __construct($config = null)
-    {
-        $config = $config ?? [];
-        parent::__construct($config);
-    }
-
     /**
      * @param UseTask $task
      *
      * @return string
      *
-     * @throws UseProjectVersionErrorException
+     * @throws EmptyAttributeException
+     * @throws FilesystemException
+     * @throws CommandExecutorException
      */
     public function useProjectVersion(UseTask $task): string
     {
@@ -53,7 +43,7 @@ class DeployService extends BaseObject
                     'version' => $version,
                 ]));
                 $task->accepted();
-                throw new UseProjectVersionErrorException("Can't use project without use script", UseProjectVersionErrorException::ERROR_EMPTY_USE_SCRIPT, null, $releaseRequestId, $initiatorUserName);
+                throw new EmptyAttributeException();
             }
             $env = [
                 'projectName' => $project,
@@ -69,7 +59,7 @@ class DeployService extends BaseObject
                     'content' => $task->scriptUploadConfigLocal,
                 ]));
                 $task->accepted();
-                throw new UseProjectVersionErrorException("Can't save use shell script", UseProjectVersionErrorException::ERROR_WRITE_FILE);
+                throw new FilesystemException("", FilesystemException::ERROR_WRITE_FILE);
             }
             chmod($useScriptFilename, 0777);
 
@@ -94,7 +84,7 @@ class DeployService extends BaseObject
             ]));
 
             $task->accepted();
-            throw new UseProjectVersionErrorException($output, UseProjectVersionErrorException::ERROR_COMMAND_EXECUTOR, null, $releaseRequestId, $initiatorUserName);
+            throw new CommandExecutorException($e->getCommand(), $output, $e->getCode(), $e->getOutput(), $e);
         }
     }
 
@@ -103,7 +93,9 @@ class DeployService extends BaseObject
      *
      * @return string
      *
-     * @throws UseConfigLocalErrorException
+     * @throws CommandExecutorException
+     * @throws EmptyAttributeException
+     * @throws FilesystemException
      */
     public function useProjectConfigLocal(ProjectConfig $task): string
     {
@@ -113,11 +105,10 @@ class DeployService extends BaseObject
         if (empty($task->scriptUploadConfigLocal)) {
             \Yii::warning("Skip task, as scriptUploadConfigLocal is empty");
             $task->accepted();
-
-            throw new UseConfigLocalErrorException("Skip task, as scriptUploadConfigLocal is empty", UseConfigLocalErrorException::ERROR_EMPTY_UPLOAD_SCRIPT);
+            throw new EmptyAttributeException();
         }
 
-        $projectDir = $this->getProjectDirectoryPath($task);
+        $projectDir = $this->getProjectDirectoryPath($task->project);
         if (!is_dir($projectDir)) {
             if (!mkdir($projectDir, 0777, true)) {
                 \Yii::error(new PsrMessage("cant_create_tmp_dir", [
@@ -125,12 +116,12 @@ class DeployService extends BaseObject
                     'projectDir' => $projectDir,
                 ]));
                 $task->accepted();
-                throw new UseConfigLocalErrorException("Can't create tmp directory", UseConfigLocalErrorException::ERROR_CREATE_DIR);
+                throw new FilesystemException("", FilesystemException::ERROR_WRITE_DIRECTORY);
             }
         }
 
         foreach ($task->configs as $filename => $content) {
-            $filePath = $this->getProjectFilenamePath($task, $filename);
+            $filePath = $this->getProjectFilenamePath($task->project, $filename);
             if (false === file_put_contents($filePath, $content)) {
                 \Yii::error(new PsrMessage("cant_save_project_config", [
                     'project' => $project,
@@ -138,11 +129,11 @@ class DeployService extends BaseObject
                     'content' => $content,
                 ]));
                 $task->accepted();
-                throw new UseConfigLocalErrorException("Can't save project config file", UseConfigLocalErrorException::ERROR_WRITE_FILE);
+                throw new FilesystemException("", FilesystemException::ERROR_WRITE_FILE);
             }
         }
 
-        $tmpScriptFilename = $this->getTemporaryScriptPath($task);
+        $tmpScriptFilename = $this->getTemporaryScriptPath($task->project);
         if (false === file_put_contents($tmpScriptFilename, str_replace("\r\n", "\n", $task->scriptUploadConfigLocal))) {
             \Yii::error(new PsrMessage("cant_save_tmp_shell_script", [
                 'project' => $project,
@@ -150,7 +141,7 @@ class DeployService extends BaseObject
                 'content' => $task->scriptUploadConfigLocal,
             ]));
             $task->accepted();
-            throw new UseConfigLocalErrorException("Can't save tmp shell script", UseConfigLocalErrorException::ERROR_WRITE_FILE);
+            throw new FilesystemException("", FilesystemException::ERROR_WRITE_FILE);
         }
 
         chmod($tmpScriptFilename, 0777); // TODO: Could return false as well
@@ -191,7 +182,7 @@ class DeployService extends BaseObject
             ]));
 
             $task->accepted();
-            throw new UseConfigLocalErrorException($output, UseConfigLocalErrorException::ERROR_COMMAND_EXECUTOR, $e);
+            throw new CommandExecutorException($e->getCommand(), $output, $e->getCode(), $e->getOutput(), $e);
         }
 
         return $output;
@@ -207,34 +198,34 @@ class DeployService extends BaseObject
     }
 
     /**
-     * @param ProjectConfig $task
+     * @param string $project
      *
      * @return string
      */
-    public function getProjectDirectoryPath(ProjectConfig $task): string
+    public function getProjectDirectoryPath(string $project): string
     {
-        return $this->getTmpDirectory() . "/config-local/{$task->project}-" . uniqid() . "/";
+        return $this->getTmpDirectory() . "/config-local/{$project}-" . uniqid() . "/";
     }
 
     /**
-     * @param ProjectConfig $task
+     * @param string $project
      *
      * @return string
      */
-    public function getTemporaryScriptPath(ProjectConfig $task): string
+    public function getTemporaryScriptPath(string $project): string
     {
-        return $this->getTmpDirectory() . "/config-local-{$task->project}-" . uniqid() . ".sh";
+        return $this->getTmpDirectory() . "/config-local-{$project}-" . uniqid() . ".sh";
     }
 
     /**
-     * @param ProjectConfig $task
+     * @param string $project
      * @param $filename
      *
      * @return string
      */
-    public function getProjectFilenamePath(ProjectConfig $task, $filename): string
+    public function getProjectFilenamePath(string $project, $filename): string
     {
-        return $this->getProjectDirectoryPath($task) . $filename;
+        return $this->getProjectDirectoryPath($project) . $filename;
     }
 
     /**

@@ -9,7 +9,7 @@
         }
     },
     "require": {
-        "php": ">=7.0",
+        "php": ">=7.3",
 	    "whotrades/rds-system": "~1.0.0",
         "fxp/composer-asset-plugin": "~1.0",
         "yiisoft/yii2": "2.0.15.1",
