@@ -3,13 +3,11 @@ use \yii\console\ErrorHandler;
 use whotrades\RdsBuildAgent\lib\PsrTarget;
 use \whotrades\RdsBuildAgent\services\DeployService;
 use \Psr\Log\LoggerInterface;
-use \whotrades\MonologExtensions\LoggerWt;
-use \whotrades\MonologExtensions\Processor;
-use \whotrades\MonologExtensions\Formatter\LineFormatter;
-use Monolog\Handler\StreamHandler;
+use \Monolog\Logger;
+use \Monolog\Handler\StreamHandler;
 use \Monolog\Processor\PsrLogMessageProcessor;
 use \Monolog\Processor\ProcessorInterface;
-use Monolog\Handler\HandlerInterface;
+use \Monolog\Handler\HandlerInterface;
 
 $config = [
     'id' => 'service-deploy',
@@ -50,7 +48,7 @@ $config = [
                 $processors = $loggerConfig['processors'] ?: [];
                 $handlers = $loggerConfig['handlers'] ?: [];
 
-                $logger = new LoggerWt('main');
+                $logger = new Logger('main');
 
                 foreach ($processors as $processor) {
                     if ($processor instanceof ProcessorInterface) {
@@ -85,15 +83,10 @@ $config = [
         'tmpDir' => '/tmp/rds-build-agent/tmp/',
         'logger' => [
             'processors' => [
-                new Processor\TagCollectorProcessor(),
-                new Processor\TagProcessProcessor(),
-                new Processor\LoggerNameProcessor(),
-                new Processor\OperationProcessor(),
+                new PsrLogMessageProcessor(),
             ],
             'handlers' => [
-                ((new StreamHandler("php://stdout", \Monolog\Logger::INFO))
-                    ->pushProcessor(new PsrLogMessageProcessor())
-                    ->setFormatter(new LineFormatter(null, ''))),
+                new StreamHandler("php://stdout", \Monolog\Logger::INFO),
             ],
         ],
     ],
