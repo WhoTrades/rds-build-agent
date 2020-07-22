@@ -8,26 +8,8 @@ use \whotrades\MonologExtensions\Processor;
 use \whotrades\MonologExtensions\Formatter\LineFormatter;
 use Monolog\Handler\StreamHandler;
 use \Monolog\Processor\PsrLogMessageProcessor;
-
-
-/*
-$sentryOptions = [
-    'dsn' => 'https://0e1f7a05e34544bd95a1ad42643bff95:edee09e6ecda434f9a896021d3a3459f@sentry-gw-int.dev.whotrades.net/13',
-    'release' => 'test_version',
-    'send_default_pii' => true,
-    'default_integrations' => false,
-    'integrations' => [
-        new \Sentry\Integration\RequestIntegration(),
-    ],
-];
-$sentryClientBuilder = \Sentry\ClientBuilder::create($sentryOptions);
-$sentryClient = $sentryClientBuilder->getClient();
-$sentryHub =\Sentry\SentrySdk::getCurrentHub();
-$sentryHub->bindClient($sentryClient);
-$sentryHandler = new \whotrades\MonologExtensions\Handler\SentryHandler($sentryHub, \Monolog\Logger::ERROR);
-$sentryHandler->pushProcessor(new \Monolog\Processor\PsrLogMessageProcessor());
-$logger->pushHandler($sentryHandler);
-*/
+use \Monolog\Processor\ProcessorInterface;
+use Monolog\Handler\HandlerInterface;
 
 $config = [
     'id' => 'service-deploy',
@@ -63,17 +45,27 @@ $config = [
             DeployService::class => [
                 'class' => DeployService::class,
             ],
-            LoggerInterface::class => function () {
-                $logger = new LoggerWt('main');
-                $logger->pushProcessor(new Processor\TagCollectorProcessor());
-                $logger->pushProcessor(new Processor\TagProcessProcessor());
-                $logger->pushProcessor(new Processor\LoggerNameProcessor());
-                $logger->pushProcessor(new Processor\OperationProcessor());
+            LoggerInterface::class => function () use ($config) {
+                $loggerConfig = Yii::$app->params['logger'];
+                $processors = $loggerConfig['processors'] ?: [];
+                $handlers = $loggerConfig['handlers'] ?: [];
 
-                $streamHandler = new StreamHandler("php://stdout", \Monolog\Logger::INFO);
-                $streamHandler->pushProcessor(new PsrLogMessageProcessor());
-                $streamHandler->setFormatter(new LineFormatter(null, ''));
-                $logger->pushHandler($streamHandler);
+                $logger = new LoggerWt('main');
+
+                foreach ($processors as $processor) {
+                    if ($processor instanceof ProcessorInterface) {
+                        $logger->pushProcessor($processor);
+                    }
+                }
+
+                foreach ($handlers as $handler) {
+                    if (is_callable($handler)) {
+                        $handler = call_user_func($handler);
+                    }
+                    if ($handler instanceof HandlerInterface) {
+                        $logger->pushHandler($handler);
+                    }
+                }
 
                 return $logger;
             },
@@ -91,6 +83,19 @@ $config = [
         'pidDir' => '/tmp/rds-build-agent/pid/',
         'buildDir' => '/tmp/rds-build-agent/builds/',
         'tmpDir' => '/tmp/rds-build-agent/tmp/',
+        'logger' => [
+            'processors' => [
+                new Processor\TagCollectorProcessor(),
+                new Processor\TagProcessProcessor(),
+                new Processor\LoggerNameProcessor(),
+                new Processor\OperationProcessor(),
+            ],
+            'handlers' => [
+                ((new StreamHandler("php://stdout", \Monolog\Logger::INFO))
+                    ->pushProcessor(new PsrLogMessageProcessor())
+                    ->setFormatter(new LineFormatter(null, ''))),
+            ],
+        ],
     ],
 ];
 

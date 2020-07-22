@@ -31,7 +31,6 @@ class DeployService extends BaseObject
         $project = $task->project;
         $releaseRequestId = (int) $task->releaseRequestId;
         $version = $task->version;
-        $initiatorUserName = (string) $task->initiatorUserName;
 
         $commandExecutor = $this->getCommandExecutor();
         \Yii::info("Using $project:$version, task_id=$releaseRequestId");
@@ -59,7 +58,7 @@ class DeployService extends BaseObject
                     'content' => $task->scriptUploadConfigLocal,
                 ]));
                 $task->accepted();
-                throw new FilesystemException("", FilesystemException::ERROR_WRITE_FILE);
+                throw new FilesystemException("Can't save shell script", FilesystemException::ERROR_WRITE_FILE);
             }
             chmod($useScriptFilename, 0777);
 
@@ -116,7 +115,7 @@ class DeployService extends BaseObject
                     'projectDir' => $projectDir,
                 ]));
                 $task->accepted();
-                throw new FilesystemException("", FilesystemException::ERROR_WRITE_DIRECTORY);
+                throw new FilesystemException("Can't create tmp dir", FilesystemException::ERROR_WRITE_DIRECTORY);
             }
         }
 
@@ -129,7 +128,7 @@ class DeployService extends BaseObject
                     'content' => $content,
                 ]));
                 $task->accepted();
-                throw new FilesystemException("", FilesystemException::ERROR_WRITE_FILE);
+                throw new FilesystemException("Can't save project config", FilesystemException::ERROR_WRITE_FILE);
             }
         }
 
@@ -141,7 +140,7 @@ class DeployService extends BaseObject
                 'content' => $task->scriptUploadConfigLocal,
             ]));
             $task->accepted();
-            throw new FilesystemException("", FilesystemException::ERROR_WRITE_FILE);
+            throw new FilesystemException("Can't save tmp shell script", FilesystemException::ERROR_WRITE_FILE);
         }
 
         chmod($tmpScriptFilename, 0777); // TODO: Could return false as well
