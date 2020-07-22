@@ -30,6 +30,8 @@ $config = [
             'targets' => [
                 [
                     'class' => PsrTarget::class,
+                    'logVars' => [],
+                    'exportInterval' => 1,
                 ]
             ],
         ],
