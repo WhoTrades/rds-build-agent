@@ -14,7 +14,6 @@
         "fxp/composer-asset-plugin": "~1.0",
         "yiisoft/yii2": "2.0.15.1",
         "php-amqplib/php-amqplib": "~2.6",
-        "whotrades/monolog-extensions": "^2.1",
         "samdark/yii2-psr-log-target": "~1.1.3"
     },
     "require-dev": {
