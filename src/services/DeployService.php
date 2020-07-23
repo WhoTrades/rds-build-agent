@@ -52,13 +52,14 @@ class DeployService extends BaseObject
 
             $useScriptFilename = $this->getUseScriptPath();
             if (false === file_put_contents($useScriptFilename, str_replace("\r", "", $task->scriptUse))) {
-                \Yii::error(new PsrMessage("cant_save_use_shell_script", [
+                $errorMessage = "Can't save shell script";
+                \Yii::error(new PsrMessage($errorMessage, [
                     'project' => $project,
                     'filename' => $useScriptFilename,
                     'content' => $task->scriptUploadConfigLocal,
                 ]));
                 $task->accepted();
-                throw new FilesystemException("Can't save shell script", FilesystemException::ERROR_WRITE_FILE);
+                throw new FilesystemException($errorMessage, FilesystemException::ERROR_WRITE_FILE);
             }
             chmod($useScriptFilename, 0777);
 
@@ -110,37 +111,40 @@ class DeployService extends BaseObject
         $projectDir = $this->getProjectDirectoryPath($task->project);
         if (!is_dir($projectDir)) {
             if (!mkdir($projectDir, 0777, true)) {
-                \Yii::error(new PsrMessage("cant_create_tmp_dir", [
+                $errMessage = "Can't create tmp dir";
+                \Yii::error(new PsrMessage($errMessage, [
                     'project' => $project,
                     'projectDir' => $projectDir,
                 ]));
                 $task->accepted();
-                throw new FilesystemException("Can't create tmp dir", FilesystemException::ERROR_WRITE_DIRECTORY);
+                throw new FilesystemException($errMessage, FilesystemException::ERROR_WRITE_DIRECTORY);
             }
         }
 
         foreach ($task->configs as $filename => $content) {
             $filePath = $this->getProjectFilenamePath($task->project, $filename);
             if (false === file_put_contents($filePath, $content)) {
-                \Yii::error(new PsrMessage("cant_save_project_config", [
+                $errMessage = "Can't save project config";
+                \Yii::error(new PsrMessage($errMessage, [
                     'project' => $project,
                     'filename' => $filePath,
                     'content' => $content,
                 ]));
                 $task->accepted();
-                throw new FilesystemException("Can't save project config", FilesystemException::ERROR_WRITE_FILE);
+                throw new FilesystemException($errMessage, FilesystemException::ERROR_WRITE_FILE);
             }
         }
 
         $tmpScriptFilename = $this->getTemporaryScriptPath($task->project);
         if (false === file_put_contents($tmpScriptFilename, str_replace("\r\n", "\n", $task->scriptUploadConfigLocal))) {
-            \Yii::error(new PsrMessage("cant_save_tmp_shell_script", [
+            $errMessage = "Can't save tmp shell script";
+            \Yii::error(new PsrMessage($errMessage, [
                 'project' => $project,
                 'filename' => $tmpScriptFilename,
                 'content' => $task->scriptUploadConfigLocal,
             ]));
             $task->accepted();
-            throw new FilesystemException("Can't save tmp shell script", FilesystemException::ERROR_WRITE_FILE);
+            throw new FilesystemException($errMessage, FilesystemException::ERROR_WRITE_FILE);
         }
 
         chmod($tmpScriptFilename, 0777); // TODO: Could return false as well
