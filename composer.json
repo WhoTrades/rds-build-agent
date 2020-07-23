@@ -9,12 +9,16 @@
         }
     },
     "require": {
-        "php": ">=7.0",
-	    "whotrades/rds-system": "dev-master",
+        "php": ">=7.3",
+	    "whotrades/rds-system": "~1.0.0",
         "fxp/composer-asset-plugin": "~1.0",
         "yiisoft/yii2": "2.0.15.1",
         "php-amqplib/php-amqplib": "~2.6",
-        "codemix/yii2-streamlog": "1.2.1",
-        "mito/yii2-sentry": "~1.0.0"
+        "samdark/yii2-psr-log-target": "~1.1.3",
+        "monolog/monolog": "^1.25"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "~9.2.4",
+        "mikey179/vfsstream": "~1.6.8"
     }
 }
