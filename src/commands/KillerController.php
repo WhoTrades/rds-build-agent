@@ -28,6 +28,9 @@ class KillerController extends RabbitListener
             $filename = Yii::$app->params['pidDir'] . "/{$workerName}_deploy_$task->taskId.php.pid";
             if (!file_exists($filename)) {
                 Yii::info("No pid file $filename, may be process already finished");
+                $model->sendTaskStatusChanged(
+                    new Message\TaskStatusChanged($task->taskId, 'cancelled')
+                );
                 $task->accepted();
 
                 return;
