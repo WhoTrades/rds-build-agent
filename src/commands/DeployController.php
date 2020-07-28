@@ -8,7 +8,7 @@ namespace whotrades\RdsBuildAgent\commands;
 use whotrades\RdsBuildAgent\commands\Exception\StopBuildTask;
 use whotrades\RdsSystem\Cron\RabbitListener;
 use whotrades\RdsSystem\lib\CommandExecutor;
-use whotrades\RdsSystem\lib\CommandExecutorException;
+use whotrades\RdsSystem\lib\Exception\CommandExecutorException;
 use Yii;
 use whotrades\RdsSystem\Message;
 
