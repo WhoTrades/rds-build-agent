@@ -17,6 +17,16 @@ use yii\base\BaseObject;
 
 class DeployService extends BaseObject
 {
+    /** @var string */
+    private $projectDirectoryUniqid;
+
+    public function __construct($config = null)
+    {
+        $config = $config ?? [];
+        $this->setProjectDirectoryUniqid();
+        parent::__construct($config);
+    }
+
     /**
      * @param UseTask $task
      *
@@ -99,6 +109,7 @@ class DeployService extends BaseObject
      */
     public function useProjectConfigLocal(ProjectConfig $task): string
     {
+        $this->setProjectDirectoryUniqid(); //mr: new uniqid for each run
         \Yii::info("Task received: " . json_encode($task));
         $project = $task->project;
 
@@ -200,6 +211,11 @@ class DeployService extends BaseObject
         return "/tmp";
     }
 
+    protected function setProjectDirectoryUniqid(string $uniqid = null)
+    {
+        $this->projectDirectoryUniqid = $uniqid ?? uniqid();
+    }
+
     /**
      * @param string $project
      *
@@ -207,7 +223,7 @@ class DeployService extends BaseObject
      */
     public function getProjectDirectoryPath(string $project): string
     {
-        return $this->getTmpDirectory() . "/config-local/{$project}-" . uniqid() . "/";
+        return $this->getTmpDirectory() . "/config-local/{$project}-{$this->projectDirectoryUniqid}/";
     }
 
     /**
