@@ -8,6 +8,7 @@ use \Monolog\Handler\StreamHandler;
 use \Monolog\Processor\PsrLogMessageProcessor;
 use \Monolog\Processor\ProcessorInterface;
 use \Monolog\Handler\HandlerInterface;
+use \whotrades\RdsBuildAgent\lib\PosixGroupManager;
 
 $config = [
     'id' => 'service-deploy',
@@ -69,6 +70,9 @@ $config = [
 
                 return $logger;
             },
+            PosixGroupManager::class => [
+                'class' => PosixGroupManager::class,
+            ],
         ],
     ],
     'params' => [

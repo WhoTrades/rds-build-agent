@@ -7,16 +7,29 @@ declare(strict_types=1);
 namespace whotrades\RdsBuildAgent\services;
 
 use samdark\log\PsrMessage;
+use whotrades\RdsBuildAgent\lib\PosixGroupManager;
 use whotrades\RdsSystem\lib\CommandExecutor;
 use whotrades\RdsSystem\lib\Exception\CommandExecutorException;
 use whotrades\RdsSystem\lib\Exception\EmptyAttributeException;
 use whotrades\RdsSystem\lib\Exception\FilesystemException;
+use whotrades\RdsSystem\Message\BuildTask;
+use whotrades\RdsSystem\Message\InstallTask;
 use whotrades\RdsSystem\Message\ProjectConfig;
 use whotrades\RdsSystem\Message\UseTask;
 use yii\base\BaseObject;
 
 class DeployService extends BaseObject
 {
+    /** @var PosixGroupManager */
+    private $posixGroupManager;
+
+    public function __construct(PosixGroupManager $posixGroupManager, $config = null)
+    {
+        $config = $config ?? [];
+        $this->posixGroupManager = $posixGroupManager;
+        parent::__construct($config);
+    }
+
     /**
      * @param UseTask $task
      *
@@ -191,6 +204,84 @@ class DeployService extends BaseObject
         return $output;
     }
 
+    public function deployBuild(BuildTask $task, string $workerName)
+    {
+        $this->posixGroupManager->setCurrentPidAsGid(); // mr: TODO: move to createPidFile maybe?
+        $this->createPidFile($workerName, $task->id);
+        $projectBuildDir = $this->getProjectBuildDirPath($task->project, $task->version);
+        // an: Сигнализируем о начале работы
+        // TODO: produce event
+        //$this->sendStatus('building');
+
+        $currentOperation = self::CURRENT_OPERATION_BUILDING;
+        //$text = $this->processBuildProject($projectBuildDir, $task->scriptBuild, $task->project, $task->version, $task->release, $task->id);
+        if (empty($task->scriptBuild)) {
+            throw new \Exception("No build script detected - can't build");
+        }
+
+        $text = $this->processScript(
+            $task->scriptBuild,
+            '/tmp/build-script-',
+            [
+                'projectName' => $task->project,
+                'version' => $task->version,
+                'projectDir' => $projectBuildDir,
+                'release' => $task->release,
+                'taskId' => $task->id,
+            ]
+        );
+
+        $currentOperation = self::CURRENT_OPERATION_GET_MIGRATIONS_LIST;
+        //$this->processMigrations($projectBuildDir, $task->scriptMigrationNew, $task->project, $task->version);
+        if (!empty($task->scriptMigrationNew)) {
+            Yii::info("No migration script detected - so no migrations");
+            Yii::info("projectDir=$projectBuildDir");
+            // an: Проект с миграциями
+            $command = self::MIGRATION_COMMAND_NEW_ALL;
+            foreach ([self::MIGRATION_TYPE_PRE, self::MIGRATION_TYPE_POST, self::MIGRATION_TYPE_HARD] as $type) {
+                $text = $this->processScript(
+                    $task->scriptMigrationNew,
+                    '/tmp/migration-new-script-',
+                    [
+                        'project' => $task->project,
+                        'version' => $task->version,
+                        'type' => $type,
+                        'command' => $command,
+                    ]
+                );
+
+                Yii::trace("Output: $text");
+                $lines = explode("\n", str_replace("\r", "", $text));
+                $migrations = array_filter($lines);
+                $migrations = array_map('trim', $migrations);
+                $this->model->sendMigrations(
+                    new Message\ReleaseRequestMigrations($task->project, $task->version, $migrations, $type, $command)
+                );
+            }
+        }
+
+
+
+        // an: Отправляем новые сгенерированные cron.d конфиги
+        $currentOperation = self::CURRENT_OPERATION_GEN_CRON_CONFIGS;
+        $cronConfig = $this->processGenCronConfis($task->scriptCron, $task->project, $task->version);
+
+        // TODO: produce event
+        /*$this->model->sendCronConfig(
+            new Message\ReleaseRequestCronConfig($task->id, $cronConfig)
+        );*/
+
+        // an: Сигнализируем что все сделали
+        // TODO: produce event
+        //$this->sendStatus('built', $version, $text);
+        $this->posixGroupManager->restoreGid();
+    }
+
+    public function installTask(InstallTask $task)
+    {
+
+    }
+
     /**
      * TODO: directory & file handling need refactoring, temporarily moved root directory to a method just for unit tests
      * @return string
@@ -245,5 +336,39 @@ class DeployService extends BaseObject
     public function getCommandExecutor(): CommandExecutor
     {
         return new CommandExecutor();
+    }
+
+    public function getPidDirectoryPath(): string
+    {
+        return (string) \Yii::$app->params['pidDir'];
+    }
+
+    public function getBuildDirPath(): string
+    {
+        return (string) \Yii::$app->params['buildDir'];
+    }
+
+    public function getProjectBuildDirPath(string $project, string $version): string
+    {
+        return $this->getBuildDirPath() . "/{$project}-{$version}";
+    }
+
+    public function createPidFile(string $workerName, int $taskId): void
+    {
+        $pidDirectoryPath = $this->getPidDirectoryPath();
+        if (!file_exists($pidDirectoryPath)) {
+            mkdir($pidDirectoryPath, 0777, true);
+        }
+
+        $basePidFilename = $pidDirectoryPath . "/{$workerName}_deploy_{$taskId}.php";
+        $pid = $this->posixGroupManager->getCurrentPid();
+        \Yii::info("My pid: $pid");
+        file_put_contents("$basePidFilename.pid", $pid);
+        file_put_contents("$basePidFilename.pgid", $this->posixGroupManager->getCurrentGid());
+
+        register_shutdown_function(function () use ($basePidFilename) {
+            unlink("$basePidFilename.pid");
+            unlink("$basePidFilename.pgid");
+        });
     }
 }
