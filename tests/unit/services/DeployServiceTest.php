@@ -229,6 +229,24 @@ class DeployServiceTest extends TestCase
     }
 
     /**
+     *
+     */
+    public function testProjectFilenamePathMatchProjectDirectoryPath()
+    {
+        /** @var DeployService|\PHPUnit\Framework\MockObject\MockObject $deployService */
+        $deployService = $this->getMockBuilder(\whotrades\RdsBuildAgent\services\DeployService::class)
+            ->onlyMethods([
+                'getTmpDirectory',
+                'getCommandExecutor',
+                'getTemporaryScriptPath',
+                'getUseScriptPath',
+            ])
+            ->getMock();
+
+        $this->assertStringContainsString($deployService->getProjectDirectoryPath('test'), $deployService->getProjectFilenamePath('test', 'config.local.php'), 'ProjectFilenamePath MUST contain ProjectDirectoryPath');
+    }
+
+    /**
      * @return DeployService
      */
     protected function getDeployServiceMock(): DeployService
