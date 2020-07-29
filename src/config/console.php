@@ -46,7 +46,7 @@ $config = [
             DeployService::class => [
                 'class' => DeployService::class,
             ],
-            LoggerInterface::class => function () use ($config) {
+            LoggerInterface::class => function () {
                 $loggerConfig = Yii::$app->params['logger'];
                 $processors = $loggerConfig['processors'] ?: [];
                 $handlers = $loggerConfig['handlers'] ?: [];

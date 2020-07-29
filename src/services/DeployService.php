@@ -7,13 +7,10 @@ declare(strict_types=1);
 namespace whotrades\RdsBuildAgent\services;
 
 use samdark\log\PsrMessage;
-use whotrades\RdsBuildAgent\lib\PosixGroupManager;
 use whotrades\RdsSystem\lib\CommandExecutor;
 use whotrades\RdsSystem\lib\Exception\CommandExecutorException;
 use whotrades\RdsSystem\lib\Exception\EmptyAttributeException;
 use whotrades\RdsSystem\lib\Exception\FilesystemException;
-use whotrades\RdsSystem\Message\BuildTask;
-use whotrades\RdsSystem\Message\InstallTask;
 use whotrades\RdsSystem\Message\ProjectConfig;
 use whotrades\RdsSystem\Message\UseTask;
 use yii\base\BaseObject;
@@ -23,10 +20,14 @@ class DeployService extends BaseObject
     /** @var PosixGroupManager */
     private $posixGroupManager;
 
+    /** @var string */
+    private $projectDirectoryUniqid;
+
     public function __construct(PosixGroupManager $posixGroupManager, $config = null)
     {
         $config = $config ?? [];
         $this->posixGroupManager = $posixGroupManager;
+        $this->setProjectDirectoryUniqid();
         parent::__construct($config);
     }
 
@@ -112,6 +113,7 @@ class DeployService extends BaseObject
      */
     public function useProjectConfigLocal(ProjectConfig $task): string
     {
+        $this->setProjectDirectoryUniqid(); //mr: new uniqid for each run
         \Yii::info("Task received: " . json_encode($task));
         $project = $task->project;
 
@@ -291,6 +293,11 @@ class DeployService extends BaseObject
         return "/tmp";
     }
 
+    protected function setProjectDirectoryUniqid(string $uniqid = null)
+    {
+        $this->projectDirectoryUniqid = $uniqid ?? uniqid();
+    }
+
     /**
      * @param string $project
      *
@@ -298,7 +305,7 @@ class DeployService extends BaseObject
      */
     public function getProjectDirectoryPath(string $project): string
     {
-        return $this->getTmpDirectory() . "/config-local/{$project}-" . uniqid() . "/";
+        return $this->getTmpDirectory() . "/config-local/{$project}-{$this->projectDirectoryUniqid}/";
     }
 
     /**
@@ -336,39 +343,5 @@ class DeployService extends BaseObject
     public function getCommandExecutor(): CommandExecutor
     {
         return new CommandExecutor();
-    }
-
-    public function getPidDirectoryPath(): string
-    {
-        return (string) \Yii::$app->params['pidDir'];
-    }
-
-    public function getBuildDirPath(): string
-    {
-        return (string) \Yii::$app->params['buildDir'];
-    }
-
-    public function getProjectBuildDirPath(string $project, string $version): string
-    {
-        return $this->getBuildDirPath() . "/{$project}-{$version}";
-    }
-
-    public function createPidFile(string $workerName, int $taskId): void
-    {
-        $pidDirectoryPath = $this->getPidDirectoryPath();
-        if (!file_exists($pidDirectoryPath)) {
-            mkdir($pidDirectoryPath, 0777, true);
-        }
-
-        $basePidFilename = $pidDirectoryPath . "/{$workerName}_deploy_{$taskId}.php";
-        $pid = $this->posixGroupManager->getCurrentPid();
-        \Yii::info("My pid: $pid");
-        file_put_contents("$basePidFilename.pid", $pid);
-        file_put_contents("$basePidFilename.pgid", $this->posixGroupManager->getCurrentGid());
-
-        register_shutdown_function(function () use ($basePidFilename) {
-            unlink("$basePidFilename.pid");
-            unlink("$basePidFilename.pgid");
-        });
     }
 }
