@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "929377603ebe79a60c94e46cbba0c276",
+    "content-hash": "fa4240a20141b85a5311005411096e2a",
     "packages": [
         {
             "name": "bower-asset/inputmask",
@@ -593,16 +593,16 @@
         },
         {
             "name": "whotrades/rds-system",
-            "version": "v1.0.2",
+            "version": "dev-WTA-2468",
             "source": {
                 "type": "git",
                 "url": "https://github.com/WhoTrades/rds-system.git",
-                "reference": "581fba095b02fa8ac26f97c5e325d9aa4b314bc6"
+                "reference": "864dca8059797b8aa3af33c8f8d83b14fd3d4bd8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/WhoTrades/rds-system/zipball/581fba095b02fa8ac26f97c5e325d9aa4b314bc6",
-                "reference": "581fba095b02fa8ac26f97c5e325d9aa4b314bc6",
+                "url": "https://api.github.com/repos/WhoTrades/rds-system/zipball/864dca8059797b8aa3af33c8f8d83b14fd3d4bd8",
+                "reference": "864dca8059797b8aa3af33c8f8d83b14fd3d4bd8",
                 "shasum": ""
             },
             "require": {
@@ -611,6 +611,10 @@
                 "php": ">=7.3",
                 "php-amqplib/php-amqplib": "~2.6",
                 "yiisoft/yii2": "2.0.15.1"
+            },
+            "require-dev": {
+                "mikey179/vfsstream": "~1.6.8",
+                "phpunit/phpunit": "~9.2.4"
             },
             "type": "library",
             "autoload": {
@@ -626,7 +630,7 @@
                 }
             ],
             "description": "Core part of RDS service",
-            "time": "2020-07-21T12:56:31+00:00"
+            "time": "2020-07-30T08:58:43+00:00"
         },
         {
             "name": "yiisoft/yii2",
@@ -2468,11 +2472,14 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {
+        "whotrades/rds-system": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
-        "php": ">=7.3"
+        "php": ">=7.3",
+        "ext-posix": "*"
     },
     "platform-dev": [],
     "plugin-api-version": "1.1.0"

@@ -7,26 +7,37 @@ declare(strict_types=1);
 namespace whotrades\RdsBuildAgent\services;
 
 use samdark\log\PsrMessage;
+use whotrades\RdsBuildAgent\commands\DeployController;
+use whotrades\RdsBuildAgent\commands\Exception\StopBuildTask;
+use whotrades\RdsBuildAgent\services\DeployService\Event\DeployStatusEvent;
+use whotrades\RdsBuildAgent\services\DeployService\Event\CronConfigUpdateEvent;
+use whotrades\RdsBuildAgent\services\DeployService\Event\MigrationFinishEvent;
 use whotrades\RdsSystem\lib\CommandExecutor;
 use whotrades\RdsSystem\lib\Exception\CommandExecutorException;
 use whotrades\RdsSystem\lib\Exception\EmptyAttributeException;
 use whotrades\RdsSystem\lib\Exception\FilesystemException;
+use whotrades\RdsSystem\lib\Exception\ScriptExecutorException;
+use whotrades\RdsSystem\lib\ScriptExecutor;
+use whotrades\RdsSystem\Message\BuildTask;
+use whotrades\RdsSystem\Message\InstallTask;
 use whotrades\RdsSystem\Message\ProjectConfig;
 use whotrades\RdsSystem\Message\UseTask;
 use yii\base\BaseObject;
+use yii\base\Event;
 
 class DeployService extends BaseObject
 {
-    /** @var PosixGroupManager */
-    private $posixGroupManager;
+    const EVENT_DEPLOY_STATUS = 'event.deploy.status';
+    const EVENT_BUILD_FINISH = 'event.build.finish';
+    const EVENT_MIGRATION_FINISH = 'event.migration.finish';
+    const EVENT_CRON_CONFIG_UPDATE = 'event.cron.config.finish';
 
     /** @var string */
     private $projectDirectoryUniqid;
 
-    public function __construct(PosixGroupManager $posixGroupManager, $config = null)
+    public function __construct($config = null)
     {
         $config = $config ?? [];
-        $this->posixGroupManager = $posixGroupManager;
         $this->setProjectDirectoryUniqid();
         parent::__construct($config);
     }
@@ -70,7 +81,7 @@ class DeployService extends BaseObject
                 \Yii::error(new PsrMessage($errorMessage, [
                     'project' => $project,
                     'filename' => $useScriptFilename,
-                    'content' => $task->scriptUploadConfigLocal,
+                    'content' => $task->scriptUse,
                 ]));
                 $task->accepted();
                 throw new FilesystemException($errorMessage, FilesystemException::ERROR_WRITE_FILE);
@@ -206,82 +217,111 @@ class DeployService extends BaseObject
         return $output;
     }
 
-    public function deployBuild(BuildTask $task, string $workerName)
+    /**
+     * @param BuildTask $task
+     * @param string $workerName
+     * @throws CommandExecutorException
+     * @throws FilesystemException
+     * @throws ScriptExecutorException|EmptyAttributeException
+     */
+    public function deployBuild(BuildTask $task)
     {
-        $this->posixGroupManager->setCurrentPidAsGid(); // mr: TODO: move to createPidFile maybe?
-        $this->createPidFile($workerName, $task->id);
         $projectBuildDir = $this->getProjectBuildDirPath($task->project, $task->version);
         // an: Сигнализируем о начале работы
-        // TODO: produce event
-        //$this->sendStatus('building');
+        Event::trigger(self::class, self::EVENT_DEPLOY_STATUS, new DeployStatusEvent(DeployStatusEvent::TYPE_BUILDING, $task->id, $task->version));
 
-        $currentOperation = self::CURRENT_OPERATION_BUILDING;
-        //$text = $this->processBuildProject($projectBuildDir, $task->scriptBuild, $task->project, $task->version, $task->release, $task->id);
-        if (empty($task->scriptBuild)) {
-            throw new \Exception("No build script detected - can't build");
-        }
+        try {
+            $currentOperation = DeployController::CURRENT_OPERATION_BUILDING;
+            if (empty($task->scriptBuild)) {
+                throw new EmptyAttributeException("No build script detected - can't build");
+            }
 
-        $text = $this->processScript(
-            $task->scriptBuild,
-            '/tmp/build-script-',
-            [
+            $output = $this->getScriptExecutor($task->scriptBuild, '/tmp/build-script-', [
                 'projectName' => $task->project,
                 'version' => $task->version,
                 'projectDir' => $projectBuildDir,
                 'release' => $task->release,
                 'taskId' => $task->id,
-            ]
-        );
+            ])();
 
-        $currentOperation = self::CURRENT_OPERATION_GET_MIGRATIONS_LIST;
-        //$this->processMigrations($projectBuildDir, $task->scriptMigrationNew, $task->project, $task->version);
-        if (!empty($task->scriptMigrationNew)) {
-            Yii::info("No migration script detected - so no migrations");
-            Yii::info("projectDir=$projectBuildDir");
-            // an: Проект с миграциями
-            $command = self::MIGRATION_COMMAND_NEW_ALL;
-            foreach ([self::MIGRATION_TYPE_PRE, self::MIGRATION_TYPE_POST, self::MIGRATION_TYPE_HARD] as $type) {
-                $text = $this->processScript(
-                    $task->scriptMigrationNew,
-                    '/tmp/migration-new-script-',
-                    [
+            $currentOperation = DeployController::CURRENT_OPERATION_GET_MIGRATIONS_LIST;
+            if (!empty($task->scriptMigrationNew)) {
+                \Yii::info("No migration script detected - so no migrations");
+                \Yii::info("projectDir=$projectBuildDir");
+                // an: Проект с миграциями
+                $command = DeployController::MIGRATION_COMMAND_NEW_ALL;
+                foreach ([DeployController::MIGRATION_TYPE_PRE, DeployController::MIGRATION_TYPE_POST, DeployController::MIGRATION_TYPE_HARD] as $type) {
+                    $text = $this->getScriptExecutor($task->scriptMigrationNew, '/tmp/migration-new-script-', [
                         'project' => $task->project,
                         'version' => $task->version,
                         'type' => $type,
                         'command' => $command,
-                    ]
-                );
+                    ])();
 
-                Yii::trace("Output: $text");
-                $lines = explode("\n", str_replace("\r", "", $text));
-                $migrations = array_filter($lines);
-                $migrations = array_map('trim', $migrations);
-                $this->model->sendMigrations(
-                    new Message\ReleaseRequestMigrations($task->project, $task->version, $migrations, $type, $command)
-                );
+                    $lines = explode("\n", str_replace("\r", "", $text));
+                    $migrations = array_filter($lines);
+                    $migrations = array_map('trim', $migrations);
+
+                    Event::trigger(self::class, self::EVENT_MIGRATION_FINISH, new MigrationFinishEvent($migrations));
+                }
             }
+
+            $currentOperation = DeployController::CURRENT_OPERATION_GEN_CRON_CONFIGS;
+            $output = empty($task->scriptCron) ? "" : $this->getScriptExecutor($task->scriptCron, '/tmp/cron-script-', [
+                'projectName' => $task->project,
+                'version' => $task->version,
+            ])();
+
+            // We should always trigger config update event (empty $output is also config)
+            Event::trigger(self::class, self::EVENT_CRON_CONFIG_UPDATE, new CronConfigUpdateEvent($output)); // <- output
+            Event::trigger(self::class, self::EVENT_DEPLOY_STATUS, new DeployStatusEvent(DeployStatusEvent::TYPE_BUILT, $task->id, $task->version));
+        } finally {
+            $task->accepted();
         }
-
-
-
-        // an: Отправляем новые сгенерированные cron.d конфиги
-        $currentOperation = self::CURRENT_OPERATION_GEN_CRON_CONFIGS;
-        $cronConfig = $this->processGenCronConfis($task->scriptCron, $task->project, $task->version);
-
-        // TODO: produce event
-        /*$this->model->sendCronConfig(
-            new Message\ReleaseRequestCronConfig($task->id, $cronConfig)
-        );*/
-
-        // an: Сигнализируем что все сделали
-        // TODO: produce event
-        //$this->sendStatus('built', $version, $text);
-        $this->posixGroupManager->restoreGid();
     }
 
-    public function installTask(InstallTask $task)
+    /**
+     * @param InstallTask $task
+     * @param $workerName
+     * @throws CommandExecutorException
+     * @throws EmptyAttributeException
+     * @throws FilesystemException
+     * @throws ScriptExecutorException
+     */
+    public function deployInstall(InstallTask $task)
     {
+        $projectBuildDir = $this->getProjectBuildDirPath($task->project, $task->version);
 
+        Event::trigger(self::class, self::EVENT_DEPLOY_STATUS, new DeployStatusEvent(DeployStatusEvent::TYPE_INSTALLING, $task->id, $task->version));
+
+        try {
+            $currentOperation = DeployController::CURRENT_OPERATION_INSTALLING;
+
+            if (empty($task->scriptInstall)) {
+                throw new EmptyAttributeException("Can't install project without installation script");
+            }
+
+            $output = $this->getScriptExecutor($task->scriptInstall, '/tmp/install-script-', [
+                'projectName' => $task->project,
+                'version' => $task->version,
+                'projectDir' => $projectBuildDir,
+                'servers' => implode(" ", $task->getProjectServers()),
+            ])();
+
+            Event::trigger(self::class, self::EVENT_DEPLOY_STATUS, new DeployStatusEvent(DeployStatusEvent::TYPE_INSTALLED, $task->id, $task->version));
+
+            $currentOperation = DeployController::CURRENT_OPERATION_POST_INSTALL_SCRIPT;
+            $output = empty($task->scriptPostInstall) ? "" : $this->getScriptExecutor($task->scriptPostInstall, '/tmp/post-install-script-', [
+                'projectName' => $task->project,
+                'version' => $task->version,
+                'projectDir' => $projectBuildDir,
+            ])();
+
+            Event::trigger(self::class, self::EVENT_DEPLOY_STATUS, new DeployStatusEvent(DeployStatusEvent::TYPE_POST_INSTALLED, $task->id, $task->version));
+
+        } finally {
+            $task->accepted();
+        }
     }
 
     /**
@@ -343,5 +383,28 @@ class DeployService extends BaseObject
     public function getCommandExecutor(): CommandExecutor
     {
         return new CommandExecutor();
+    }
+
+    /**
+     * @param string $script
+     * @param string $scriptPathPrefix
+     * @param array|null $env
+     *
+     * @return ScriptExecutor
+     */
+    public function getScriptExecutor(string $script, string $scriptPathPrefix, array $env = null): ScriptExecutor
+    {
+        return new ScriptExecutor($script, $scriptPathPrefix, $env);
+    }
+
+    /**
+     * @param string $project
+     * @param string $version
+     *
+     * @return string
+     */
+    public function getProjectBuildDirPath(string $project, string $version): string
+    {
+        return \Yii::$app->params['buildDir'] . "/$project-$version"; // ¯\_(ツ)_/¯
     }
 }

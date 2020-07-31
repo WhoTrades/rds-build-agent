@@ -10,7 +10,8 @@
     },
     "require": {
         "php": ">=7.3",
-	    "whotrades/rds-system": "~1.0.0",
+        "ext-posix": "*",
+	    "whotrades/rds-system": "dev-WTA-2468",
         "fxp/composer-asset-plugin": "~1.0",
         "yiisoft/yii2": "2.0.15.1",
         "php-amqplib/php-amqplib": "~2.7.0",

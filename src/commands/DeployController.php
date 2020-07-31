@@ -6,11 +6,15 @@
 namespace whotrades\RdsBuildAgent\commands;
 
 use whotrades\RdsBuildAgent\commands\Exception\StopBuildTask;
+use whotrades\RdsBuildAgent\lib\PosixGroupManager;
+use whotrades\RdsBuildAgent\services\DeployService;
 use whotrades\RdsSystem\Cron\RabbitListener;
 use whotrades\RdsSystem\lib\CommandExecutor;
 use whotrades\RdsSystem\lib\Exception\CommandExecutorException;
+use whotrades\RdsSystem\lib\Exception\ScriptExecutorException;
 use Yii;
 use whotrades\RdsSystem\Message;
+use yii\base\Event;
 
 class DeployController extends RabbitListener
 {
@@ -36,6 +40,19 @@ class DeployController extends RabbitListener
     /** @var \whotrades\RdsSystem\Message\BuildTask */
     private $currentTask;
 
+    /** @var DeployService */
+    protected $deployService;
+
+    /** @var PosixGroupManager */
+    protected $posixGroupManager;
+
+    public function __construct($id, $module, DeployService $deployService, PosixGroupManager $posixGroupManager, $config = [])
+    {
+        $this->deployService = $deployService;
+        $this->posixGroupManager = $posixGroupManager;
+        parent::__construct($id, $module, $config);
+    }
+
     /**
      * @param string $workerName
      */
@@ -44,24 +61,53 @@ class DeployController extends RabbitListener
         $this->model  = $this->getMessagingModel();
         $this->gid = posix_getpgid(posix_getpid());
 
+        $this->attachEvents();
         $this->model->getBuildTask($workerName, false, function (Message\BuildTask $task) use ($workerName) {
             $this->currentTask = $task;
             Yii::info("Build task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
-            $this->processTask($task, $workerName);
+            //$this->processTask($task, $workerName);
+            try {
+                $this->posixGroupManager->setCurrentPidAsGid();
+                $this->createPidFiles($workerName, $task->id);
+                $this->deployService->deployBuild($task);
+            } catch (ScriptExecutorException $e) {
+
+            } finally {
+                $this->posixGroupManager->restoreGid();
+            }
+
         });
 
         $this->model->getInstallTask($workerName, false, function (Message\InstallTask $task) use ($workerName) {
             $this->currentTask = $task;
             Yii::info("Install task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
-            $this->processTask($task, $workerName);
+            try {
+                $this->posixGroupManager->setCurrentPidAsGid();
+                $this->createPidFiles($workerName, $task->id);
+                $this->deployService->deployInstall($task);
+            } catch (ScriptExecutorException $e) {
+
+            } finally {
+                $this->posixGroupManager->restoreGid();
+            }
+            //$this->processTask($task, $workerName);
         });
 
         try {
             $this->waitForMessages($this->model);
         } catch (StopBuildTask $e) {
         }
+    }
+
+    private function attachEvents()
+    {
+        Event::on(DeployService::class, DeployService::EVENT_DEPLOY_STATUS, function (DeployService\Event\DeployStatusEvent $event) {
+            $this->model->sendTaskStatusChanged(
+                new Message\TaskStatusChanged($event->getTaskId(), $event->getType(), $event->getVersion(), $event->getPayload())
+            );
+        });
     }
 
     /**
@@ -353,5 +399,22 @@ class DeployController extends RabbitListener
         $this->stopReceivingMessages();
 
         throw new StopBuildTask($signo);
+    }
+
+    private function createPidFiles(string $workerName, int $taskId): void
+    {
+        if (!file_exists(\Yii::$app->params['pidDir'])) {
+            mkdir(\Yii::$app->params['pidDir'], 0777, true);
+        }
+
+        $basePidFilename = \Yii::$app->params['pidDir'] . "/{$workerName}_deploy_$taskId.php";
+        $pid = $this->posixGroupManager->getCurrentPid();
+        file_put_contents("$basePidFilename.pid", $pid);
+        file_put_contents("$basePidFilename.pgid", $this->posixGroupManager->getCurrentGid());
+
+        register_shutdown_function(function () use ($basePidFilename) {
+            unlink("$basePidFilename.pid");
+            unlink("$basePidFilename.pgid");
+        });
     }
 }

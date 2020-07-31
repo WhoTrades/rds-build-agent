@@ -11,7 +11,7 @@ namespace whotrades\RdsBuildAgent\lib;
  *
  * @package whotrades\RdsBuildAgent\lib
  */
-final class PosixGroupManager
+class PosixGroupManager
 {
     /** @var int */
     private $gid;

@@ -8,6 +8,8 @@ use PHPUnit\Framework\TestCase;
 use \whotrades\RdsSystem\lib\Exception\EmptyAttributeException;
 use \whotrades\RdsSystem\lib\Exception\FilesystemException;
 use whotrades\RdsSystem\lib\Exception\CommandExecutorException;
+use whotrades\RdsSystem\lib\ScriptExecutor;
+use whotrades\RdsSystem\Message\BuildTask;
 use \whotrades\RdsSystem\Message\ProjectConfig;
 use \whotrades\RdsSystem\Message\UseTask;
 use \whotrades\RdsBuildAgent\services\DeployService;
@@ -15,6 +17,7 @@ use \org\bovigo\vfs\vfsStream;
 use \PHPUnit\Framework\MockObject\MockBuilder;
 use \PHPUnit\Framework\MockObject\MockObject;
 use \whotrades\RdsSystem\lib\CommandExecutor;
+use yii\base\Event;
 
 class DeployServiceTest extends TestCase
 {
@@ -144,7 +147,7 @@ class DeployServiceTest extends TestCase
         /** @var \PHPUnit\Framework\MockObject\MockObject|DeployService $deployService */
         $deployService = $this->getDeployServiceMock();
 
-        $commandExecutor = $this->createMock(\whotrades\RdsSystem\lib\CommandExecutor::class);
+        $commandExecutor = $this->createMock(CommandExecutor::class);
         $e = new CommandExecutorException("command", "message", 0, "output");
         $commandExecutor->method('executeCommand')->will($this->throwException($e));
         $deployService->method('getCommandExecutor')->willReturn($commandExecutor);
@@ -167,7 +170,7 @@ class DeployServiceTest extends TestCase
         /** @var \PHPUnit\Framework\MockObject\MockObject|DeployService $deployService */
         $deployService = $this->getDeployServiceMock();
 
-        $commandExecutor = $this->createMock(\whotrades\RdsSystem\lib\CommandExecutor::class);
+        $commandExecutor = $this->createMock(CommandExecutor::class);
         $e = new CommandExecutorException("command", "message", 0, "output");
         $commandExecutor->method('executeCommand')->will($this->throwException($e));
         $deployService->method('getCommandExecutor')->willReturn($commandExecutor);
@@ -234,7 +237,8 @@ class DeployServiceTest extends TestCase
     public function testProjectFilenamePathMatchProjectDirectoryPath()
     {
         /** @var DeployService|\PHPUnit\Framework\MockObject\MockObject $deployService */
-        $deployService = $this->getMockBuilder(\whotrades\RdsBuildAgent\services\DeployService::class)
+        $deployService = $this->getMockBuilder(DeployService::class)
+            ->setConstructorArgs([])
             ->onlyMethods([
                 'getTmpDirectory',
                 'getCommandExecutor',
@@ -246,8 +250,45 @@ class DeployServiceTest extends TestCase
         $this->assertStringContainsString($deployService->getProjectDirectoryPath('test'), $deployService->getProjectFilenamePath('test', 'config.local.php'), 'ProjectFilenamePath MUST contain ProjectDirectoryPath');
     }
 
+    public function testDeployBuild()
+    {
+        /** @var MockObject | BuildTask $buildTask */
+        $buildTask = $this->getBuildTaskMockBuilder()->getMock();
+        $buildTask->expects($this->once())->method('accepted');
+
+        $deployService = $this->getDeployServiceMock();
+        $deployService->method('getScriptExecutor')->willReturn($this->getScriptExecutorMock());
+
+        $deployService->deployBuild($buildTask, 'workah');
+    }
+
+    public function testDeployBuildEventsOrderAndQuantity()
+    {
+        $eventCounters = [];
+        Event::on(DeployService::class, '*', function (Event $event) use (&$eventCounters) {
+            $eventCounters[$event->name] = isset($eventCounters[$event->name]) ? $eventCounters[$event->name] + 1 : 1;
+        });
+
+        /** @var MockObject | BuildTask $buildTask */
+        $buildTask = $this->getBuildTaskMockBuilder()->getMock();
+        $buildTask->expects($this->once())->method('accepted');
+
+        $deployService = $this->getDeployServiceMock();
+        $deployService->method('getScriptExecutor')->willReturn($this->getScriptExecutorMock());
+
+        $deployService->deployBuild($buildTask, 'workah');
+
+        $this->assertEquals([
+            DeployService::EVENT_DEPLOY_STATUS       => 2,
+            DeployService::EVENT_MIGRATION_FINISH    => 3,
+            DeployService::EVENT_CRON_CONFIG_UPDATE  => 1,
+        ], $eventCounters);
+    }
+
+    //public function testDeployBuild
+
     /**
-     * @return DeployService
+     * @return DeployService | MockObject
      */
     protected function getDeployServiceMock(): DeployService
     {
@@ -255,10 +296,12 @@ class DeployServiceTest extends TestCase
         $this->root->addChild($directory);
 
         /** @var DeployService|\PHPUnit\Framework\MockObject\MockObject $deployService */
-        $deployService = $this->getMockBuilder(\whotrades\RdsBuildAgent\services\DeployService::class)
+        $deployService = $this->getMockBuilder(DeployService::class)
+            ->setConstructorArgs([])
             ->onlyMethods([
                 'getTmpDirectory',
                 'getCommandExecutor',
+                'getScriptExecutor',
                 'getProjectDirectoryPath',
                 'getTemporaryScriptPath',
                 'getProjectFilenamePath',
@@ -281,9 +324,19 @@ class DeployServiceTest extends TestCase
      */
     protected function getCommandExecutorMock(): CommandExecutor
     {
-        $commandExecutor = $this->createMock(\whotrades\RdsSystem\lib\CommandExecutor::class);
+        $commandExecutor = $this->createMock(CommandExecutor::class);
         $commandExecutor->method('executeCommand')->willReturnArgument(0);
         return $commandExecutor;
+    }
+
+    /**
+     * @return ScriptExecutor
+     */
+    protected function getScriptExecutorMock(): ScriptExecutor
+    {
+        $scriptExecutor = $this->createMock(ScriptExecutor::class);
+        $scriptExecutor->method('execute')->willReturn("TEST");
+        return $scriptExecutor;
     }
 
     /**
@@ -314,7 +367,26 @@ class DeployServiceTest extends TestCase
                 '42.000.test',
                 'phpunit',
                 'TESTCOMMAND',
-                ['localhost']
+                ['localhost'],
+            ])
+            ->setMethodsExcept(['getProjectServers']);
+    }
+
+    /**
+     * @return MockBuilder
+     */
+    protected function getBuildTaskMockBuilder(): MockBuilder
+    {
+        return $this->getMockBuilder(BuildTask::class)
+            ->setConstructorArgs([
+                1,
+                'TEST_PROJECT_NAME',
+                '42.000.test',
+                'test',
+                'SCRIPT_MIGRATION',
+                'SCRIPT_BUILD',
+                'SCRIPT_CRON',
+                ['localhost'],
             ])
             ->setMethodsExcept(['getProjectServers']);
     }
