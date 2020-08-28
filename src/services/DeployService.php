@@ -219,7 +219,7 @@ class DeployService extends BaseObject
 
     /**
      * @param BuildTask $task
-     * @param string $workerName
+     *
      * @throws CommandExecutorException
      * @throws FilesystemException
      * @throws ScriptExecutorException|EmptyAttributeException
@@ -282,7 +282,7 @@ class DeployService extends BaseObject
 
     /**
      * @param InstallTask $task
-     * @param $workerName
+     *
      * @throws CommandExecutorException
      * @throws EmptyAttributeException
      * @throws FilesystemException
