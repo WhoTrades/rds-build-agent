@@ -28,7 +28,6 @@ use yii\base\Event;
 class DeployService extends BaseObject
 {
     const EVENT_DEPLOY_STATUS = 'event.deploy.status';
-    const EVENT_BUILD_FINISH = 'event.build.finish';
     const EVENT_MIGRATION_FINISH = 'event.migration.finish';
     const EVENT_CRON_CONFIG_UPDATE = 'event.cron.config.finish';
 
@@ -231,12 +230,11 @@ class DeployService extends BaseObject
         Event::trigger(self::class, self::EVENT_DEPLOY_STATUS, new DeployStatusEvent(DeployStatusEvent::TYPE_BUILDING, $task->id, $task->version));
 
         try {
-            $currentOperation = DeployController::CURRENT_OPERATION_BUILDING;
             if (empty($task->scriptBuild)) {
                 throw new EmptyAttributeException("No build script detected - can't build");
             }
 
-            $output = $this->getScriptExecutor($task->scriptBuild, '/tmp/build-script-', [
+            $outputBuildScript = $this->getScriptExecutor($task->scriptBuild, '/tmp/build-script-', [
                 'projectName' => $task->project,
                 'version' => $task->version,
                 'projectDir' => $projectBuildDir,
@@ -244,7 +242,6 @@ class DeployService extends BaseObject
                 'taskId' => $task->id,
             ])();
 
-            $currentOperation = DeployController::CURRENT_OPERATION_GET_MIGRATIONS_LIST;
             if (!empty($task->scriptMigrationNew)) {
                 \Yii::info("No migration script detected - so no migrations");
                 \Yii::info("projectDir=$projectBuildDir");
@@ -266,15 +263,14 @@ class DeployService extends BaseObject
                 }
             }
 
-            $currentOperation = DeployController::CURRENT_OPERATION_GEN_CRON_CONFIGS;
-            $output = empty($task->scriptCron) ? "" : $this->getScriptExecutor($task->scriptCron, '/tmp/cron-script-', [
+            $outputCronScript = empty($task->scriptCron) ? "" : $this->getScriptExecutor($task->scriptCron, '/tmp/cron-script-', [
                 'projectName' => $task->project,
                 'version' => $task->version,
             ])();
 
             // We should always trigger config update event (empty $output is also config)
-            Event::trigger(self::class, self::EVENT_CRON_CONFIG_UPDATE, new CronConfigUpdateEvent($output)); // <- output
-            Event::trigger(self::class, self::EVENT_DEPLOY_STATUS, new DeployStatusEvent(DeployStatusEvent::TYPE_BUILT, $task->id, $task->version));
+            Event::trigger(self::class, self::EVENT_CRON_CONFIG_UPDATE, new CronConfigUpdateEvent($task->id, $outputCronScript)); // <- output
+            Event::trigger(self::class, self::EVENT_DEPLOY_STATUS, new DeployStatusEvent(DeployStatusEvent::TYPE_BUILT, $task->id, $task->version, $outputBuildScript));
         } finally {
             $task->accepted();
         }
@@ -295,8 +291,6 @@ class DeployService extends BaseObject
         Event::trigger(self::class, self::EVENT_DEPLOY_STATUS, new DeployStatusEvent(DeployStatusEvent::TYPE_INSTALLING, $task->id, $task->version));
 
         try {
-            $currentOperation = DeployController::CURRENT_OPERATION_INSTALLING;
-
             if (empty($task->scriptInstall)) {
                 throw new EmptyAttributeException("Can't install project without installation script");
             }
@@ -310,7 +304,6 @@ class DeployService extends BaseObject
 
             Event::trigger(self::class, self::EVENT_DEPLOY_STATUS, new DeployStatusEvent(DeployStatusEvent::TYPE_INSTALLED, $task->id, $task->version));
 
-            $currentOperation = DeployController::CURRENT_OPERATION_POST_INSTALL_SCRIPT;
             $output = empty($task->scriptPostInstall) ? "" : $this->getScriptExecutor($task->scriptPostInstall, '/tmp/post-install-script-', [
                 'projectName' => $task->project,
                 'version' => $task->version,

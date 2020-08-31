@@ -10,14 +10,26 @@ use yii\base\Event;
 
 final class CronConfigUpdateEvent extends Event
 {
-    /** @var string  */
-    private $cronConfig = "";
+    /** @var int */
+    private $taskId;
 
-    public function __construct(string $cronConfig, $config = null)
+    /** @var string  */
+    private $cronConfig;
+
+    public function __construct(int $taskId, string $cronConfig, $config = null)
     {
+        $this->taskId = $taskId;
         $this->cronConfig = $cronConfig;
         $config = $config ?? [];
         parent::__construct($config);
+    }
+
+    /**
+     * @return int
+     */
+    public function getTaskId(): int
+    {
+        return $this->taskId;
     }
 
     /**
