@@ -597,12 +597,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/WhoTrades/rds-system.git",
-                "reference": "864dca8059797b8aa3af33c8f8d83b14fd3d4bd8"
+                "reference": "92cbeef452584f2d0fa5b0b016b45aaf540e3248"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/WhoTrades/rds-system/zipball/864dca8059797b8aa3af33c8f8d83b14fd3d4bd8",
-                "reference": "864dca8059797b8aa3af33c8f8d83b14fd3d4bd8",
+                "url": "https://api.github.com/repos/WhoTrades/rds-system/zipball/92cbeef452584f2d0fa5b0b016b45aaf540e3248",
+                "reference": "92cbeef452584f2d0fa5b0b016b45aaf540e3248",
                 "shasum": ""
             },
             "require": {
@@ -630,7 +630,7 @@
                 }
             ],
             "description": "Core part of RDS service",
-            "time": "2020-07-30T08:58:43+00:00"
+            "time": "2020-09-01T08:59:09+00:00"
         },
         {
             "name": "yiisoft/yii2",
@@ -1564,6 +1564,7 @@
             "keywords": [
                 "tokenizer"
             ],
+            "abandoned": true,
             "time": "2020-06-16T07:00:44+00:00"
         },
         {

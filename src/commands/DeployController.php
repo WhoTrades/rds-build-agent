@@ -5,12 +5,14 @@
 
 namespace whotrades\RdsBuildAgent\commands;
 
+use samdark\log\PsrMessage;
 use whotrades\RdsBuildAgent\commands\Exception\StopBuildTask;
 use whotrades\RdsBuildAgent\lib\PosixGroupManager;
 use whotrades\RdsBuildAgent\services\DeployService;
 use whotrades\RdsSystem\Cron\RabbitListener;
 use whotrades\RdsSystem\lib\Exception\CommandExecutorException;
 use whotrades\RdsSystem\lib\Exception\ScriptExecutorException;
+use whotrades\RdsSystem\Model\Rabbit\MessagingRdsMs;
 use Yii;
 use whotrades\RdsSystem\Message;
 use yii\base\Event;
@@ -23,7 +25,7 @@ class DeployController extends RabbitListener
 
     const MIGRATION_COMMAND_NEW_ALL = 'new all';
 
-    /** @var \whotrades\RdsSystem\Model\Rabbit\MessagingRdsMs */
+    /** @var MessagingRdsMs */
     private $model;
 
     /** @var DeployService */
@@ -59,12 +61,23 @@ class DeployController extends RabbitListener
                 $this->processCommandExecutorException($e, $task->version, 'failed');
             } catch (StopBuildTask $e) {
                 $sigName = $this->mapSigNoToName($e->getSigno());
-                Yii::error("Stop processing task with signal $sigName");
+                Yii::error(new PsrMessage("Stop processing task with signal {signal}", [
+                    'task_id' => $task->id,
+                    'version' => $task->version,
+                    'signal' => $sigName,
+                ]));
                 $this->sendStatus('failed', $task->id, $task->version, "Processing of task was stopped with signal $sigName");
+            } catch (\Exception $e) {
+                Yii::error(new PsrMessage("Unknown error while building", [
+                    'task_id' => $task->id,
+                    'version' => $task->version,
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]));
+                $this->sendStatus('failed', $task->id, $task->version, $e->getMessage());
             } finally {
                 $this->posixGroupManager->restoreGid();
             }
-
         });
 
         $this->model->getInstallTask($workerName, false, function (Message\InstallTask $task) use ($workerName) {
@@ -78,8 +91,20 @@ class DeployController extends RabbitListener
                 $this->processCommandExecutorException($e, $task->version, 'failed');
             } catch (StopBuildTask $e) {
                 $sigName = $this->mapSigNoToName($e->getSigno());
-                Yii::error("Stop processing task with signal $sigName");
+                Yii::error(new PsrMessage("Stop processing task with signal {signal}", [
+                    'task_id' => $task->id,
+                    'version' => $task->version,
+                    'signal' => $sigName,
+                ]));
                 $this->sendStatus('failed', $task->id, $task->version, "Processing of task was stopped with signal $sigName");
+            } catch (\Exception $e) {
+                Yii::error(new PsrMessage("Unknown error while installing", [
+                    'task_id' => $task->id,
+                    'version' => $task->version,
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]));
+                $this->sendStatus('failed', $task->id, $task->version, $e->getMessage());
             } finally {
                 $this->posixGroupManager->restoreGid();
             }
@@ -114,10 +139,13 @@ class DeployController extends RabbitListener
      */
     private function processCommandExecutorException(ScriptExecutorException $e, $version, $sendStatus)
     {
+        Yii::error(new PsrMessage("Script failed to execute", [
+            'version' => $version,
+            'script' => $e->getScript(),
+        ]));
         $previous = $e->getPrevious();
         if ($previous instanceof CommandExecutorException) {
             $text = $e->output;
-            Yii::error("Last command: " . $previous->getCommand());
             $buildLog = "Failed to execute " . $e->getCommand() . "\n";
             $buildLog .= "Command output " . $text . "\n";
         } else {
