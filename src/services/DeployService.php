@@ -7,8 +7,6 @@ declare(strict_types=1);
 namespace whotrades\RdsBuildAgent\services;
 
 use samdark\log\PsrMessage;
-use whotrades\RdsBuildAgent\commands\DeployController;
-use whotrades\RdsBuildAgent\commands\Exception\StopBuildTask;
 use whotrades\RdsBuildAgent\services\DeployService\Event\DeployStatusEvent;
 use whotrades\RdsBuildAgent\services\DeployService\Event\CronConfigUpdateEvent;
 use whotrades\RdsBuildAgent\services\DeployService\Event\MigrationFinishEvent;
@@ -30,6 +28,11 @@ class DeployService extends BaseObject
     const EVENT_DEPLOY_STATUS = 'event.deploy.status';
     const EVENT_MIGRATION_FINISH = 'event.migration.finish';
     const EVENT_CRON_CONFIG_UPDATE = 'event.cron.config.finish';
+
+    public const MIGRATION_COMMAND_NEW_ALL = 'new all';
+    public const MIGRATION_TYPE_POST = 'post';
+    public const MIGRATION_TYPE_PRE = 'pre';
+    public const MIGRATION_TYPE_HARD = 'hard';
 
     /** @var string */
     private $projectDirectoryUniqid;
@@ -142,6 +145,7 @@ class DeployService extends BaseObject
                     'projectDir' => $projectDir,
                 ]));
                 $task->accepted();
+
                 throw new FilesystemException($errMessage, FilesystemException::ERROR_WRITE_DIRECTORY);
             }
         }
@@ -246,8 +250,8 @@ class DeployService extends BaseObject
                 \Yii::info("No migration script detected - so no migrations");
                 \Yii::info("projectDir=$projectBuildDir");
                 // an: Проект с миграциями
-                $command = DeployController::MIGRATION_COMMAND_NEW_ALL;
-                foreach ([DeployController::MIGRATION_TYPE_PRE, DeployController::MIGRATION_TYPE_POST, DeployController::MIGRATION_TYPE_HARD] as $type) {
+                $command = self::MIGRATION_COMMAND_NEW_ALL;
+                foreach ([self::MIGRATION_TYPE_PRE, self::MIGRATION_TYPE_POST, self::MIGRATION_TYPE_HARD] as $type) {
                     $text = $this->getScriptExecutor($task->scriptMigrationNew, '/tmp/migration-new-script-', [
                         'project' => $task->project,
                         'version' => $task->version,

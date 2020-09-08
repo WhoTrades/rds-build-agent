@@ -16,14 +16,10 @@ use whotrades\RdsSystem\Model\Rabbit\MessagingRdsMs;
 use Yii;
 use whotrades\RdsSystem\Message;
 use yii\base\Event;
+use whotrades\RdsBuildAgent\services\DeployService\Event\DeployStatusEvent;
 
 class DeployController extends RabbitListener
 {
-    const MIGRATION_TYPE_PRE = 'pre';
-    const MIGRATION_TYPE_POST = 'post';
-    const MIGRATION_TYPE_HARD = 'hard';
-
-    const MIGRATION_COMMAND_NEW_ALL = 'new all';
 
     /** @var MessagingRdsMs */
     private $model;
@@ -38,6 +34,8 @@ class DeployController extends RabbitListener
     {
         $this->deployService = $deployService;
         $this->posixGroupManager = $posixGroupManager;
+        $this->model  = $this->getMessagingModel();
+        $this->attachEvents();
         parent::__construct($id, $module, $config);
     }
 
@@ -46,74 +44,64 @@ class DeployController extends RabbitListener
      */
     public function actionIndex($workerName)
     {
-        $this->model  = $this->getMessagingModel();
-
-        $this->attachEvents();
-
         $this->model->getBuildTask($workerName, false, function (Message\BuildTask $task) use ($workerName) {
             Yii::info("Build task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-
-            try {
-                $this->posixGroupManager->setCurrentPidAsGid();
-                $this->createPidFiles($workerName, $task->id);
-                $this->deployService->deployBuild($task);
-            } catch (ScriptExecutorException $e) {
-                $this->processCommandExecutorException($e, $task->version, 'failed');
-            } catch (StopBuildTask $e) {
-                $sigName = $this->mapSigNoToName($e->getSigno());
-                Yii::error(new PsrMessage("Stop processing task with signal {signal}", [
-                    'task_id' => $task->id,
-                    'version' => $task->version,
-                    'signal' => $sigName,
-                ]));
-                $this->sendStatus('failed', $task->id, $task->version, "Processing of task was stopped with signal $sigName");
-            } catch (\Exception $e) {
-                Yii::error(new PsrMessage("Unknown error while building", [
-                    'task_id' => $task->id,
-                    'version' => $task->version,
-                    'message' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]));
-                $this->sendStatus('failed', $task->id, $task->version, $e->getMessage());
-            } finally {
-                $this->posixGroupManager->restoreGid();
-            }
+            $this->processTask($workerName, $task);
         });
 
         $this->model->getInstallTask($workerName, false, function (Message\InstallTask $task) use ($workerName) {
             Yii::info("Install task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-
-            try {
-                $this->posixGroupManager->setCurrentPidAsGid();
-                $this->createPidFiles($workerName, $task->id);
-                $this->deployService->deployInstall($task);
-            } catch (ScriptExecutorException $e) {
-                $this->processCommandExecutorException($e, $task->version, 'failed');
-            } catch (StopBuildTask $e) {
-                $sigName = $this->mapSigNoToName($e->getSigno());
-                Yii::error(new PsrMessage("Stop processing task with signal {signal}", [
-                    'task_id' => $task->id,
-                    'version' => $task->version,
-                    'signal' => $sigName,
-                ]));
-                $this->sendStatus('failed', $task->id, $task->version, "Processing of task was stopped with signal $sigName");
-            } catch (\Exception $e) {
-                Yii::error(new PsrMessage("Unknown error while installing", [
-                    'task_id' => $task->id,
-                    'version' => $task->version,
-                    'message' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]));
-                $this->sendStatus('failed', $task->id, $task->version, $e->getMessage());
-            } finally {
-                $this->posixGroupManager->restoreGid();
-            }
+            $this->processTask($workerName, $task);
         });
 
         try {
             $this->waitForMessages($this->model);
         } catch (StopBuildTask $e) {
+            $sigName = $this->mapSigNoToName($e->getSigno());
+            \Yii::info("Tool was stopped with signal $sigName");
+        }
+    }
 
+    /**
+     * @param string $workerName
+     * @param Message\DeployTaskBase $task
+     */
+    private function processTask(string $workerName, Message\DeployTaskBase $task)
+    {
+        try {
+            $this->posixGroupManager->setCurrentPidAsGid();
+            $this->createPidFiles($workerName, $task->id);
+            switch (get_class($task)) {
+                case Message\BuildTask::class:
+                    $this->deployService->deployBuild($task);
+                    break;
+                case Message\InstallTask::class:
+                    $this->deployService->deployInstall($task);
+                    break;
+                default:
+                    Yii::info("Unknown task type " . get_class($task) . ", skipping.");
+                    $task->accepted();
+            }
+        } catch (ScriptExecutorException $e) {
+            $this->processCommandExecutorException($e, (int) $task->id, $task->version, DeployStatusEvent::TYPE_FAILED);
+        } catch (StopBuildTask $e) {
+            $sigName = $this->mapSigNoToName($e->getSigno());
+            Yii::error(new PsrMessage("Stop processing task with signal {signal}", [
+                'task_id' => $task->id,
+                'version' => $task->version,
+                'signal' => $sigName,
+            ]));
+            $this->sendStatus(DeployStatusEvent::TYPE_FAILED, $task->id, $task->version, "Processing of task was stopped with signal $sigName");
+        } catch (\Exception $e) {
+            Yii::error(new PsrMessage("Unknown error while executing task", [
+                'task_id' => $task->id,
+                'version' => $task->version,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]));
+            $this->sendStatus(DeployStatusEvent::TYPE_FAILED, $task->id, $task->version, $e->getMessage());
+        } finally {
+            $this->posixGroupManager->restoreGid();
         }
     }
 
@@ -133,39 +121,41 @@ class DeployController extends RabbitListener
     }
 
     /**
-     * @param ScriptExecutorException $e
+     * @param ScriptExecutorException $exception
+     * @param int $taskId
      * @param string $version
      * @param string $sendStatus
      */
-    private function processCommandExecutorException(ScriptExecutorException $e, $version, $sendStatus)
+    private function processCommandExecutorException(ScriptExecutorException $exception, int $taskId, $version, $sendStatus)
     {
         Yii::error(new PsrMessage("Script failed to execute", [
             'version' => $version,
-            'script' => $e->getScript(),
+            'script' => $exception->getScript(),
         ]));
-        $previous = $e->getPrevious();
+        $previous = $exception->getPrevious();
+
+        $buildLog = $exception->getMessage();
+
         if ($previous instanceof CommandExecutorException) {
-            $text = $e->output;
-            $buildLog = "Failed to execute " . $e->getCommand() . "\n";
+            $text = $previous->getOutput();
+            $buildLog = "Failed to execute " . $previous->getCommand() . "\n";
             $buildLog .= "Command output " . $text . "\n";
-        } else {
-            $buildLog = $e->getMessage();
         }
 
-        $this->sendStatus($sendStatus, $version, $buildLog);
+        $this->sendStatus($sendStatus, $taskId, $version, $buildLog);
     }
 
     /**
      * Отправляет на сервер текущий статус сборки на конкретной машине сборщике
      *
-     * @param $status
+     * @param string $status
      * @param int $taskId
      * @param null $version
      * @param null $attach
      */
     private function sendStatus($status, int $taskId, $version = null, $attach = null)
     {
-        Yii::info("Task status changed: status=$status, version=$version, attach_length=" . strlen($attach));
+        Yii::info("Task status changed: id=$taskId, status=$status, version=$version, attach_length=" . strlen($attach));
         $this->model->sendTaskStatusChanged(
             new Message\TaskStatusChanged($taskId, $status, $version, $attach)
         );
