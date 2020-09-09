@@ -43,9 +43,9 @@ $config = [
     ],
     'container' => [
         'singletons' => [
-            DeployService::class => [
-                'class' => DeployService::class,
-            ],
+            DeployService::class => function () {
+                return new DeployService(Yii::$app->params['buildDir'], []);
+            },
             LoggerInterface::class => function () {
                 $loggerConfig = Yii::$app->params['logger'];
                 $processors = $loggerConfig['processors'] ?: [];

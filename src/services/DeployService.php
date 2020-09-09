@@ -35,12 +35,16 @@ class DeployService extends BaseObject
     public const MIGRATION_TYPE_HARD = 'hard';
 
     /** @var string */
-    private $projectDirectoryUniqid;
+    private $projectDirUniqid;
 
-    public function __construct($config = null)
+    /** @var string */
+    private $projectBuildRoot;
+
+    public function __construct(string $buildRoot, $config = null)
     {
         $config = $config ?? [];
-        $this->setProjectDirectoryUniqid();
+        $this->projectBuildRoot = $buildRoot;
+        $this->setProjectDirUniqid();
         parent::__construct($config);
     }
 
@@ -126,7 +130,7 @@ class DeployService extends BaseObject
      */
     public function useProjectConfigLocal(ProjectConfig $task): string
     {
-        $this->setProjectDirectoryUniqid(); //mr: new uniqid for each run
+        $this->setProjectDirUniqid(); //mr: new uniqid for each run
         \Yii::info("Task received: " . json_encode($task));
         $project = $task->project;
 
@@ -263,7 +267,7 @@ class DeployService extends BaseObject
                     $migrations = array_filter($lines);
                     $migrations = array_map('trim', $migrations);
 
-                    Event::trigger(self::class, self::EVENT_MIGRATION_FINISH, new MigrationFinishEvent($migrations));
+                    Event::trigger(self::class, self::EVENT_MIGRATION_FINISH, new MigrationFinishEvent($task->project, $task->version, $migrations, $type, $command));
                 }
             }
 
@@ -306,7 +310,7 @@ class DeployService extends BaseObject
                 'servers' => implode(" ", $task->getProjectServers()),
             ])();
 
-            Event::trigger(self::class, self::EVENT_DEPLOY_STATUS, new DeployStatusEvent(DeployStatusEvent::TYPE_INSTALLED, $task->id, $task->version));
+            Event::trigger(self::class, self::EVENT_DEPLOY_STATUS, new DeployStatusEvent(DeployStatusEvent::TYPE_INSTALLED, $task->id, $task->version, $output));
 
             $output = empty($task->scriptPostInstall) ? "" : $this->getScriptExecutor($task->scriptPostInstall, '/tmp/post-install-script-', [
                 'projectName' => $task->project,
@@ -314,7 +318,7 @@ class DeployService extends BaseObject
                 'projectDir' => $projectBuildDir,
             ])();
 
-            Event::trigger(self::class, self::EVENT_DEPLOY_STATUS, new DeployStatusEvent(DeployStatusEvent::TYPE_POST_INSTALLED, $task->id, $task->version));
+            Event::trigger(self::class, self::EVENT_DEPLOY_STATUS, new DeployStatusEvent(DeployStatusEvent::TYPE_POST_INSTALLED, $task->id, $task->version, $output));
 
         } finally {
             $task->accepted();
@@ -330,9 +334,13 @@ class DeployService extends BaseObject
         return "/tmp";
     }
 
-    protected function setProjectDirectoryUniqid(string $uniqid = null)
+    /**
+     * TODO: Replace with some kind of a directory manager instead of storing uniqid in object property
+     * @param string|null $uniqid
+     */
+    protected function setProjectDirUniqid(string $uniqid = null)
     {
-        $this->projectDirectoryUniqid = $uniqid ?? uniqid();
+        $this->projectDirUniqid = $uniqid ?? uniqid();
     }
 
     /**
@@ -342,7 +350,7 @@ class DeployService extends BaseObject
      */
     public function getProjectDirectoryPath(string $project): string
     {
-        return $this->getTmpDirectory() . "/config-local/{$project}-{$this->projectDirectoryUniqid}/";
+        return $this->getTmpDirectory() . "/config-local/{$project}-{$this->projectDirUniqid}/";
     }
 
     /**
@@ -402,6 +410,6 @@ class DeployService extends BaseObject
      */
     public function getProjectBuildDirPath(string $project, string $version): string
     {
-        return \Yii::$app->params['buildDir'] . "/$project-$version"; // ¯\_(ツ)_/¯
+        return $this->projectBuildRoot . "/$project-$version";
     }
 }

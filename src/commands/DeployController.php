@@ -118,6 +118,11 @@ class DeployController extends RabbitListener
         Event::on(DeployService::class, DeployService::EVENT_CRON_CONFIG_UPDATE, function (DeployService\Event\CronConfigUpdateEvent $event) {
             $this->model->sendCronConfig(new Message\ReleaseRequestCronConfig($event->getTaskId(), $event->getCronConfig()));
         });
+        Event::on(DeployService::class, DeployService::EVENT_MIGRATION_FINISH, function (DeployService\Event\MigrationFinishEvent $event) {
+            $this->model->sendMigrations(
+                new Message\ReleaseRequestMigrations($event->getProject(), $event->getVersion(), $event->getMigrations(), $event->getType(), $event->getCommand())
+            );
+        });
     }
 
     /**
