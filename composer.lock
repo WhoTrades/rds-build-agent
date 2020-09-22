@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "59ea3240f3caf40f9853f8f1d1dc2469",
+    "content-hash": "b860ce778ab24422f30463183fc3346b",
     "packages": [
         {
             "name": "bower-asset/inputmask",
@@ -1359,16 +1359,16 @@
         },
         {
             "name": "phpmd/phpmd",
-            "version": "2.9.0",
+            "version": "dev-master",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpmd/phpmd.git",
-                "reference": "2a346575a45a6f00e631f4d7f3f71b6a05e0d46d"
+                "reference": "5c210430295d0372b7094dfe37664591a1fdcd2c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpmd/phpmd/zipball/2a346575a45a6f00e631f4d7f3f71b6a05e0d46d",
-                "reference": "2a346575a45a6f00e631f4d7f3f71b6a05e0d46d",
+                "url": "https://api.github.com/repos/phpmd/phpmd/zipball/5c210430295d0372b7094dfe37664591a1fdcd2c",
+                "reference": "5c210430295d0372b7094dfe37664591a1fdcd2c",
                 "shasum": ""
             },
             "require": {
@@ -1433,7 +1433,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2020-09-02T09:12:27+00:00"
+            "time": "2020-09-10T20:07:54+00:00"
         },
         {
             "name": "phpspec/prophecy",
@@ -3530,13 +3530,15 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "whotrades/rds-system": 20
+        "whotrades/rds-system": 20,
+        "phpmd/phpmd": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
         "php": ">=7.3",
-        "ext-posix": "*"
+        "ext-posix": "*",
+        "ext-json": "*"
     },
     "platform-dev": [],
     "plugin-api-version": "1.1.0"
