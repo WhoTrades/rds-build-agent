@@ -10,7 +10,9 @@
     },
     "require": {
         "php": ">=7.3",
-	    "whotrades/rds-system": "~1.0.0",
+        "ext-posix": "*",
+        "ext-json": "*",
+	    "whotrades/rds-system": "~v1.0.4",
         "fxp/composer-asset-plugin": "~1.0",
         "yiisoft/yii2": "2.0.15.1",
         "php-amqplib/php-amqplib": "~2.7.0",
@@ -18,7 +20,9 @@
         "monolog/monolog": "^1.25"
     },
     "require-dev": {
-        "phpunit/phpunit": "~9.2.4",
+        "phpunit/phpunit": "~9.3",
+        "phpunit/phpcov": "~8.1",
+        "phpmd/phpmd": "dev-master",
         "mikey179/vfsstream": "~1.6.8"
     }
 }

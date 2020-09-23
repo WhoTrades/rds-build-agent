@@ -5,340 +5,164 @@
 
 namespace whotrades\RdsBuildAgent\commands;
 
+use samdark\log\PsrMessage;
 use whotrades\RdsBuildAgent\commands\Exception\StopBuildTask;
+use whotrades\RdsBuildAgent\lib\PosixGroupManager;
+use whotrades\RdsBuildAgent\services\DeployService;
 use whotrades\RdsSystem\Cron\RabbitListener;
-use whotrades\RdsSystem\lib\CommandExecutor;
 use whotrades\RdsSystem\lib\Exception\CommandExecutorException;
+use whotrades\RdsSystem\lib\Exception\ScriptExecutorException;
+use whotrades\RdsSystem\Model\Rabbit\MessagingRdsMs;
 use Yii;
 use whotrades\RdsSystem\Message;
+use yii\base\Event;
+use whotrades\RdsBuildAgent\services\DeployService\Event\DeployStatusEvent;
 
 class DeployController extends RabbitListener
 {
-    const MIGRATION_TYPE_PRE = 'pre';
-    const MIGRATION_TYPE_POST = 'post';
-    const MIGRATION_TYPE_HARD = 'hard';
 
-    const MIGRATION_COMMAND_NEW_ALL = 'new all';
-
-    const CURRENT_OPERATION_BUILDING = 'building';
-    const CURRENT_OPERATION_GET_MIGRATIONS_LIST = 'get_migrations_list';
-    const CURRENT_OPERATION_GEN_CRON_CONFIGS = 'gen_cron_configs';
-    const CURRENT_OPERATION_INSTALLING = 'installing';
-    const CURRENT_OPERATION_POST_INSTALL_SCRIPT = 'post_install_script';
-
-    private $gid;
-    private $taskId;
-    private $version;
-
-    /** @var \whotrades\RdsSystem\Model\Rabbit\MessagingRdsMs */
+    /** @var MessagingRdsMs */
     private $model;
 
-    /** @var \whotrades\RdsSystem\Message\BuildTask */
-    private $currentTask;
+    /** @var DeployService */
+    protected $deployService;
+
+    /** @var PosixGroupManager */
+    protected $posixGroupManager;
+
+    public function __construct($id, $module, DeployService $deployService, PosixGroupManager $posixGroupManager, $config = [])
+    {
+        $this->deployService = $deployService;
+        $this->posixGroupManager = $posixGroupManager;
+        $this->model  = $this->getMessagingModel();
+        $this->attachEvents();
+        parent::__construct($id, $module, $config);
+    }
 
     /**
      * @param string $workerName
      */
     public function actionIndex($workerName)
     {
-        $this->model  = $this->getMessagingModel();
-        $this->gid = posix_getpgid(posix_getpid());
-
         $this->model->getBuildTask($workerName, false, function (Message\BuildTask $task) use ($workerName) {
-            $this->currentTask = $task;
             Yii::info("Build task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-
-            $this->processTask($task, $workerName);
+            $this->processTask($workerName, $task);
         });
 
         $this->model->getInstallTask($workerName, false, function (Message\InstallTask $task) use ($workerName) {
-            $this->currentTask = $task;
             Yii::info("Install task received: " . json_encode($task, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-
-            $this->processTask($task, $workerName);
+            $this->processTask($workerName, $task);
         });
 
         try {
             $this->waitForMessages($this->model);
         } catch (StopBuildTask $e) {
+            $sigName = $this->mapSigNoToName($e->getSigno());
+            \Yii::info("Tool was stopped with signal $sigName");
         }
     }
 
     /**
-     * @param Message\DeployTaskBase $task
      * @param string $workerName
-     *
-     * @throws StopBuildTask
+     * @param Message\DeployTaskBase $task
      */
-    private function processTask(Message\DeployTaskBase $task, $workerName)
+    private function processTask(string $workerName, Message\DeployTaskBase $task)
     {
-        posix_setpgid(posix_getpid(), posix_getpid());
-        $project = $task->project;
-        $this->taskId = $taskId = $task->id;
-        $this->version = $version = $task->version;
-        $release = $task->release;
-
-        if (!file_exists(Yii::$app->params['pidDir'])) {
-            mkdir(Yii::$app->params['pidDir'], 0777, true);
-        }
-
-        $basePidFilename = Yii::$app->params['pidDir'] . "/{$workerName}_deploy_$taskId.php";
-        $pid = posix_getpid();
-        Yii::info("My pid: $pid");
-        file_put_contents("$basePidFilename.pid", $pid);
-        file_put_contents("$basePidFilename.pgid", posix_getpgid(posix_getpid()));
-
-        register_shutdown_function(function () use ($basePidFilename) {
-            unlink("$basePidFilename.pid");
-            unlink("$basePidFilename.pgid");
-        });
-
-        $projectDir = Yii::$app->params['buildDir'] . "/$project-$version";
-
         try {
+            $this->posixGroupManager->setCurrentPidAsGid();
+            $this->createPidFiles($workerName, $task->id);
             switch (get_class($task)) {
                 case Message\BuildTask::class:
-                    /** @var Message\BuildTask $task */
-                    // an: Сигнализируем о начале работы
-                    $this->sendStatus('building');
-
-                    $currentOperation = self::CURRENT_OPERATION_BUILDING;
-                    $text = $this->processBuildProject($projectDir, $task->scriptBuild, $project, $version, $release, $taskId);
-
-                    $currentOperation = self::CURRENT_OPERATION_GET_MIGRATIONS_LIST;
-                    $this->processMigrations($projectDir, $task->scriptMigrationNew, $project, $version);
-
-                    // an: Отправляем новые сгенерированные cron.d конфиги
-                    $currentOperation = self::CURRENT_OPERATION_GEN_CRON_CONFIGS;
-                    $cronConfig = $this->processGenCronConfis($task->scriptCron, $project, $version);
-
-                    $this->model->sendCronConfig(
-                        new Message\ReleaseRequestCronConfig($taskId, $cronConfig)
-                    );
-
-                    // an: Сигнализируем что все сделали
-                    $this->sendStatus('built', $version, $text);
-
+                    $this->deployService->deployBuild($task);
                     break;
                 case Message\InstallTask::class:
-                    /** @var Message\InstallTask $task */
-                    // an: Сигнализируем о начале работы
-                    $this->sendStatus('installing');
-
-                    // an: Раскладываем собранный проект по серверам
-                    $currentOperation = self::CURRENT_OPERATION_INSTALLING;
-                    $text = $this->processInstall($projectDir, $task->scriptInstall, $project, $version, $task->getProjectServers());
-
-                    // an: Сигнализируем что все сделали
-                    $this->sendStatus('installed', $version, $text);
-
-                    try {
-                        $currentOperation = self::CURRENT_OPERATION_POST_INSTALL_SCRIPT;
-                        $text = $this->processPostInstall($projectDir, $task->scriptPostInstall, $project, $version);
-
-                        // ag: Сигнализируем что скрипт отработал
-                        $this->sendStatus('post_installed', $version, $text);
-                    } catch (CommandExecutorException $e) {
-                        $this->processCommandExecutorException($e, $currentOperation, $version, 'post_installed');
-                    }
-
+                    $this->deployService->deployInstall($task);
                     break;
                 default:
-                    Yii::error("Unknown deploy task: " . get_class($task));
-                    $this->sendStatus('failed', $version);
+                    Yii::info("Unknown task type " . get_class($task) . ", skipping.");
+                    $task->accepted();
             }
-        } catch (CommandExecutorException $e) {
-            $this->processCommandExecutorException($e, $currentOperation, $version, 'failed');
+        } catch (ScriptExecutorException $e) {
+            $this->processCommandExecutorException($e, (int) $task->id, $task->version, DeployStatusEvent::TYPE_FAILED);
         } catch (StopBuildTask $e) {
             $sigName = $this->mapSigNoToName($e->getSigno());
-            Yii::error("Stop processing task with signal $sigName");
-            $this->sendStatus('failed', $version, "Processing of task was stopped with signal $sigName");
+            Yii::error(new PsrMessage("Stop processing task with signal {signal}", [
+                'task_id' => $task->id,
+                'version' => $task->version,
+                'signal' => $sigName,
+            ]));
+            $this->sendStatus(DeployStatusEvent::TYPE_FAILED, $task->id, $task->version, "Processing of task was stopped with signal $sigName");
         } catch (\Exception $e) {
-            Yii::error("Unknown error: " . $e->getMessage());
-            $this->sendStatus('failed', $version, $e->getMessage());
+            Yii::error(new PsrMessage("Unknown error while executing task", [
+                'task_id' => $task->id,
+                'version' => $task->version,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]));
+            $this->sendStatus(DeployStatusEvent::TYPE_FAILED, $task->id, $task->version, $e->getMessage());
+        } finally {
+            $this->posixGroupManager->restoreGid();
         }
-
-        Yii::info("Accepting message $task->deliveryTag");
-        $task->accepted();
-
-        Yii::info("Restoring pgid");
-        posix_setpgid(posix_getpid(), $this->gid);
     }
 
     /**
-     * @param CommandExecutorException $e
-     * @param string $currentOperation
+     * Attaches events for notifications
+     */
+    private function attachEvents()
+    {
+        Event::on(DeployService::class, DeployService::EVENT_DEPLOY_STATUS, function (DeployService\Event\DeployStatusEvent $event) {
+            $this->model->sendTaskStatusChanged(
+                new Message\TaskStatusChanged($event->getTaskId(), $event->getType(), $event->getVersion(), $event->getPayload())
+            );
+        });
+        Event::on(DeployService::class, DeployService::EVENT_CRON_CONFIG_UPDATE, function (DeployService\Event\CronConfigUpdateEvent $event) {
+            $this->model->sendCronConfig(new Message\ReleaseRequestCronConfig($event->getTaskId(), $event->getCronConfig()));
+        });
+        Event::on(DeployService::class, DeployService::EVENT_MIGRATION_FINISH, function (DeployService\Event\MigrationFinishEvent $event) {
+            $this->model->sendMigrations(
+                new Message\ReleaseRequestMigrations($event->getProject(), $event->getVersion(), $event->getMigrations(), $event->getType(), $event->getCommand())
+            );
+        });
+    }
+
+    /**
+     * @param ScriptExecutorException $exception
+     * @param int $taskId
      * @param string $version
      * @param string $sendStatus
      */
-    private function processCommandExecutorException(CommandExecutorException $e, $currentOperation, $version, $sendStatus)
+    private function processCommandExecutorException(ScriptExecutorException $exception, int $taskId, $version, $sendStatus)
     {
-        $text = $e->output;
-        Yii::error("Last command: " . $e->getCommand());
-        Yii::error("Failed to execute '$currentOperation'");
-        $buildLog = "Failed to execute " . $e->getCommand() . "\n";
-        $buildLog .= "Command output " . $text . "\n";
-        $this->sendStatus($sendStatus, $version, $buildLog);
-    }
+        Yii::error(new PsrMessage("Script failed to execute", [
+            'version' => $version,
+            'script' => $exception->getScript(),
+        ]));
+        $previous = $exception->getPrevious();
 
-    private function processScript($script, $scriptPrefix, array $env)
-    {
-        $commandExecutor = new CommandExecutor();
+        $buildLog = $exception->getMessage();
 
-        $scriptFilename = $scriptPrefix . uniqid() . ".sh";
-        file_put_contents($scriptFilename, str_replace("\r", "", $script));
-        chmod($scriptFilename, 0777);
-
-        $result = $commandExecutor->executeCommand("$scriptFilename 2>&1", $env);
-
-        unlink($scriptFilename);
-
-        return $result;
-    }
-
-    private function processGenCronConfis($scriptCron, string $project, string $version)
-    {
-        if (empty($scriptCron)) {
-            Yii::info("No cron generate script detected - so no cron configs");
-
-            return "";
+        if ($previous instanceof CommandExecutorException) {
+            $text = $previous->getOutput();
+            $buildLog = "Failed to execute " . $previous->getCommand() . "\n";
+            $buildLog .= "Command output " . $text . "\n";
         }
 
-        return $this->processScript(
-            $scriptCron,
-            '/tmp/cron-script-',
-            [
-                'projectName' => $project,
-                'version' => $version,
-            ]
-        );
-    }
-
-    /**
-     * @param string $projectDir
-     * @param string $scriptInstall
-     * @param string $project
-     * @param string $version
-     * @param array $servers
-     *
-     * @return string
-     *
-     * @throws CommandExecutorException
-     */
-    private function processInstall(string $projectDir, $scriptInstall, string $project, string $version, array $servers)
-    {
-        if (empty($scriptInstall)) {
-            throw new \Exception("Can't install project without installation script");
-        }
-
-        return $this->processScript(
-            $scriptInstall,
-            '/tmp/install-script-',
-            [
-                'projectName' => $project,
-                'version' => $version,
-                'projectDir' => $projectDir,
-                'servers' => implode(" ", $servers),
-            ]
-        );
-    }
-
-
-    /**
-     * @param string $projectDir
-     * @param string $scriptPostInstall
-     * @param string $project
-     * @param string $version
-     *
-     * @return string
-     *
-     * @throws CommandExecutorException
-     */
-    private function processPostInstall(string $projectDir, $scriptPostInstall, string $project, string $version)
-    {
-        Yii::info("Start to process post install script");
-
-        if (empty($scriptPostInstall)) {
-            Yii::info("Skip processing post install script. It is empty");
-
-            return '';
-        }
-
-        return $this->processScript(
-            $scriptPostInstall,
-            '/tmp/post-install-script-',
-            [
-                'projectName' => $project,
-                'version' => $version,
-                'projectDir' => $projectDir,
-            ]
-        );
-    }
-
-    private function processBuildProject(string $projectDir, $scriptBuild, string $project, string $version, $release, $taskId)
-    {
-        if (empty($scriptBuild)) {
-            throw new \Exception("No build script detected - can't build");
-        }
-
-        return $this->processScript(
-            $scriptBuild,
-            '/tmp/build-script-',
-            [
-                'projectName' => $project,
-                'version' => $version,
-                'projectDir' => $projectDir,
-                'release' => $release,
-                'taskId' => $taskId,
-            ]
-        );
-    }
-
-    private function processMigrations(string $projectDir, $scriptMigrationNew, string $project, string $version)
-    {
-        if (empty($scriptMigrationNew)) {
-            Yii::info("No migration script detected - so no migrations");
-
-            return;
-        }
-
-        Yii::info("projectDir=$projectDir");
-        // an: Проект с миграциями
-        $command = self::MIGRATION_COMMAND_NEW_ALL;
-        foreach ([self::MIGRATION_TYPE_PRE, self::MIGRATION_TYPE_POST, self::MIGRATION_TYPE_HARD] as $type) {
-            $text = $this->processScript(
-                $scriptMigrationNew,
-                '/tmp/migration-new-script-',
-                [
-                    'project' => $project,
-                    'version' => $version,
-                    'type' => $type,
-                    'command' => $command,
-                ]
-            );
-
-            Yii::trace("Output: $text");
-            $lines = explode("\n", str_replace("\r", "", $text));
-            $migrations = array_filter($lines);
-            $migrations = array_map('trim', $migrations);
-            $this->model->sendMigrations(
-                new Message\ReleaseRequestMigrations($project, $version, $migrations, $type, $command)
-            );
-        }
+        $this->sendStatus($sendStatus, $taskId, $version, $buildLog);
     }
 
     /**
      * Отправляет на сервер текущий статус сборки на конкретной машине сборщике
      *
-     * @param $status
+     * @param string $status
+     * @param int $taskId
      * @param null $version
      * @param null $attach
      */
-    private function sendStatus($status, $version = null, $attach = null)
+    private function sendStatus($status, int $taskId, $version = null, $attach = null)
     {
-        Yii::info("Task status changed: status=$status, version=$version, attach_length=" . strlen($attach));
+        Yii::info("Task status changed: id=$taskId, status=$status, version=$version, attach_length=" . strlen($attach));
         $this->model->sendTaskStatusChanged(
-            new Message\TaskStatusChanged($this->taskId, $status, $version, $attach)
+            new Message\TaskStatusChanged($taskId, $status, $version, $attach)
         );
     }
 
@@ -353,5 +177,26 @@ class DeployController extends RabbitListener
         $this->stopReceivingMessages();
 
         throw new StopBuildTask($signo);
+    }
+
+    /**
+     * @param string $workerName
+     * @param int $taskId
+     */
+    private function createPidFiles(string $workerName, int $taskId): void
+    {
+        if (!file_exists(\Yii::$app->params['pidDir'])) {
+            mkdir(\Yii::$app->params['pidDir'], 0777, true);
+        }
+
+        $basePidFilename = \Yii::$app->params['pidDir'] . "/{$workerName}_deploy_$taskId.php";
+        $pid = $this->posixGroupManager->getCurrentPid();
+        file_put_contents("$basePidFilename.pid", $pid);
+        file_put_contents("$basePidFilename.pgid", $this->posixGroupManager->getCurrentGid());
+
+        register_shutdown_function(function () use ($basePidFilename) {
+            unlink("$basePidFilename.pid");
+            unlink("$basePidFilename.pgid");
+        });
     }
 }

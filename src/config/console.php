@@ -8,6 +8,7 @@ use \Monolog\Handler\StreamHandler;
 use \Monolog\Processor\PsrLogMessageProcessor;
 use \Monolog\Processor\ProcessorInterface;
 use \Monolog\Handler\HandlerInterface;
+use \whotrades\RdsBuildAgent\lib\PosixGroupManager;
 
 $config = [
     'id' => 'service-deploy',
@@ -42,9 +43,9 @@ $config = [
     ],
     'container' => [
         'singletons' => [
-            DeployService::class => [
-                'class' => DeployService::class,
-            ],
+            DeployService::class => function () {
+                return new DeployService(Yii::$app->params['buildDir'], []);
+            },
             LoggerInterface::class => function () {
                 $loggerConfig = Yii::$app->params['logger'];
                 $processors = $loggerConfig['processors'] ?: [];
@@ -69,6 +70,9 @@ $config = [
 
                 return $logger;
             },
+            PosixGroupManager::class => [
+                'class' => PosixGroupManager::class,
+            ],
         ],
     ],
     'params' => [
