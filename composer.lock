@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b860ce778ab24422f30463183fc3346b",
+    "content-hash": "65eca5a5da1b5d34f6ef2bbb1b02bf37",
     "packages": [
         {
             "name": "bower-asset/inputmask",
@@ -593,16 +593,16 @@
         },
         {
             "name": "whotrades/rds-system",
-            "version": "dev-WTA-2468",
+            "version": "v1.0.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/WhoTrades/rds-system.git",
-                "reference": "92cbeef452584f2d0fa5b0b016b45aaf540e3248"
+                "reference": "1a368ac3d44a90a9fbcfbcc3f162b00e9bb5c759"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/WhoTrades/rds-system/zipball/92cbeef452584f2d0fa5b0b016b45aaf540e3248",
-                "reference": "92cbeef452584f2d0fa5b0b016b45aaf540e3248",
+                "url": "https://api.github.com/repos/WhoTrades/rds-system/zipball/1a368ac3d44a90a9fbcfbcc3f162b00e9bb5c759",
+                "reference": "1a368ac3d44a90a9fbcfbcc3f162b00e9bb5c759",
                 "shasum": ""
             },
             "require": {
@@ -630,7 +630,7 @@
                 }
             ],
             "description": "Core part of RDS service",
-            "time": "2020-09-01T08:59:09+00:00"
+            "time": "2020-09-23T11:31:51+00:00"
         },
         {
             "name": "yiisoft/yii2",
@@ -3530,7 +3530,6 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "whotrades/rds-system": 20,
         "phpmd/phpmd": 20
     },
     "prefer-stable": false,
