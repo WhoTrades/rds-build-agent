@@ -92,7 +92,7 @@ class DeployController extends RabbitListener
                 'signal' => $sigName,
             ]));
             $this->sendStatus(DeployStatusEvent::TYPE_FAILED, $task->id, $task->version, "Processing of task was stopped with signal $sigName");
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Yii::error(new PsrMessage("Unknown error while executing task", [
                 'task_id' => $task->id,
                 'version' => $task->version,
