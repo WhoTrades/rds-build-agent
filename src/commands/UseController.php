@@ -84,6 +84,9 @@ class UseController extends RabbitListener
         $this->waitForMessages($this->model);
     }
 
+    /**
+     * Event handlers
+     */
     private function attachEvents()
     {
         Event::on(DeployService::class, DeployService::EVENT_USE_FINISH, function (DeployService\Event\UseFinishEvent $event) {
@@ -96,6 +99,7 @@ class UseController extends RabbitListener
 
         Event::on(DeployService::class, DeployService::EVENT_POST_USE_FINISH, function (DeployService\Event\PostUseFinishEvent $event) {
             Yii::info(sprintf("Successful used %s-%s", $event->getProject(), $event->getVersion()));
+            Yii::info(sprintf("PostUsed script output: %s", $event->getPayload()));
         });
     }
 }
