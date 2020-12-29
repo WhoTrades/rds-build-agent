@@ -4,6 +4,7 @@
  */
 declare(strict_types=1);
 
+use org\bovigo\vfs\vfsStreamDirectory;
 use PHPUnit\Framework\TestCase;
 use \whotrades\RdsSystem\lib\Exception\EmptyAttributeException;
 use \whotrades\RdsSystem\lib\Exception\FilesystemException;
@@ -23,7 +24,9 @@ use yii\base\Event;
 
 class DeployServiceTest extends TestCase
 {
-    /** @var \org\bovigo\vfs\vfsStreamDirectory  */
+    const SCRIPT_EXECUTOR_OUTPUT = 'TEST';
+
+    /** @var vfsStreamDirectory  */
     private $root;
 
     public function setUp(): void
@@ -158,46 +161,28 @@ class DeployServiceTest extends TestCase
     }
 
     /**
-     * @throws CommandExecutorException
+     * @throws ScriptExecutorException
      * @throws EmptyAttributeException
      * @throws FilesystemException
      */
-    public function testUseVersionCommandExecutorFailure()
+    public function testUseVersionScriptExecutorFailure()
     {
-        $this->expectException(CommandExecutorException::class);
+        $this->expectException(ScriptExecutorException::class);
 
+        /** @var UseTask | MockObject $useTask */
         $useTask = $this->getUseTaskMockBuilder()->getMock();
         $useTask->expects($this->once())->method('accepted');
 
         /** @var \PHPUnit\Framework\MockObject\MockObject|DeployService $deployService */
         $deployService = $this->getDeployServiceMock();
 
-        $commandExecutor = $this->createMock(CommandExecutor::class);
-        $e = new CommandExecutorException("command", "message", 0, "output");
-        $commandExecutor->method('executeCommand')->will($this->throwException($e));
-        $deployService->method('getCommandExecutor')->willReturn($commandExecutor);
+        $scriptExecutor = $this->createMock(ScriptExecutor::class);
+        $e = new ScriptExecutorException("message", 0);
+        $scriptExecutor->method('execute')->will($this->throwException($e));
+        $scriptExecutor->method('__invoke')->will($this->throwException($e));
+        $deployService->method('getScriptExecutor')->willReturn($scriptExecutor);
 
         $deployService->useProjectVersion($useTask);
-    }
-
-    /**
-     * @throws CommandExecutorException
-     * @throws EmptyAttributeException
-     * @throws FilesystemException
-     */
-    public function testUseVersionWriteScriptFailure()
-    {
-        $this->expectException(FilesystemException::class);
-        $this->expectExceptionCode(FilesystemException::ERROR_WRITE_FILE);
-
-        $useTask = $this->getUseTaskMockBuilder()->getMock();
-        $useTask->expects($this->once())->method('accepted');
-
-        $deployService = $this->getDeployServiceMock();
-
-        $this->root->chmod(0000);
-
-        @$deployService->useProjectVersion($useTask); // @ - ignore stream open failure warning
     }
 
     /**
@@ -209,8 +194,9 @@ class DeployServiceTest extends TestCase
     {
         $this->expectException(EmptyAttributeException::class);
 
+        /** @var UseTask $useTask */
         $useTask = $this->getUseTaskMockBuilder()
-            ->setConstructorArgs([null, null, '', '', '', []])
+            ->setConstructorArgs([null, null, '', '', '', '', '', []])
             ->getMock();
 
         $deployService = $this->getDeployServiceMock();
@@ -224,32 +210,19 @@ class DeployServiceTest extends TestCase
      */
     public function testUseVersion()
     {
+        /** @var UseTask | MockObject $useTask */
         $useTask = $this->getUseTaskMockBuilder()->getMock();
         $useTask->expects($this->once())->method('accepted');
 
         $deployService = $this->getDeployServiceMock();
-        $deployService->method('getCommandExecutor')->willReturn($this->getCommandExecutorMock());
-        $output = $deployService->useProjectVersion($useTask);
-        $this->assertStringStartsWith($deployService->getUseScriptPath(), $output);
-    }
+        $deployService->method('getScriptExecutor')->willReturn($this->getScriptExecutorMock());
 
-    /**
-     *
-     */
-    public function testProjectFilenamePathMatchProjectDirectoryPath()
-    {
-        /** @var DeployService|\PHPUnit\Framework\MockObject\MockObject $deployService */
-        $deployService = $this->getMockBuilder(DeployService::class)
-            ->setConstructorArgs([])
-            ->onlyMethods([
-                'getTmpDirectory',
-                'getCommandExecutor',
-                'getTemporaryScriptPath',
-                'getUseScriptPath',
-            ])
-            ->getMock();
-
-        $this->assertStringContainsString($deployService->getProjectDirectoryPath('test'), $deployService->getProjectFilenamePath('test', 'config.local.php'), 'ProjectFilenamePath MUST contain ProjectDirectoryPath');
+        $output = '';
+        Event::on(DeployService::class,DeployService::EVENT_USE_FINISH, function (DeployService\Event\UseFinishEvent $event) use (&$output) {
+            $output = $event->getPayload();
+        });
+        $deployService->useProjectVersion($useTask);
+        $this->assertStringStartsWith(self::SCRIPT_EXECUTOR_OUTPUT, $output);
     }
 
     /**
@@ -309,6 +282,7 @@ class DeployServiceTest extends TestCase
     {
         $this->expectException(EmptyAttributeException::class);
 
+        /** @var BuildTask | MockObject $buildTask */
         $buildTask = $this->getBuildTaskMockBuilder()
             ->setConstructorArgs([
                 1,
@@ -376,6 +350,7 @@ class DeployServiceTest extends TestCase
     {
         $this->expectException(EmptyAttributeException::class);
 
+        /** @var InstallTask | MockObject $installTask */
         $installTask = $this->getInstallTaskMockBuilder()
             ->setConstructorArgs([
                 1,
@@ -398,12 +373,12 @@ class DeployServiceTest extends TestCase
      */
     protected function getDeployServiceMock(): DeployService
     {
-        $directory = new \org\bovigo\vfs\vfsStreamDirectory("config-local");
+        $directory = new vfsStreamDirectory("config-local");
         $this->root->addChild($directory);
 
         /** @var DeployService|\PHPUnit\Framework\MockObject\MockObject $deployService */
         $deployService = $this->getMockBuilder(DeployService::class)
-            ->setConstructorArgs([])
+            ->setConstructorArgs([$directory->url()])
             ->onlyMethods([
                 'getTmpDirectory',
                 'getCommandExecutor',
@@ -442,11 +417,12 @@ class DeployServiceTest extends TestCase
     {
         $scriptExecutor = $this->createMock(ScriptExecutor::class);
         $scriptExecutor->method('execute')->willReturn("TEST");
+        $scriptExecutor->method('__invoke')->willReturn("TEST");
         return $scriptExecutor;
     }
 
     /**
-     * @return MockBuilder
+     * @return MockBuilder | ProjectConfig
      */
     protected function getProjectConfigMockBuilder(): MockBuilder
     {
@@ -472,7 +448,9 @@ class DeployServiceTest extends TestCase
                 42,
                 '42.000.test',
                 'phpunit',
-                'TESTCOMMAND',
+                self::SCRIPT_EXECUTOR_OUTPUT,
+                self::SCRIPT_EXECUTOR_OUTPUT,
+                'CRON_CONFIG',
                 ['localhost'],
             ])
             ->setMethodsExcept(['getProjectServers']);
@@ -489,9 +467,9 @@ class DeployServiceTest extends TestCase
                 'TEST_PROJECT_NAME',
                 '42.000.test',
                 'test',
-                'SCRIPT_MIGRATION',
-                'SCRIPT_BUILD',
-                'SCRIPT_CRON',
+                self::SCRIPT_EXECUTOR_OUTPUT,
+                self::SCRIPT_EXECUTOR_OUTPUT,
+                self::SCRIPT_EXECUTOR_OUTPUT,
                 ['localhost'],
             ])
             ->setMethodsExcept(['getProjectServers']);
@@ -508,8 +486,8 @@ class DeployServiceTest extends TestCase
                 'TEST_PROJECT_NAME',
                 '42.000.test',
                 'test',
-                'SCRIPT_INSTALL',
-                'SCRIPT_POST_INSTALL',
+                self::SCRIPT_EXECUTOR_OUTPUT,
+                self::SCRIPT_EXECUTOR_OUTPUT,
                 ['localhost']
             ])
             ->setMethodsExcept(['getProjectServers']);
