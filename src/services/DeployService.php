@@ -10,6 +10,8 @@ use samdark\log\PsrMessage;
 use whotrades\RdsBuildAgent\services\DeployService\Event\DeployStatusEvent;
 use whotrades\RdsBuildAgent\services\DeployService\Event\CronConfigUpdateEvent;
 use whotrades\RdsBuildAgent\services\DeployService\Event\MigrationFinishEvent;
+use whotrades\RdsBuildAgent\services\DeployService\Event\PostUseFinishEvent;
+use whotrades\RdsBuildAgent\services\DeployService\Event\UseFinishEvent;
 use whotrades\RdsSystem\lib\CommandExecutor;
 use whotrades\RdsSystem\lib\Exception\CommandExecutorException;
 use whotrades\RdsSystem\lib\Exception\EmptyAttributeException;
@@ -20,14 +22,17 @@ use whotrades\RdsSystem\Message\BuildTask;
 use whotrades\RdsSystem\Message\InstallTask;
 use whotrades\RdsSystem\Message\ProjectConfig;
 use whotrades\RdsSystem\Message\UseTask;
+use Yii;
 use yii\base\BaseObject;
 use yii\base\Event;
 
 class DeployService extends BaseObject
 {
-    const EVENT_DEPLOY_STATUS = 'event.deploy.status';
-    const EVENT_MIGRATION_FINISH = 'event.migration.finish';
-    const EVENT_CRON_CONFIG_UPDATE = 'event.cron.config.finish';
+    const EVENT_DEPLOY_STATUS       = 'event.deploy.status';
+    const EVENT_MIGRATION_FINISH    = 'event.migration.finish';
+    const EVENT_CRON_CONFIG_UPDATE  = 'event.cron.config.finish';
+    const EVENT_USE_FINISH          = 'event.use.finish';
+    const EVENT_POST_USE_FINISH     = 'event.post_use.finish';
 
     public const MIGRATION_COMMAND_NEW_ALL = 'new all';
     public const MIGRATION_TYPE_POST = 'post';
@@ -51,28 +56,27 @@ class DeployService extends BaseObject
     /**
      * @param UseTask $task
      *
-     * @return string
+     * @return void
      *
+     * @throws CommandExecutorException
      * @throws EmptyAttributeException
      * @throws FilesystemException
-     * @throws CommandExecutorException
+     * @throws ScriptExecutorException
      */
-    public function useProjectVersion(UseTask $task): string
+    public function useProjectVersion(UseTask $task): void
     {
         $project = $task->project;
         $releaseRequestId = (int) $task->releaseRequestId;
         $version = $task->version;
 
-        $commandExecutor = $this->getCommandExecutor();
-        \Yii::info("Using $project:$version, task_id=$releaseRequestId");
+        Yii::info("Using $project:$version, task_id=$releaseRequestId");
 
         try {
             if (empty($task->scriptUse)) {
-                \Yii::error(new PsrMessage("error_use_script_empty", [
+                Yii::error(new PsrMessage("error_use_script_empty", [
                     'projectName' => $project,
                     'version' => $version,
                 ]));
-                $task->accepted();
                 throw new EmptyAttributeException();
             }
             $env = [
@@ -81,41 +85,15 @@ class DeployService extends BaseObject
                 'servers' => implode(" ", $task->projectServers),
             ];
 
-            $useScriptFilename = $this->getUseScriptPath();
-            if (false === file_put_contents($useScriptFilename, str_replace("\r", "", $task->scriptUse))) {
-                $errorMessage = "Can't save shell script";
-                \Yii::error(new PsrMessage($errorMessage, [
-                    'project' => $project,
-                    'filename' => $useScriptFilename,
-                    'content' => $task->scriptUse,
-                ]));
-                $task->accepted();
-                throw new FilesystemException($errorMessage, FilesystemException::ERROR_WRITE_FILE);
-            }
-            chmod($useScriptFilename, 0777);
+            $output = empty($task->scriptUse) ? "" : $this->getScriptExecutor($task->scriptUse, '/tmp/use-script-', $env)();
+            Event::trigger(self::class, self::EVENT_USE_FINISH, new UseFinishEvent($task->project, $task->version, $task->initiatorUserName, $output));
 
-            $command = "$useScriptFilename 2>&1";
-            $text = $commandExecutor->executeCommand($command, $env);
-
-            \Yii::info("Use command output: $text");
-            unlink($useScriptFilename);
-            \Yii::info("Used version: $version");
-
+            // Post use script
+            $env['cron'] = $task->cronConfig;
+            $postUseOutput = empty($task->scriptPostUse) ? "" : $this->getScriptExecutor($task->scriptPostUse, '/tmp/post-use-script-', $env)();
+            Event::trigger(self::class, self::EVENT_POST_USE_FINISH, new PostUseFinishEvent($task->project, $task->version, $postUseOutput));
+        } finally {
             $task->accepted();
-
-            \Yii::info("Successful used $project-$version");
-            return $text; // ???
-        } catch (CommandExecutorException $e) {
-            $output = $e->getMessage() . "\nOutput: " . $e->output;
-            \Yii::error(new PsrMessage("error_synchronization_config_local_skip_message", [
-                'command' => $e->getCommand(),
-                'output' => $e->getOutput(),
-                'projectName' => $project,
-                'version' => $version,
-            ]));
-
-            $task->accepted();
-            throw new CommandExecutorException($e->getCommand(), $output, $e->getCode(), $e->getOutput(), $e);
         }
     }
 
@@ -131,11 +109,11 @@ class DeployService extends BaseObject
     public function useProjectConfigLocal(ProjectConfig $task): string
     {
         $this->setProjectDirUniqid(); //mr: new uniqid for each run
-        \Yii::info("Task received: " . json_encode($task));
+        Yii::info("Task received: " . json_encode($task));
         $project = $task->project;
 
         if (empty($task->scriptUploadConfigLocal)) {
-            \Yii::warning("Skip task, as scriptUploadConfigLocal is empty");
+            Yii::warning("Skip task, as scriptUploadConfigLocal is empty");
             $task->accepted();
             throw new EmptyAttributeException();
         }
@@ -144,7 +122,7 @@ class DeployService extends BaseObject
         if (!is_dir($projectDir)) {
             if (!mkdir($projectDir, 0777, true)) {
                 $errMessage = "Can't create tmp dir";
-                \Yii::error(new PsrMessage($errMessage, [
+                Yii::error(new PsrMessage($errMessage, [
                     'project' => $project,
                     'projectDir' => $projectDir,
                 ]));
@@ -158,7 +136,7 @@ class DeployService extends BaseObject
             $filePath = $this->getProjectFilenamePath($task->project, $filename);
             if (false === file_put_contents($filePath, $content)) {
                 $errMessage = "Can't save project config";
-                \Yii::error(new PsrMessage($errMessage, [
+                Yii::error(new PsrMessage($errMessage, [
                     'project' => $project,
                     'filename' => $filePath,
                     'content' => $content,
@@ -171,7 +149,7 @@ class DeployService extends BaseObject
         $tmpScriptFilename = $this->getTemporaryScriptPath($task->project);
         if (false === file_put_contents($tmpScriptFilename, str_replace("\r\n", "\n", $task->scriptUploadConfigLocal))) {
             $errMessage = "Can't save tmp shell script";
-            \Yii::error(new PsrMessage($errMessage, [
+            Yii::error(new PsrMessage($errMessage, [
                 'project' => $project,
                 'filename' => $tmpScriptFilename,
                 'content' => $task->scriptUploadConfigLocal,
@@ -192,7 +170,7 @@ class DeployService extends BaseObject
 
         try {
             $output = $commandExecutor->executeCommand("$tmpScriptFilename 2>&1", $env);
-            \Yii::debug("Output: " . $output);
+            Yii::debug("Output: " . $output);
 
             foreach (glob("$projectDir/*") as $file) {
                 unlink($file);
@@ -200,11 +178,11 @@ class DeployService extends BaseObject
             rmdir($projectDir);
             unlink($tmpScriptFilename);
 
-            \Yii::info("Sync success");
+            Yii::info("Sync success");
             $task->accepted();
         } catch (CommandExecutorException $e) {
             $output = $e->getMessage() . "\nOutput: " . $e->output;
-            \Yii::error(new PsrMessage("error_synchronization_config_local_skip_message", [
+            Yii::error(new PsrMessage("error_synchronization_config_local_skip_message", [
                 'command' => $e->getCommand(),
                 'output' => $e->getOutput(),
                 'projectDir' => $projectDir,
@@ -251,8 +229,8 @@ class DeployService extends BaseObject
             ])();
 
             if (!empty($task->scriptMigrationNew)) {
-                \Yii::info("No migration script detected - so no migrations");
-                \Yii::info("projectDir=$projectBuildDir");
+                Yii::info("No migration script detected - so no migrations");
+                Yii::info("projectDir=$projectBuildDir");
                 // an: Проект с миграциями
                 $command = self::MIGRATION_COMMAND_NEW_ALL;
                 foreach ([self::MIGRATION_TYPE_PRE, self::MIGRATION_TYPE_POST, self::MIGRATION_TYPE_HARD] as $type) {
@@ -372,14 +350,6 @@ class DeployService extends BaseObject
     public function getProjectFilenamePath(string $project, $filename): string
     {
         return $this->getProjectDirectoryPath($project) . $filename;
-    }
-
-    /**
-     * @return string
-     */
-    public function getUseScriptPath(): string
-    {
-        return $this->getTmpDirectory() . "/deploy-use-" . uniqid() . ".sh";
     }
 
     /**
