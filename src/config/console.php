@@ -9,6 +9,8 @@ use \Monolog\Processor\PsrLogMessageProcessor;
 use \Monolog\Processor\ProcessorInterface;
 use \Monolog\Handler\HandlerInterface;
 use \whotrades\RdsBuildAgent\lib\PosixGroupManager;
+use whotrades\RdsSystem\Migration\LoggerInterface as MigrationLoggerInterface;
+use whotrades\RdsBuildAgent\lib\MigrationLoggerFiltersInContext;
 
 $config = [
     'id' => 'service-deploy',
@@ -70,6 +72,7 @@ $config = [
 
                 return $logger;
             },
+            MigrationLoggerInterface::class => MigrationLoggerFiltersInContext::class,
             PosixGroupManager::class => [
                 'class' => PosixGroupManager::class,
             ],
