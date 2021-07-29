@@ -72,10 +72,12 @@ $config = [
 
                 return $logger;
             },
-            MigrationLoggerInterface::class => MigrationLoggerFiltersInContext::class,
             PosixGroupManager::class => [
                 'class' => PosixGroupManager::class,
             ],
+        ],
+        'definitions' => [
+            MigrationLoggerInterface::class => MigrationLoggerFiltersInContext::class,
         ],
     ],
     'params' => [
