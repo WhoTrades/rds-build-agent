@@ -11,6 +11,7 @@ use whotrades\RdsSystem\lib\CommandExecutor;
 use whotrades\RdsSystem\lib\Exception\CommandExecutorException;
 use whotrades\RdsSystem\Message;
 use whotrades\RdsSystem\Migration\LoggerInterface as MigrationLoggerInterface;
+use Throwable;
 
 class MigrationController extends RabbitListener
 {
@@ -47,8 +48,7 @@ class MigrationController extends RabbitListener
                         $task->version,
                         $task->type,
                         $task->migrationName,
-                        Message\MigrationStatus::STATUS_SUCCESS,
-                        $result
+                        Message\MigrationStatus::STATUS_SUCCESS
                     )
                 );
             } catch (CommandExecutorException $e) {
@@ -64,7 +64,7 @@ class MigrationController extends RabbitListener
                         $e->output
                     )
                 );
-            } catch (\Exception $e) {
+            } catch (Throwable $e) {
                 $migrationLogger->error($e->getMessage());
                 $model->sendMigrationStatus(
                     new Message\MigrationStatus(
