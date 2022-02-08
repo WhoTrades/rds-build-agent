@@ -76,9 +76,9 @@ class MigrationController extends RabbitListener
                         $e->getMessage()
                     )
                 );
+            } finally {
+                unlink($migrationUpScriptFilename);
             }
-
-            unlink($migrationUpScriptFilename);
 
             $task->accepted();
         });
