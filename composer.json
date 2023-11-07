@@ -1,6 +1,12 @@
 {
     "name": "whotrades/build-agent",
     "type": "service",
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://asset-packagist.org"
+        }
+    ],
     "authors": [
         {
             "name": "Artem Naumenko",
@@ -32,12 +38,17 @@
         "yiisoft/yii2": "^2.0.39.3",
         "php-amqplib/php-amqplib": "~2.7.0",
         "samdark/yii2-psr-log-target": "~1.1.3",
-        "monolog/monolog": "^1.25"
+        "monolog/monolog": "^1.25|^2.7"
     },
     "require-dev": {
         "phpunit/phpunit": "~9.3",
         "phpunit/phpcov": "~8.1",
         "phpmd/phpmd": "dev-master",
         "mikey179/vfsstream": "~1.6.8"
+    },
+    "config": {
+        "allow-plugins": {
+            "yiisoft/yii2-composer": true
+        }
     }
 }
