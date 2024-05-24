@@ -68,6 +68,7 @@ class DeployService extends BaseObject
         $project = $task->project;
         $releaseRequestId = (int) $task->releaseRequestId;
         $version = $task->version;
+        $initiatorUserName = $task->initiatorUserName;
 
         Yii::info("Using $project:$version, task_id=$releaseRequestId");
 
@@ -83,6 +84,7 @@ class DeployService extends BaseObject
                 'projectName' => $project,
                 'version' => $version,
                 'servers' => implode(" ", $task->projectServers),
+                'initiatorUserName' => $initiatorUserName,
             ];
 
             $output = empty($task->scriptUse) ? "" : $this->getScriptExecutor($task->scriptUse, '/tmp/use-script-', $env)();
